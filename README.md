@@ -8,9 +8,12 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.3.1 (build 6)**. See [CHANGELOG.md](CHANGELOG.md)
+Current source version: **1.3.2 (build 7)**. See [CHANGELOG.md](CHANGELOG.md)
 for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
 public roadmap.
+
+The reproducible three-track audit, decisions and release gates for this cycle
+are published in [docs/AUDIT-2026-08-31.md](docs/AUDIT-2026-08-31.md).
 
 [Download the signed and notarized NeClip 1.3.1 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.1/NeClip-1.3.1.dmg).
 SHA-256: `da63b10ed6a538f5608e0dc7af898a3b5604493a76157fc8ed4dbcaf00fffdf6`.
@@ -27,13 +30,22 @@ SHA-256: `da63b10ed6a538f5608e0dc7af898a3b5604493a76157fc8ed4dbcaf00fffdf6`.
 - `Control-Return` — correct EN/RU layout and paste a text history item
 - `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo
 - `Command-1` … `Command-9` — select a visible result
+- `Command-P` — pin or unpin the first visible result
+- `Command-S` — save the first visible text result as a snippet
+- `Command-Delete` — delete the first visible result
+- `Command-Z` — restore the last individually deleted item
 - `Escape` — clear search, then close
 
 The first ten recent items are inline; items 11–40 are grouped by tens. Up to
 20 pinned items have their own submenu. The snippet hotkey shows nine quick
 items first and then the full folder hierarchy. The history menu also contains
-pause, ignore-next-copy, clear, preferences, snippet
+an explicit **Actions for First Result** submenu, pause, ignore-next-copy,
+clear, preferences, snippet
 editing, the manual update check, and quit.
+
+If macOS or another application already owns one of NeClip's three global
+shortcuts, the menu explains which combination is unavailable and keeps the
+equivalent command accessible from the menu bar.
 
 ## Keyboard layout correction
 
@@ -114,7 +126,8 @@ downloads only from this repository's GitHub Releases.
 Website and integration consumers should start with
 [`docs/project.json`](https://affpapa.github.io/neclip/project.json). It links to
 the canonical version manifest, changelog, backlog, security policy, source and
-release feed. See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the publication
+release feed plus the current engineering audit. See
+[`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the publication
 contract. Files under `landing/` are no longer part of NeClip.
 
 ## License

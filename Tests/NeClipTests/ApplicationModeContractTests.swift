@@ -28,6 +28,17 @@ final class ApplicationModeContractTests: XCTestCase {
         )
         XCTAssertTrue(statusBar.contains("NSStatusBar.system.statusItem"))
         XCTAssertTrue(statusBar.contains("statusItem.isVisible = true"))
+        XCTAssertTrue(statusBar.contains("Действия с первым результатом"))
+        XCTAssertTrue(statusBar.contains("#selector(toggleFirstResultPin)"))
+        XCTAssertTrue(statusBar.contains("#selector(saveFirstResultAsSnippet)"))
+        XCTAssertTrue(statusBar.contains("#selector(deleteFirstResult)"))
+        XCTAssertTrue(statusBar.contains("#selector(undoLastDeletion)"))
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: repositoryRoot
+                    .appendingPathComponent("Sources/NeClip/ClipboardPanelController.swift").path
+            )
+        )
     }
 
     func testPackageUsesSwift6AndNoHotKeyDependency() throws {

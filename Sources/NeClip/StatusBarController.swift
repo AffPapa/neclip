@@ -15,6 +15,11 @@ final class StatusBarController: NSObject {
         case snippet(Snippet)
     }
 
+    private enum UndoDeletion: Sendable {
+        case clip(RemovedClip)
+        case snippet(RemovedSnippet)
+    }
+
     private struct MenuSnapshot {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
@@ -36,6 +41,8 @@ final class StatusBarController: NSObject {
     private var searchGeneration = 0
     private var searchWorkItem: DispatchWorkItem?
     private var visibleKeyboardEntries: [SearchEntry] = []
+    private var undoDeletion: UndoDeletion?
+    private var hotKeyWarnings: [String] = []
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -90,13 +97,12 @@ final class StatusBarController: NSObject {
         show(.snippets, anchoredToStatusItem: false)
     }
 
-    func refreshIfVisible() {
-        refreshSnapshot()
+    func refreshAuthorizationState() {
         refreshIcon()
     }
 
-    func refreshAuthorizationState() {
-        refreshIcon()
+    func setHotKeyWarnings(_ warnings: [String]) {
+        hotKeyWarnings = warnings
     }
 
     func showLayoutFeedback(_ message: String) {
@@ -105,9 +111,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func storageDidChange() {
-        DispatchQueue.main.async { [weak self] in
-            self?.refreshSnapshot()
-        }
+        refreshSnapshot()
     }
 
     @objc private func statusItemPressed(_ sender: NSStatusBarButton) {
@@ -220,6 +224,7 @@ final class StatusBarController: NSObject {
             menu.addItem(warning)
             menu.addItem(.separator())
         }
+        appendHotKeyWarnings(to: menu)
 
         switch ClipboardAccess.current {
         case .denied:
@@ -294,6 +299,9 @@ final class StatusBarController: NSObject {
                 menu.addItem(rangeItem)
             }
         }
+        if !firstPage.isEmpty || undoDeletion != nil {
+            menu.addItem(firstResultActionsItem())
+        }
         menu.addItem(.separator())
 
         let snippetsItem = item("Сниппеты", nil, symbol: "scissors")
@@ -324,18 +332,24 @@ final class StatusBarController: NSObject {
 
     private func appendSnippetContents(to menu: NSMenu, showHeader: Bool) {
         if showHeader {
+            appendHotKeyWarnings(to: menu)
             let quickSnippets = Array(snapshot.snippets.prefix(9))
             visibleKeyboardEntries = quickSnippets.map(SearchEntry.snippet)
             menu.addItem(.sectionHeader(title: "Быстрые"))
             if quickSnippets.isEmpty {
                 menu.addItem(NSMenuItem(title: "Сниппетов пока нет", action: nil, keyEquivalent: ""))
                 menu.addItem(.separator())
+                if undoDeletion != nil {
+                    menu.addItem(firstResultActionsItem())
+                    menu.addItem(.separator())
+                }
                 menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
                 return
             }
             for (index, snippet) in quickSnippets.enumerated() {
                 menu.addItem(snippetMenuItem(snippet, resultIndex: index, quickKey: quickKey(for: index)))
             }
+            menu.addItem(firstResultActionsItem())
             menu.addItem(.separator())
             menu.addItem(.sectionHeader(title: "Папки"))
         }
@@ -389,6 +403,18 @@ final class StatusBarController: NSObject {
         }
         searchField.onNavigateToMenu = { [weak searchField] in
             searchField?.window?.makeFirstResponder(nil)
+        }
+        searchField.onTogglePinFirst = { [weak self] in
+            self?.toggleFirstResultPin()
+        }
+        searchField.onSaveFirstAsSnippet = { [weak self] in
+            self?.saveFirstResultAsSnippet()
+        }
+        searchField.onDeleteFirst = { [weak self] in
+            self?.deleteFirstResult()
+        }
+        searchField.onUndo = { [weak self] in
+            self?.undoLastDeletion()
         }
         container.addSubview(searchField)
         let menuItem = NSMenuItem()
@@ -486,6 +512,9 @@ final class StatusBarController: NSObject {
             }
         }
 
+        if !results.isEmpty || undoDeletion != nil {
+            menu.addItem(firstResultActionsItem())
+        }
         menu.addItem(.separator())
         if kind == .history {
             menu.addItem(layoutMenuItem())
@@ -530,6 +559,187 @@ final class StatusBarController: NSObject {
                 let sender = NSMenuItem()
                 sender.representedObject = NSNumber(value: id)
                 self.pasteSnippet(sender, forcedModifiers: modifiers)
+            }
+        }
+    }
+
+    private func appendHotKeyWarnings(to menu: NSMenu) {
+        guard !hotKeyWarnings.isEmpty else { return }
+        let root = item("Некоторые быстрые клавиши заняты", nil, symbol: "exclamationmark.triangle")
+        let submenu = NSMenu(title: "Недоступные быстрые клавиши")
+        for warning in hotKeyWarnings {
+            submenu.addItem(NSMenuItem(title: warning, action: nil, keyEquivalent: ""))
+        }
+        root.submenu = submenu
+        menu.addItem(root)
+        menu.addItem(.separator())
+    }
+
+    private func firstResultActionsItem() -> NSMenuItem {
+        let hasEntry = visibleKeyboardEntries.first != nil
+        let rootTitle = hasEntry
+            ? "Действия с первым результатом"
+            : (undoDeletion == nil ? "Действия с первым результатом" : "Вернуть удалённое")
+        let root = item(rootTitle, nil, symbol: hasEntry ? "ellipsis.circle" : "arrow.uturn.backward")
+        root.toolTip = hasEntry
+            ? "Команды применяются к первому видимому элементу списка"
+            : "Восстановить последний удалённый элемент"
+        let submenu = NSMenu(title: rootTitle)
+        if let entry = visibleKeyboardEntries.first {
+            let isPinned: Bool
+            switch entry {
+            case .clip(let clip):
+                isPinned = clip.isPinned
+            case .snippet(let snippet):
+                isPinned = snippet.isPinned
+            }
+            submenu.addItem(item(
+                isPinned ? "Открепить" : "Закрепить",
+                #selector(toggleFirstResultPin),
+                symbol: isPinned ? "pin.slash" : "pin",
+                keyEquivalent: "p",
+                modifiers: [.command]
+            ))
+
+            if case .clip(let clip) = entry, clip.kind == .text, !(clip.text ?? "").isEmpty {
+                submenu.addItem(item(
+                    "Сохранить как сниппет",
+                    #selector(saveFirstResultAsSnippet),
+                    symbol: "scissors",
+                    keyEquivalent: "s",
+                    modifiers: [.command]
+                ))
+            }
+            submenu.addItem(item(
+                "Удалить",
+                #selector(deleteFirstResult),
+                symbol: "trash",
+                keyEquivalent: "\u{8}",
+                modifiers: [.command]
+            ))
+        } else if undoDeletion == nil {
+            root.isEnabled = false
+            return root
+        }
+        if undoDeletion != nil {
+            if hasEntry { submenu.addItem(.separator()) }
+            submenu.addItem(item(
+                "Вернуть удалённое",
+                #selector(undoLastDeletion),
+                symbol: "arrow.uturn.backward",
+                keyEquivalent: "z",
+                modifiers: [.command]
+            ))
+        }
+        root.submenu = submenu
+        return root
+    }
+
+    @objc private func toggleFirstResultPin() {
+        guard let entry = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                let pinned: Bool
+                switch entry {
+                case .clip(let clip):
+                    pinned = !clip.isPinned
+                    try Storage.shared.setPinned(id: clip.id, pinned: pinned)
+                case .snippet(let snippet):
+                    guard let id = snippet.id else { return }
+                    pinned = !snippet.isPinned
+                    try Storage.shared.setSnippetPinned(id: id, pinned: pinned)
+                }
+                DispatchQueue.main.async {
+                    self?.showFeedback(pinned ? "Закреплено" : "Откреплено")
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось изменить закрепление") }
+            }
+        }
+    }
+
+    @objc private func saveFirstResultAsSnippet() {
+        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let clip = try Storage.shared.fetchClip(id: summary.id) else {
+                    DispatchQueue.main.async { self?.showFeedback("Элемент уже удалён") }
+                    return
+                }
+                guard let content = clip.text, !content.isEmpty else {
+                    DispatchQueue.main.async { self?.showFeedback("Сниппет можно создать только из текста") }
+                    return
+                }
+                let folders = try Storage.shared.snippetFolders()
+                let folderID: Int64?
+                if let existing = folders.first?.id {
+                    folderID = existing
+                } else {
+                    let isRussian = Locale.preferredLanguages.first?.lowercased().hasPrefix("ru") == true
+                    folderID = try Storage.shared.addFolder(
+                        title: isRussian ? "Быстрые ответы" : "Quick replies"
+                    )?.id
+                }
+                _ = try Storage.shared.addSnippet(
+                    folderID: folderID,
+                    title: String(summary.title.prefix(60)),
+                    content: content
+                )
+                DispatchQueue.main.async { self?.showFeedback("Сохранено в сниппеты") }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось создать сниппет") }
+            }
+        }
+    }
+
+    @objc private func deleteFirstResult() {
+        guard let entry = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                let removed: UndoDeletion?
+                switch entry {
+                case .clip(let clip):
+                    removed = try Storage.shared.removeClip(id: clip.id).map(UndoDeletion.clip)
+                case .snippet(let snippet):
+                    guard let id = snippet.id else { return }
+                    removed = try Storage.shared.removeSnippet(id: id).map(UndoDeletion.snippet)
+                }
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    guard let removed else {
+                        self.showFeedback("Элемент уже удалён")
+                        return
+                    }
+                    self.undoDeletion = removed
+                    self.showFeedback("Удалено — ⌘Z вернуть")
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось удалить") }
+            }
+        }
+    }
+
+    @objc private func undoLastDeletion() {
+        guard let removed = undoDeletion else { return }
+        undoDeletion = nil
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                switch removed {
+                case .clip(let clip):
+                    try Storage.shared.restoreClip(clip)
+                case .snippet(let snippet):
+                    try Storage.shared.restoreSnippet(snippet)
+                }
+                DispatchQueue.main.async { self?.showFeedback("Восстановлено") }
+            } catch {
+                DispatchQueue.main.async {
+                    self?.undoDeletion = removed
+                    self?.showFeedback("Не удалось восстановить")
+                }
             }
         }
     }
@@ -897,7 +1107,6 @@ final class StatusBarController: NSObject {
                 try Storage.shared.vacuum()
                 DispatchQueue.main.async {
                     self?.showFeedback("история очищена")
-                    self?.refreshSnapshot()
                 }
             } catch {
                 DispatchQueue.main.async { self?.showFeedback("не удалось очистить историю") }
@@ -939,6 +1148,10 @@ private final class MenuSearchField: NSSearchField {
     var onSubmit: ((NSEvent.ModifierFlags) -> Void)?
     var onQuickSelect: ((Int, NSEvent.ModifierFlags) -> Void)?
     var onNavigateToMenu: (() -> Void)?
+    var onTogglePinFirst: (() -> Void)?
+    var onSaveFirstAsSnippet: (() -> Void)?
+    var onDeleteFirst: (() -> Void)?
+    var onUndo: (() -> Void)?
 
     override func cancelOperation(_ sender: Any?) {
         onEscape?()
@@ -950,6 +1163,24 @@ private final class MenuSearchField: NSSearchField {
         if modifiers.contains(.command), let number = Int(character), (1...9).contains(number) {
             onQuickSelect?(number - 1, modifiers)
             return
+        }
+        if modifiers == .command, !event.isARepeat {
+            switch character.lowercased() {
+            case "p":
+                onTogglePinFirst?()
+                return
+            case "s":
+                onSaveFirstAsSnippet?()
+                return
+            case "z":
+                onUndo?()
+                return
+            default:
+                if event.keyCode == 51 {
+                    onDeleteFirst?()
+                    return
+                }
+            }
         }
         if event.keyCode == 36 || event.keyCode == 76 {
             onSubmit?(modifiers)

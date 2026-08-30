@@ -205,6 +205,40 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(try storage.allSnippets().first?.id, pinnedID)
     }
 
+    func testSnippetDeleteUndoRestoresExactMetadataAndSurvivesMissingFolder() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let folder = try XCTUnwrap(storage.addFolder(title: "Reusable"))
+        let folderID = try XCTUnwrap(folder.id)
+        let snippet = try XCTUnwrap(storage.addSnippet(
+            folderID: folderID,
+            title: "Exact undo",
+            content: "Preserve everything {date}",
+            keyword: "undo"
+        ))
+        let id = try XCTUnwrap(snippet.id)
+        try storage.setSnippetPinned(id: id, pinned: true)
+        try storage.markSnippetUsed(id: id)
+        let original = try XCTUnwrap(storage.allSnippets(search: "undo").first)
+
+        let removed = try XCTUnwrap(storage.removeSnippet(id: id))
+        XCTAssertTrue(try storage.allSnippets(search: "undo").isEmpty)
+        try storage.restoreSnippet(removed)
+        XCTAssertEqual(try storage.allSnippets(search: "undo").first, original)
+
+        let removedAgain = try XCTUnwrap(storage.removeSnippet(id: id))
+        storage.deleteFolder(id: folderID)
+        try storage.restoreSnippet(removedAgain)
+        let restoredWithoutFolder = try XCTUnwrap(storage.allSnippets(search: "undo").first)
+        XCTAssertNil(restoredWithoutFolder.folderID)
+        XCTAssertEqual(restoredWithoutFolder.id, original.id)
+        XCTAssertEqual(restoredWithoutFolder.keyword, original.keyword)
+        XCTAssertEqual(restoredWithoutFolder.isPinned, original.isPinned)
+        XCTAssertEqual(restoredWithoutFolder.useCount, original.useCount)
+        XCTAssertEqual(restoredWithoutFolder.lastUsedAt, original.lastUsedAt)
+        XCTAssertEqual(restoredWithoutFolder.createdAt, original.createdAt)
+        XCTAssertEqual(restoredWithoutFolder.updatedAt, original.updatedAt)
+    }
+
     func testV2DatabaseMigratesWithoutLosingClipOrSnippet() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("neclip-v2-\(UUID().uuidString)", isDirectory: true)

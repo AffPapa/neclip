@@ -2,13 +2,13 @@ import CryptoKit
 import Foundation
 import GRDB
 
-enum ClipKind: String, Codable, DatabaseValueConvertible {
+enum ClipKind: String, Codable, DatabaseValueConvertible, Sendable {
     case text
     case image
     case file
 }
 
-struct ClipItem: Codable, FetchableRecord, MutablePersistableRecord, Identifiable {
+struct ClipItem: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, Sendable {
     static let databaseTableName = "clip"
 
     var id: Int64?
@@ -31,9 +31,9 @@ struct ClipItem: Codable, FetchableRecord, MutablePersistableRecord, Identifiabl
     }
 }
 
-/// The only representation used by the panel. It intentionally cannot carry
+/// The only representation used by the menu. It intentionally cannot carry
 /// original image/RTF BLOBs.
-struct ClipSummary: Identifiable, Hashable {
+struct ClipSummary: Identifiable, Hashable, Sendable {
     let id: Int64
     let kind: ClipKind
     let title: String
@@ -44,8 +44,12 @@ struct ClipSummary: Identifiable, Hashable {
     let isPinned: Bool
 }
 
-struct RemovedClip {
+struct RemovedClip: Sendable {
     let item: ClipItem
+}
+
+struct RemovedSnippet: Sendable {
+    let item: Snippet
 }
 
 enum StorageCapacityError: LocalizedError, Equatable {
@@ -56,7 +60,7 @@ enum StorageCapacityError: LocalizedError, Equatable {
     }
 }
 
-struct SnippetFolder: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, Hashable {
+struct SnippetFolder: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, Hashable, Sendable {
     static let databaseTableName = "snippetFolder"
 
     var id: Int64?
@@ -68,7 +72,7 @@ struct SnippetFolder: Codable, FetchableRecord, MutablePersistableRecord, Identi
     }
 }
 
-struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, Hashable {
+struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, Hashable, Sendable {
     static let databaseTableName = "snippet"
 
     var id: Int64?
@@ -663,9 +667,30 @@ final class Storage: @unchecked Sendable {
         notifyChange()
     }
 
-    func deleteSnippet(id: Int64) throws {
-        _ = try dbQueue.write { db in try Snippet.deleteOne(db, key: id) }
+    func removeSnippet(id: Int64) throws -> RemovedSnippet? {
+        let removed = try dbQueue.write { db -> RemovedSnippet? in
+            guard let item = try Snippet.fetchOne(db, key: id) else { return nil }
+            try Snippet.deleteOne(db, key: id)
+            return RemovedSnippet(item: item)
+        }
+        if removed != nil { notifyChange() }
+        return removed
+    }
+
+    func restoreSnippet(_ removed: RemovedSnippet) throws {
+        var item = removed.item
+        try dbQueue.write { db in
+            if let folderID = item.folderID,
+               try SnippetFolder.fetchOne(db, key: folderID) == nil {
+                item.folderID = nil
+            }
+            try item.insert(db)
+        }
         notifyChange()
+    }
+
+    func deleteSnippet(id: Int64) throws {
+        _ = try removeSnippet(id: id)
     }
 
     func installStarterSnippetsIfNeeded(force: Bool = false) throws {

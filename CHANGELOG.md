@@ -4,6 +4,24 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.3.2 — 31 August 2026
+
+- Restored individual item management inside the compact native menu without
+  bringing back a large main window: pin/unpin, save text as a snippet, delete
+  and undo now act on the first visible result.
+- Added `Command-P`, `Command-S`, `Command-Delete` and `Command-Z` search-first
+  keyboard actions with an explicit, discoverable submenu.
+- Made snippet deletion exactly reversible, preserving its identifier, keyword,
+  pin, usage counters and timestamps; undo safely moves it out of a folder that
+  was deleted in the meantime.
+- Added visible recovery guidance when a fixed global shortcut is already owned
+  by macOS or another application.
+- Removed the unreachable 846-line legacy clipboard window and the duplicate
+  menu refresh after every accepted copy.
+- Added weekly SwiftPM and GitHub Actions Dependabot checks. Enabled immutable
+  releases, vulnerability alerts, security updates, action SHA enforcement,
+  CodeQL default setup and deletion/force-push protection for `main`.
+
 ## 1.3.1 — 30 August 2026
 
 - Moved the manual update manifest from AffPapa hosting to the repository-owned

@@ -17,9 +17,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? Storage.shared.installStarterSnippetsIfNeeded(force: false)
         }
 
-        monitor.onNewClip = { [weak self] in
-            self?.statusBar.refreshIfVisible()
-        }
         // Native global shortcuts keep the app dependency-light. Handlers are
         // delivered by the application event target on the main run loop.
         mainHotKey = GlobalHotKey(
@@ -47,6 +44,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] in
             MainActor.assumeIsolated { self?.correctLayoutOrUndo() }
         }
+
+        var hotKeyWarnings: [String] = []
+        if mainHotKey == nil {
+            hotKeyWarnings.append("⌘⇧V занята — история доступна через значок NeClip")
+        }
+        if snippetsHotKey == nil {
+            hotKeyWarnings.append("⌘⇧B занята — сниппеты доступны в меню NeClip")
+        }
+        if layoutHotKey == nil {
+            hotKeyWarnings.append("⌥⇧L занята — исправление доступно в разделе «Раскладка»")
+        }
+        statusBar.setHotKeyWarnings(hotKeyWarnings)
 
         automaticLayoutCorrection.onFeedback = { [weak self] message in
             self?.statusBar.showLayoutFeedback(message)
@@ -115,7 +124,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func layoutSettingsChanged() {
         automaticLayoutCorrection.applySetting()
-        statusBar.refreshIfVisible()
     }
 
     @objc private func manualLayoutCorrectionRequested() {

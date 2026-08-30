@@ -23,10 +23,20 @@ not planned.
 - Machine-readable GitHub source-of-truth index for website integrations
 - Removal of the obsolete AffPapa landing implementation from this repository
 
+## Done in 1.3.2
+
+- Pin/unpin, save-as-snippet, individual delete and exact undo in the native
+  menu, with search-first keyboard commands
+- Visible explanation when a global shortcut is already occupied
+- Single storage-driven menu refresh path and removal of the unused large window
+- Weekly dependency updates plus immutable releases, CodeQL, vulnerability
+  alerts, action SHA enforcement and protected `main`
+
 ## Next
 
 - Verify first-run pasteboard wording across currently supported macOS releases
-- Add an opt-in shortcut recorder if three fixed shortcuts become a real conflict
+- Add an opt-in shortcut recorder only if visible conflict guidance proves
+  insufficient
 - Expand local layout pairs only when system-layout tests can keep false fixes low
 - Add reusable snippet-folder ordering without making the editor heavier
 

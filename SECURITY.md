@@ -9,3 +9,7 @@ only when the user explicitly chooses “Check for Updates”.
 
 Release binaries are accepted only after Developer ID signing, Apple
 notarization, stapling, Gatekeeper assessment and published SHA-256 verification.
+Published releases and their assets are immutable. GitHub also checks Swift and
+workflow source with CodeQL, requires full-SHA action references, monitors the
+exact SwiftPM dependency for vulnerabilities and blocks force-pushes or deletion
+of `main`.

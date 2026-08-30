@@ -4,7 +4,6 @@ import ImageIO
 import UniformTypeIdentifiers
 
 extension Notification.Name {
-    static let neClipDidCapture = Notification.Name("org.affpapa.neclip.didCapture")
     static let neClipCaptureDidSkip = Notification.Name("org.affpapa.neclip.captureDidSkip")
     static let neClipCaptureDidFail = Notification.Name("org.affpapa.neclip.captureDidFail")
 }
@@ -100,9 +99,6 @@ final class ClipboardMonitor: @unchecked Sendable {
     private var lastActivatedBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
     private var excludedTransitionUntil: Date?
     private var excludedChangeGuard = ClipboardExcludedChangeGuard()
-
-    /// Always invoked on the main thread.
-    var onNewClip: (() -> Void)?
 
     func start() {
         precondition(Thread.isMainThread)
@@ -336,7 +332,6 @@ final class ClipboardMonitor: @unchecked Sendable {
 
         do {
             let clipID = try Storage.shared.insert(item)
-            captureSucceeded()
             if let clipID {
                 OCRService.recognize(imageData: png, clipID: clipID)
             }
@@ -348,16 +343,8 @@ final class ClipboardMonitor: @unchecked Sendable {
     private func insert(_ item: ClipItem) {
         do {
             _ = try Storage.shared.insert(item)
-            captureSucceeded()
         } catch {
             captureFailed(error)
-        }
-    }
-
-    private func captureSucceeded() {
-        DispatchQueue.main.async { [weak self] in
-            NotificationCenter.default.post(name: .neClipDidCapture, object: self)
-            self?.onNewClip?()
         }
     }
 
