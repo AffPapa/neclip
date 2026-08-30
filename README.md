@@ -12,6 +12,9 @@ Current source version: **1.3.0 (build 5)**. See [CHANGELOG.md](CHANGELOG.md)
 for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
 public roadmap.
 
+[Download the signed and notarized NeClip 1.3.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.0/NeClip-1.3.0.dmg).
+SHA-256: `46660a1058332bc28b30e2f22cd656ccc8f3700a246cb43160b5d22d4d022a6e`.
+
 ## Keyboard workflow
 
 - `Command-Shift-V` — open the native history menu at the pointer

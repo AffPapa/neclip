@@ -4,7 +4,7 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 1.3.0 — release candidate
+## 1.3.0 — 30 August 2026
 
 - Rebuilt the primary interface as a compact native menu inspired by ClipMenu
   and Clipy: history inline, older items grouped by tens, snippets in folders.
@@ -34,6 +34,8 @@ DMG checksum verification have passed.
 
 ## Verification status
 
-- Source tests and strict Swift 6 build: passing locally for 1.3.0.
-- Public 1.3.0 binary: pending notarization credentials and GitHub publication.
-- Public download remains 1.1.1 until the complete release gate passes.
+- Source tests, Thread Sanitizer and strict Swift 6 release build: passed for 1.3.0.
+- The app and DMG are signed with Developer ID, notarized by Apple, stapled and
+  accepted by Gatekeeper outside and inside the mounted image.
+- Public download: [NeClip 1.3.0](https://github.com/AffPapa/neclip/releases/download/v1.3.0/NeClip-1.3.0.dmg).
+- SHA-256: `46660a1058332bc28b30e2f22cd656ccc8f3700a246cb43160b5d22d4d022a6e`.
