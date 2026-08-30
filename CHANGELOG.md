@@ -4,6 +4,18 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.3.1 — release candidate
+
+- Moved the manual update manifest from AffPapa hosting to the repository-owned
+  GitHub Pages endpoint.
+- Restricted update metadata to the exact GitHub Pages manifest path and exact
+  `AffPapa/neclip` GitHub Release download path.
+- Added fail-closed validation for semantic version, build number, SHA-256,
+  response size, MIME type, URL credentials, ports, query and fragment.
+- Added a machine-readable GitHub source-of-truth index for website and release
+  integrations.
+- Removed the obsolete AffPapa landing implementation from the NeClip repository.
+
 ## 1.3.0 — 30 August 2026
 
 - Rebuilt the primary interface as a compact native menu inspired by ClipMenu

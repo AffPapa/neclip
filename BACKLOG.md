@@ -16,10 +16,15 @@ not planned.
 - Hardened signed/notarized DMG pipeline
 - Standalone GitHub Pages project landing
 
+## Done in 1.3.1 source
+
+- Repository-owned GitHub Pages update manifest with strict GitHub Release URL
+  validation
+- Machine-readable GitHub source-of-truth index for website integrations
+- Removal of the obsolete AffPapa landing implementation from this repository
+
 ## Next
 
-- Move the update manifest to a repository-controlled URL while preserving the
-  legacy AffPapa endpoint for existing installations
 - Verify first-run pasteboard wording across currently supported macOS releases
 - Add an opt-in shortcut recorder if three fixed shortcuts become a real conflict
 - Expand local layout pairs only when system-layout tests can keep false fixes low

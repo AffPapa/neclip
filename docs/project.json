@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "name": "NeClip",
+    "summary": "Local clipboard history, snippets and safe EN/RU layout correction for macOS",
+    "license": "MIT",
+    "accountRequired": false,
+    "cloudSync": false,
+    "telemetry": false,
+    "distribution": "GitHub Releases"
+  },
+  "platform": {
+    "minimumMacOS": "14.0",
+    "architectures": ["arm64"],
+    "interface": "menu-bar-only",
+    "dockIcon": false
+  },
+  "canonical": {
+    "repository": "https://github.com/AffPapa/neclip",
+    "website": "https://affpapa.github.io/neclip/",
+    "latestVersion": "https://affpapa.github.io/neclip/version.json",
+    "changelogFeed": "https://affpapa.github.io/neclip/changelog.json",
+    "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
+    "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
+    "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
+    "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
+    "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
+  },
+  "features": [
+    "clipboard history for text, images and files",
+    "local search, pins and OCR",
+    "snippet folders, starter snippets and local placeholders",
+    "manual EN/RU layout correction",
+    "optional conservative automatic EN/RU correction",
+    "bounded local storage and privacy exclusions"
+  ],
+  "shortcuts": [
+    {"action": "open-history", "keys": "Command-Shift-V"},
+    {"action": "open-snippets", "keys": "Command-Shift-B"},
+    {"action": "correct-layout", "keys": "Option-Shift-L"},
+    {"action": "paste-plain-text", "keys": "Shift-Return"},
+    {"action": "copy-without-pasting", "keys": "Command-Return"}
+  ],
+  "permissions": {
+    "pasteboard": "Explained before monitoring; denied access fails closed on macOS 15.4+",
+    "accessibility": "Optional; used for one-click paste and manual selected-text replacement",
+    "inputMonitoring": "Requested only when automatic layout correction is explicitly enabled"
+  },
+  "notPlanned": [
+    "accounts",
+    "cloud synchronization",
+    "telemetry or advertising",
+    "AI processing of clipboard contents",
+    "a permanent Dock icon"
+  ]
+}

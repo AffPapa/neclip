@@ -1,67 +1,130 @@
 import AppKit
 
-/// Manual update check against the NeClip landing page.
+struct UpdateManifest: Decodable, Equatable, Sendable {
+    let version: String
+    let build: Int
+    let release: String
+    let sha256: String
+}
+
+enum UpdateManifestPolicy {
+    static let manifestURL = URL(string: "https://affpapa.github.io/neclip/version.json")!
+    static let maximumResponseBytes = 64 * 1024
+
+    private static let manifestHost = "affpapa.github.io"
+    private static let manifestPath = "/neclip/version.json"
+    private static let releaseHost = "github.com"
+    private static let releaseRepositoryPath = "/AffPapa/neclip/releases/download"
+
+    static func acceptsManifestResponse(_ response: HTTPURLResponse) -> Bool {
+        guard response.statusCode == 200,
+              let url = response.url,
+              url.scheme?.lowercased() == "https",
+              url.host?.lowercased() == manifestHost,
+              url.path == manifestPath,
+              url.user == nil,
+              url.password == nil,
+              url.port == nil,
+              url.query == nil,
+              url.fragment == nil else { return false }
+
+        return response.mimeType == "application/json"
+            || response.mimeType == "text/json"
+    }
+
+    static func validatedManifest(from data: Data) -> (manifest: UpdateManifest, downloadURL: URL)? {
+        guard !data.isEmpty,
+              data.count <= maximumResponseBytes,
+              let manifest = try? JSONDecoder().decode(UpdateManifest.self, from: data),
+              isValidVersion(manifest.version),
+              manifest.build > 0,
+              isValidSHA256(manifest.sha256),
+              let downloadURL = safeDownloadURL(manifest.release, version: manifest.version)
+        else { return nil }
+
+        return (manifest, downloadURL)
+    }
+
+    static func safeDownloadURL(_ value: String, version: String) -> URL? {
+        guard isValidVersion(version),
+              let components = URLComponents(string: value),
+              components.scheme?.lowercased() == "https",
+              components.host?.lowercased() == releaseHost,
+              components.user == nil,
+              components.password == nil,
+              components.port == nil,
+              components.query == nil,
+              components.fragment == nil,
+              components.path == "\(releaseRepositoryPath)/v\(version)/NeClip-\(version).dmg"
+        else { return nil }
+
+        return components.url
+    }
+
+    static func isValidVersion(_ value: String) -> Bool {
+        let components = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard components.count == 3 else { return false }
+        return components.allSatisfy { component in
+            !component.isEmpty && component.allSatisfy(\.isNumber) && Int(component) != nil
+        }
+    }
+
+    static func isValidSHA256(_ value: String) -> Bool {
+        value.count == 64 && value.unicodeScalars.allSatisfy { scalar in
+            (48...57).contains(scalar.value) || (65...70).contains(scalar.value) || (97...102).contains(scalar.value)
+        }
+    }
+}
+
+/// Manual update check against the repository-owned GitHub Pages manifest.
 /// No automatic network requests — runs only when the user picks
 /// "Проверить обновления…" from the menu.
 @MainActor
 enum UpdateChecker {
-    private static let versionURL = URL(string: "https://affpapa.org/downloads/neclip-version.json")!
-    private static let allowedHost = "affpapa.org"
-    private static let maximumResponseBytes = 64 * 1024
-
-    struct RemoteVersion: Decodable {
-        let version: String
-        let url: String
-    }
-
     static var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
     }
 
     static func check() {
-        var request = URLRequest(url: versionURL)
+        var request = URLRequest(url: UpdateManifestPolicy.manifestURL)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 10
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 guard error == nil,
                       let http = response as? HTTPURLResponse,
-                      http.statusCode == 200,
-                      http.url?.scheme == "https",
-                      http.url?.host == allowedHost,
+                      UpdateManifestPolicy.acceptsManifestResponse(http),
                       let data,
-                      data.count <= maximumResponseBytes,
-                      let remote = try? JSONDecoder().decode(RemoteVersion.self, from: data),
-                      let downloadURL = safeDownloadURL(remote.url) else {
-                    showAlert(title: "Не удалось проверить обновления",
-                              text: "Проверьте подключение к интернету и попробуйте ещё раз.")
+                      let validated = UpdateManifestPolicy.validatedManifest(from: data)
+                else {
+                    showAlert(
+                        title: "Не удалось проверить обновления",
+                        text: "Проверьте подключение к интернету и попробуйте ещё раз."
+                    )
                     return
                 }
+
+                let remote = validated.manifest
                 if remote.version.compare(currentVersion, options: .numeric) == .orderedDescending {
                     let alert = NSAlert()
                     alert.messageText = "Доступна версия \(remote.version)"
-                    alert.informativeText = "У вас установлена \(currentVersion). Скачать обновление?"
+                    alert.informativeText = "У вас установлена \(currentVersion). Скачать обновление с GitHub?"
                     alert.addButton(withTitle: "Скачать")
                     alert.addButton(withTitle: "Позже")
                     NSApp.activate(ignoringOtherApps: true)
                     if alert.runModal() == .alertFirstButtonReturn {
-                        NSWorkspace.shared.open(downloadURL)
+                        NSWorkspace.shared.open(validated.downloadURL)
                     }
                 } else {
-                    showAlert(title: "У вас последняя версия",
-                              text: "NeClip \(currentVersion) — новее ничего нет.")
+                    showAlert(
+                        title: "У вас последняя версия",
+                        text: "NeClip \(currentVersion) — новее ничего нет."
+                    )
                 }
             }
         }.resume()
-    }
-
-    private static func safeDownloadURL(_ value: String) -> URL? {
-        guard let url = URL(string: value),
-              url.scheme == "https",
-              url.host == allowedHost,
-              url.path.hasPrefix("/downloads/") else { return nil }
-        return url
     }
 
     private static func showAlert(title: String, text: String) {

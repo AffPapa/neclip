@@ -8,11 +8,11 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.3.0 (build 5)**. See [CHANGELOG.md](CHANGELOG.md)
+Current source version: **1.3.1 (build 6)**. See [CHANGELOG.md](CHANGELOG.md)
 for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
 public roadmap.
 
-[Download the signed and notarized NeClip 1.3.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.0/NeClip-1.3.0.dmg).
+[Download the current signed and notarized NeClip 1.3.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.0/NeClip-1.3.0.dmg).
 SHA-256: `46660a1058332bc28b30e2f22cd656ccc8f3700a246cb43160b5d22d4d022a6e`.
 
 ## Keyboard workflow
@@ -103,6 +103,19 @@ shortcuts use the native Carbon registration API. See
 The standalone, account-free project landing is in [`docs/`](docs/) and is
 ready for GitHub Pages. It contains versions, release checks, the public backlog,
 privacy behavior, shortcuts and stable source/release links.
+
+## GitHub source of truth
+
+GitHub is the only NeClip release and update source. The app checks for updates
+only when the user asks, using
+[`docs/version.json`](https://affpapa.github.io/neclip/version.json), and accepts
+downloads only from this repository's GitHub Releases.
+
+Website and integration consumers should start with
+[`docs/project.json`](https://affpapa.github.io/neclip/project.json). It links to
+the canonical version manifest, changelog, backlog, security policy, source and
+release feed. See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the publication
+contract. Files under `landing/` are no longer part of NeClip.
 
 ## License
 

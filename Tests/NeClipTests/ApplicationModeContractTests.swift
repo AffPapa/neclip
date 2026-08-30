@@ -65,4 +65,24 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(script.contains("hdiutil"))
         XCTAssertTrue(script.contains("(cd \"$WORK_DIR\" && shasum -a 256"))
     }
+
+    func testGitHubIsTheOnlyPublicationAndUpdateSource() throws {
+        let fileManager = FileManager.default
+        XCTAssertFalse(fileManager.fileExists(atPath: repositoryRoot.appendingPathComponent("landing").path))
+
+        let updater = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/UpdateChecker.swift"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(updater.contains("https://affpapa.github.io/neclip/version.json"))
+        XCTAssertTrue(updater.contains("/AffPapa/neclip/releases/download"))
+        XCTAssertFalse(updater.contains("https://affpapa.org"))
+
+        let website = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("docs/index.html"),
+            encoding: .utf8
+        )
+        XCTAssertFalse(website.contains("https://affpapa.org"))
+        XCTAssertTrue(website.contains("project.json"))
+    }
 }
