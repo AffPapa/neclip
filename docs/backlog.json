@@ -1,0 +1,24 @@
+{
+  "done": [
+    "Native menu-bar history and snippet sections",
+    "Keyboard-first search, paste, pins and quick selection",
+    "Local OCR, FTS5 search and bounded storage",
+    "Manual and conservative automatic EN/RU layout correction",
+    "macOS pasteboard privacy status and fail-closed denial",
+    "Swift 6 strict concurrency and one pinned dependency",
+    "Developer ID, notarization, stapling and exact-DMG release gate"
+  ],
+  "next": [
+    "Verify first-run permission wording across supported macOS releases",
+    "Consider an opt-in shortcut recorder only if conflicts are reported",
+    "Expand local layout pairs only with low-false-positive system tests",
+    "Add lightweight snippet-folder ordering"
+  ],
+  "notPlanned": [
+    "Accounts",
+    "Cloud synchronization",
+    "Telemetry or advertising",
+    "AI processing of clipboard contents",
+    "A permanent Dock icon or large workspace window"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.3.0",
+      "status": "release-candidate",
+      "highlights": [
+        "ClipMenu-like native menu with separate snippet sections",
+        "Menu-bar only, no Dock icon",
+        "Manual and default-off automatic EN/RU layout correction",
+        "macOS 15.4+ pasteboard privacy UX and fail-closed denial",
+        "Swift 6 strict concurrency, GRDB 7.10.0, native global hotkeys",
+        "Hardened signed and notarized release pipeline"
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "status": "released",
+      "highlights": [
+        "Last known signed and notarized public baseline"
+      ]
+    }
+  ]
+}
