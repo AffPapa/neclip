@@ -60,5 +60,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(script.contains("stapler staple \"$DMG\""))
         XCTAssertTrue(script.contains("spctl --assess --type execute"))
         XCTAssertFalse(script.contains("codesign --deep"))
+        XCTAssertTrue(script.contains("diskutil image create from"))
+        XCTAssertTrue(script.contains("diskutil image attach --readOnly"))
+        XCTAssertFalse(script.contains("hdiutil"))
+        XCTAssertTrue(script.contains("(cd \"$WORK_DIR\" && shasum -a 256"))
     }
 }

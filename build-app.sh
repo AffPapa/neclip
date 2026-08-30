@@ -19,7 +19,7 @@ BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Resources/Info.plist)
 IDENTITY="${NECLIP_SIGN_IDENTITY:-474F7C78F33EE324C24F6F5AE0443EB713E85E60}"
 PROFILE="${NECLIP_NOTARY_PROFILE:-neclip}"
 
-for tool in swift codesign hdiutil xcrun spctl ditto shasum; do
+for tool in swift codesign diskutil xcrun spctl ditto shasum; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 [[ -n "${DEVELOPER_DIR:-}" && -d "$DEVELOPER_DIR" ]] || {
@@ -39,7 +39,7 @@ WORK_DIR=$(mktemp -d /tmp/neclip-release.XXXXXX)
 MOUNT_DIR=""
 cleanup() {
   if [[ -n "$MOUNT_DIR" ]]; then
-    hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1 || true
+    diskutil eject "$MOUNT_DIR" >/dev/null 2>&1 || true
   fi
   rm -rf "$WORK_DIR"
 }
@@ -75,7 +75,7 @@ xcrun stapler validate "$APP"
 mkdir -p "$WORK_DIR/dmg"
 cp -R "$APP" "$WORK_DIR/dmg/"
 ln -s /Applications "$WORK_DIR/dmg/Applications"
-hdiutil create -volname "NeClip" -srcfolder "$WORK_DIR/dmg" -ov -format UDZO "$DMG"
+diskutil image create from --format UDZO --volumeName "NeClip" "$WORK_DIR/dmg" "$DMG"
 
 codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 codesign --verify --strict --verbose=2 "$DMG"
@@ -92,15 +92,15 @@ spctl --assess --type execute --verbose=2 "$APP"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 
 MOUNT_DIR=$(mktemp -d /tmp/neclip-dmg.XXXXXX)
-hdiutil attach "$DMG" -mountpoint "$MOUNT_DIR" -nobrowse -readonly
+diskutil image attach --readOnly --nobrowse --mountPoint "$MOUNT_DIR" "$DMG"
 codesign --verify --strict --verbose=2 "$MOUNT_DIR/NeClip.app"
 xcrun stapler validate "$MOUNT_DIR/NeClip.app"
 spctl --assess --type execute --verbose=2 "$MOUNT_DIR/NeClip.app"
-hdiutil detach "$MOUNT_DIR"
+diskutil eject "$MOUNT_DIR"
 rmdir "$MOUNT_DIR"
 MOUNT_DIR=""
 
-shasum -a 256 "$DMG" > "$DMG.sha256"
+(cd "$WORK_DIR" && shasum -a 256 "NeClip-${VERSION}.dmg" > "NeClip-${VERSION}.dmg.sha256")
 
 # Publish locally only after every gate passes. Existing known-good downloads
 # remain untouched on any earlier error.
