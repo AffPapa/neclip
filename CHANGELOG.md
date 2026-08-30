@@ -18,6 +18,8 @@ DMG checksum verification have passed.
   by macOS or another application.
 - Removed the unreachable 846-line legacy clipboard window and the duplicate
   menu refresh after every accepted copy.
+- Updated the sole source dependency from GRDB.swift 7.10.0 to 7.11.1 after the
+  newly enabled Dependabot check identified the current upstream release.
 - Added weekly SwiftPM and GitHub Actions Dependabot checks. Enabled immutable
   releases, vulnerability alerts, security updates, action SHA enforcement,
   CodeQL default setup and deletion/force-push protection for `main`.

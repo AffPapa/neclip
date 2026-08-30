@@ -47,7 +47,7 @@ final class ApplicationModeContractTests: XCTestCase {
             encoding: .utf8
         )
         XCTAssertTrue(package.contains("swift-tools-version: 6.2"))
-        XCTAssertTrue(package.contains("exact: \"7.10.0\""))
+        XCTAssertTrue(package.contains("exact: \"7.11.1\""))
         XCTAssertFalse(package.contains("soffes/HotKey"))
         XCTAssertFalse(package.contains("import HotKey"))
     }

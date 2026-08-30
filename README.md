@@ -106,7 +106,7 @@ release build, signs inside-out, notarizes and staples both the app and DMG,
 verifies Gatekeeper against the exact mounted image, and writes SHA-256. Do not
 publish any artifact produced outside that gate.
 
-The sole source dependency is GRDB.swift 7.10.0, pinned exactly. Global
+The sole source dependency is GRDB.swift 7.11.1, pinned exactly. Global
 shortcuts use the native Carbon registration API. See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

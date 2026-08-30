@@ -1,13 +1,13 @@
 # Third-party notices
 
-NeClip 1.3.0 uses one source dependency:
+NeClip 1.3.2 uses one source dependency:
 
-## GRDB.swift 7.10.0
+## GRDB.swift 7.11.1
 
 Copyright (C) 2015-2024 Gwendal Roué
 
 Licensed under the MIT License. The full upstream license is available at:
-https://github.com/groue/GRDB.swift/blob/v7.10.0/LICENSE
+https://github.com/groue/GRDB.swift/blob/v7.11.1/LICENSE
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the “Software”), to deal
