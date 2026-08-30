@@ -12,8 +12,8 @@ Current source version: **1.3.1 (build 6)**. See [CHANGELOG.md](CHANGELOG.md)
 for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
 public roadmap.
 
-[Download the current signed and notarized NeClip 1.3.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.0/NeClip-1.3.0.dmg).
-SHA-256: `46660a1058332bc28b30e2f22cd656ccc8f3700a246cb43160b5d22d4d022a6e`.
+[Download the signed and notarized NeClip 1.3.1 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.1/NeClip-1.3.1.dmg).
+SHA-256: `da63b10ed6a538f5608e0dc7af898a3b5604493a76157fc8ed4dbcaf00fffdf6`.
 
 ## Keyboard workflow
 

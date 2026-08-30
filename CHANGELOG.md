@@ -4,7 +4,7 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 1.3.1 — release candidate
+## 1.3.1 — 30 August 2026
 
 - Moved the manual update manifest from AffPapa hosting to the repository-owned
   GitHub Pages endpoint.
@@ -46,8 +46,8 @@ DMG checksum verification have passed.
 
 ## Verification status
 
-- Source tests, Thread Sanitizer and strict Swift 6 release build: passed for 1.3.0.
+- Source tests, Thread Sanitizer and strict Swift 6 release build: passed for 1.3.1.
 - The app and DMG are signed with Developer ID, notarized by Apple, stapled and
   accepted by Gatekeeper outside and inside the mounted image.
-- Public download: [NeClip 1.3.0](https://github.com/AffPapa/neclip/releases/download/v1.3.0/NeClip-1.3.0.dmg).
-- SHA-256: `46660a1058332bc28b30e2f22cd656ccc8f3700a246cb43160b5d22d4d022a6e`.
+- Public download: [NeClip 1.3.1](https://github.com/AffPapa/neclip/releases/download/v1.3.1/NeClip-1.3.1.dmg).
+- SHA-256: `da63b10ed6a538f5608e0dc7af898a3b5604493a76157fc8ed4dbcaf00fffdf6`.

@@ -16,7 +16,7 @@ not planned.
 - Hardened signed/notarized DMG pipeline
 - Standalone GitHub Pages project landing
 
-## Done in 1.3.1 source
+## Done in 1.3.1
 
 - Repository-owned GitHub Pages update manifest with strict GitHub Release URL
   validation

@@ -1,6 +1,17 @@
 {
   "versions": [
     {
+      "version": "1.3.1",
+      "status": "released",
+      "highlights": [
+        "GitHub Pages is the only update manifest source",
+        "Downloads are restricted to exact AffPapa/neclip GitHub Release paths",
+        "Fail-closed version, build, SHA-256, MIME and URL validation",
+        "Machine-readable project metadata and integration contract",
+        "Obsolete AffPapa landing implementation removed"
+      ]
+    },
+    {
       "version": "1.3.0",
       "status": "released",
       "highlights": [

@@ -25,3 +25,8 @@ exact shape:
 Consumers may cache product copy, but should read `version.json` before showing
 a version number or download button. Preserve the statements that NeClip has no
 account, cloud sync or telemetry.
+
+Required application fields in `version.json` are `version`, `build`, `release`
+and `sha256`. Website consumers may also use `releasePage`, `checksum`,
+`sizeBytes`, `publishedAt`, `platform` and `source`. Unknown fields must be
+ignored so the contract can grow without breaking older clients.
