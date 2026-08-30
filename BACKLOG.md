@@ -18,6 +18,8 @@ not planned.
 
 ## Next
 
+- Move the update manifest to a repository-controlled URL while preserving the
+  legacy AffPapa endpoint for existing installations
 - Verify first-run pasteboard wording across currently supported macOS releases
 - Add an opt-in shortcut recorder if three fixed shortcuts become a real conflict
 - Expand local layout pairs only when system-layout tests can keep false fixes low
