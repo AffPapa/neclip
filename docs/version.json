@@ -3,6 +3,6 @@
   "build": 5,
   "status": "release-candidate",
   "platform": "macOS 14+ on Apple Silicon",
-  "release": "https://github.com/AffPapa/neclip/releases/latest",
+  "release": "https://affpapa.org/downloads/NeClip-1.1.1.dmg",
   "source": "https://github.com/AffPapa/neclip"
 }
