@@ -15,11 +15,11 @@ final class UpdateManifestTests: XCTestCase {
         let validated = try XCTUnwrap(UpdateManifestPolicy.validatedManifest(from: data))
 
         XCTAssertEqual(UpdateManifestPolicy.manifestURL.absoluteString, "https://affpapa.github.io/neclip/version.json")
-        XCTAssertEqual(validated.manifest.version, "1.3.1")
+        XCTAssertEqual(validated.manifest.version, "1.3.2")
         XCTAssertEqual(validated.downloadURL.host, "github.com")
         XCTAssertEqual(
             validated.downloadURL.path,
-            "/AffPapa/neclip/releases/download/v1.3.1/NeClip-1.3.1.dmg"
+            "/AffPapa/neclip/releases/download/v1.3.2/NeClip-1.3.2.dmg"
         )
     }
 

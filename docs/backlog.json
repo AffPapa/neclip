@@ -6,7 +6,11 @@
     "Manual and conservative automatic EN/RU layout correction",
     "macOS pasteboard privacy status and fail-closed denial",
     "Swift 6 strict concurrency and one pinned dependency",
-    "Developer ID, notarization, stapling and exact-DMG release gate"
+    "Developer ID, notarization, stapling and exact-DMG release gate",
+    "Native pin, save-as-snippet, individual delete and exact undo actions",
+    "Single storage-driven refresh path and removal of the unused large window",
+    "Immutable releases, Dependabot, CodeQL and protected main branch",
+    "Private vulnerability reporting and a privacy-safe structured bug form"
   ],
   "next": [
     "Verify first-run permission wording across supported macOS releases",

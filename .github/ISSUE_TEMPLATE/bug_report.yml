@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a reproducible NeClip problem without sharing clipboard contents
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste passwords, tokens, personal data or real clipboard history into an issue. Report security problems privately through GitHub Security Advisories.
+  - type: input
+    id: version
+    attributes:
+      label: NeClip version
+      description: Open Settings in the NeClip menu to find the version and build.
+      placeholder: 1.3.2 (7)
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS and Mac
+      placeholder: macOS 26.1, Apple Silicon
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the visible behavior using synthetic example text only.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Minimal steps to reproduce
+      placeholder: |
+        1. Copy synthetic text "example"
+        2. Press Command-Shift-V
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Reproducibility
+      options:
+        - Every time
+        - Sometimes
+        - Once
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed real clipboard contents, secrets and personal data.
+          required: true
+        - label: I checked the latest release and existing issues.
+          required: true

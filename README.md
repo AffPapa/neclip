@@ -15,8 +15,8 @@ public roadmap.
 The reproducible three-track audit, decisions and release gates for this cycle
 are published in [docs/AUDIT-2026-08-31.md](docs/AUDIT-2026-08-31.md).
 
-[Download the signed and notarized NeClip 1.3.1 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.1/NeClip-1.3.1.dmg).
-SHA-256: `da63b10ed6a538f5608e0dc7af898a3b5604493a76157fc8ed4dbcaf00fffdf6`.
+[Download the signed and notarized NeClip 1.3.2 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.2/NeClip-1.3.2.dmg).
+SHA-256: `b858dfbc3e705b1b7b9635ec661edd280c662e718dd1629f75f2061b006f3c98`.
 
 ## Keyboard workflow
 

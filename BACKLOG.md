@@ -31,6 +31,8 @@ not planned.
 - Single storage-driven menu refresh path and removal of the unused large window
 - Weekly dependency updates plus immutable releases, CodeQL, vulnerability
   alerts, action SHA enforcement and protected `main`
+- Private vulnerability reporting and a public bug form that forbids real
+  clipboard contents
 
 ## Next
 

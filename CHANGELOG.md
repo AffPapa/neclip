@@ -21,8 +21,9 @@ DMG checksum verification have passed.
 - Updated the sole source dependency from GRDB.swift 7.10.0 to 7.11.1 after the
   newly enabled Dependabot check identified the current upstream release.
 - Added weekly SwiftPM and GitHub Actions Dependabot checks. Enabled immutable
-  releases, vulnerability alerts, security updates, action SHA enforcement,
-  CodeQL default setup and deletion/force-push protection for `main`.
+  releases, private vulnerability reporting, vulnerability alerts, security
+  updates, GitHub-owned-only Actions with full-SHA enforcement, CodeQL default
+  setup and deletion/force-push protection for `main`.
 
 ## 1.3.1 — 30 August 2026
 
@@ -66,8 +67,9 @@ DMG checksum verification have passed.
 
 ## Verification status
 
-- Source tests, Thread Sanitizer and strict Swift 6 release build: passed for 1.3.1.
+- Source tests, Thread Sanitizer, Address Sanitizer and strict Swift 6 release
+  build: passed for 1.3.2.
 - The app and DMG are signed with Developer ID, notarized by Apple, stapled and
   accepted by Gatekeeper outside and inside the mounted image.
-- Public download: [NeClip 1.3.1](https://github.com/AffPapa/neclip/releases/download/v1.3.1/NeClip-1.3.1.dmg).
-- SHA-256: `da63b10ed6a538f5608e0dc7af898a3b5604493a76157fc8ed4dbcaf00fffdf6`.
+- Public download: [NeClip 1.3.2](https://github.com/AffPapa/neclip/releases/download/v1.3.2/NeClip-1.3.2.dmg).
+- SHA-256: `b858dfbc3e705b1b7b9635ec661edd280c662e718dd1629f75f2061b006f3c98`.
