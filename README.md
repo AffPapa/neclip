@@ -16,8 +16,9 @@ The reproducible three-track audit, decisions and release gates for this cycle
 are published in [docs/AUDIT-1.4.0.md](docs/AUDIT-1.4.0.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
-The exact SHA-256 is published beside the DMG and in
-[`docs/version.json`](docs/version.json).
+SHA-256:
+`0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.
+It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
 ## Keyboard workflow
 
