@@ -60,9 +60,9 @@ Three tracks inspected clean source commit
 - Strict Swift 6 build: complete concurrency checking plus warnings-as-errors.
 - Address Sanitizer and Thread Sanitizer passed. Both GitHub Swift CI jobs and
   CodeQL's Actions and Swift analyses passed with zero open alerts.
-- Apple accepted the exact app ZIP (`d235f751-6468-4864-bbda-014c4e02bd52`)
-  and DMG (`6b436521-f4ea-4fe3-8ed6-69467965151d`). Both tickets were stapled;
-  Gatekeeper accepted the app, DMG and app inside a read-only mounted image.
+- Apple accepted the exact app ZIP and DMG. Submission identifiers are omitted
+  as unnecessary operational metadata. Both tickets were stapled; Gatekeeper
+  accepted the app, DMG and app inside a read-only mounted image.
 - The independently downloaded immutable GitHub asset is 2,426,819 bytes and
   matches SHA-256
   `0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.

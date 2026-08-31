@@ -4,3 +4,32 @@
 dist/
 .DS_Store
 *.xcuserstate
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+AuthKey_*.p8
+*.pem
+*.p12
+*.pfx
+*.key
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+*.keychain
+*.keychain-db
+
+# Local application data, diagnostics and release products
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+*.log
+*.xcarchive
+*.dmg
+*.zip
