@@ -1,6 +1,18 @@
 {
   "versions": [
     {
+      "version": "1.4.0",
+      "status": "released",
+      "highlights": [
+        "One system appearance from the menu bar and global shortcuts",
+        "Configurable 16–96 character Unicode-safe menu labels",
+        "Configurable manual-correction and off-only safety shortcuts",
+        "Visible editable snippet folders, unfiled items and folder-aware search",
+        "Draft-safe autosave and transaction-safe shortcut rebinding",
+        "76 tests, sanitizers, CodeQL, notarization and public-DMG verification"
+      ]
+    },
+    {
       "version": "1.3.2",
       "status": "released",
       "highlights": [

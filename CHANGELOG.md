@@ -24,9 +24,11 @@ DMG checksum verification have passed.
   failed saves remain visible and block navigation until retry succeeds.
 - Preserved snippets when their folder is removed and prevented stale editor
   state from overwriting newer usage counters and timestamps.
-- Expanded the suite from 45 to 76 tests. The full suite and strict Swift 6
-  complete-concurrency build pass locally; signing/notarization status is
-  published only after the release artifact clears the fail-closed release gate.
+- Expanded the suite from 45 to 76 tests. The full suite, strict Swift 6
+  complete-concurrency build, sanitizers, GitHub CI and CodeQL passed.
+- Signed and notarized the exact app and DMG, stapled both tickets, passed
+  Gatekeeper outside and inside the read-only mounted public image, and
+  independently matched the GitHub download to its SHA-256 file.
 
 ## 1.3.2 — 31 August 2026
 
@@ -91,9 +93,9 @@ DMG checksum verification have passed.
 
 ## Verification status
 
-- Source tests, Thread Sanitizer, Address Sanitizer and strict Swift 6 release
-  build: passed for 1.3.2.
+- Source tests, Thread Sanitizer, Address Sanitizer, strict Swift 6 release
+  build, GitHub CI and CodeQL: passed for 1.4.0.
 - The app and DMG are signed with Developer ID, notarized by Apple, stapled and
   accepted by Gatekeeper outside and inside the mounted image.
-- Public download: [NeClip 1.3.2](https://github.com/AffPapa/neclip/releases/download/v1.3.2/NeClip-1.3.2.dmg).
-- SHA-256: `b858dfbc3e705b1b7b9635ec661edd280c662e718dd1629f75f2061b006f3c98`.
+- Public download: [NeClip 1.4.0](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
+- SHA-256: `0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.

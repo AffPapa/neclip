@@ -58,8 +58,14 @@ Three tracks inspected clean source commit
 - Storage/editor: folder rename, move and delete preservation; draft flush;
   failed-save retention; and newer usage-metadata preservation.
 - Strict Swift 6 build: complete concurrency checking plus warnings-as-errors.
-- Release publication remains fail-closed until Developer ID, Apple notary,
-  stapling, Gatekeeper, mounted-DMG and public-download equivalence checks pass.
+- Address Sanitizer and Thread Sanitizer passed. Both GitHub Swift CI jobs and
+  CodeQL's Actions and Swift analyses passed with zero open alerts.
+- Apple accepted the exact app ZIP (`d235f751-6468-4864-bbda-014c4e02bd52`)
+  and DMG (`6b436521-f4ea-4fe3-8ed6-69467965151d`). Both tickets were stapled;
+  Gatekeeper accepted the app, DMG and app inside a read-only mounted image.
+- The independently downloaded immutable GitHub asset is 2,426,819 bytes and
+  matches SHA-256
+  `0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.
 
 ## Data and permission invariants
 

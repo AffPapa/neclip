@@ -10,13 +10,16 @@
     "Native pin, save-as-snippet, individual delete and exact undo actions",
     "Single storage-driven refresh path and removal of the unused large window",
     "Immutable releases, Dependabot, CodeQL and protected main branch",
-    "Private vulnerability reporting and a privacy-safe structured bug form"
+    "Private vulnerability reporting and a privacy-safe structured bug form",
+    "Unified system appearance for status-item and hotkey menus",
+    "Configurable Unicode-safe menu label length",
+    "Configurable manual-correction and off-only safety shortcuts",
+    "Visible snippet folders, folder CRUD, moves and draft-safe editing"
   ],
   "next": [
     "Verify first-run permission wording across supported macOS releases",
-    "Consider an opt-in shortcut recorder only if conflicts are reported",
     "Expand local layout pairs only with low-false-positive system tests",
-    "Add lightweight snippet-folder ordering"
+    "Consider lightweight snippet-folder drag ordering only if section counts grow"
   ],
   "notPlanned": [
     "Accounts",

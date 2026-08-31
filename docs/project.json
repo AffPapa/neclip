@@ -40,7 +40,8 @@
   "shortcuts": [
     {"action": "open-history", "keys": "Command-Shift-V"},
     {"action": "open-snippets", "keys": "Command-Shift-B"},
-    {"action": "correct-layout", "keys": "Option-Shift-L"},
+    {"action": "correct-layout", "keys": "Option-Shift-L", "customizable": true},
+    {"action": "disable-automatic-layout-correction", "keys": "Control-Option-A", "customizable": true, "offOnly": true},
     {"action": "pin-first-result", "keys": "Command-P"},
     {"action": "save-first-result-as-snippet", "keys": "Command-S"},
     {"action": "delete-first-result", "keys": "Command-Delete"},
