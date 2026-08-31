@@ -26,6 +26,7 @@ final class PreferencesWindowController {
 
 private struct PreferencesView: View {
     @State private var historyLimit = Settings.historyLimit
+    @State private var menuTitleLengthText = String(Settings.menuTitleLength)
     @State private var clipboardAccess = ClipboardAccess.current
     @State private var showPreviews = Settings.showImagePreviews
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -33,11 +34,14 @@ private struct PreferencesView: View {
     @State private var axTrusted = PasteService.isAccessibilityTrusted
     @State private var capturePaused = Settings.isCapturePaused
     @State private var automaticLayoutCorrection = Settings.automaticLayoutCorrection
+    @State private var manualLayoutShortcut = Settings.manualLayoutShortcut
+    @State private var disableAutomaticLayoutShortcut = Settings.disableAutomaticLayoutShortcut
     @State private var layoutExcludedApps = Settings.layoutExcludedApps
     @State private var canListenToInput = LayoutPermissions.canListen
     @State private var deleteAllConfirmation = false
     @State private var clearHistoryConfirmation = false
     @State private var feedback: String?
+    @FocusState private var menuTitleLengthFocused: Bool
 
     var body: some View {
         Form {
@@ -64,6 +68,28 @@ private struct PreferencesView: View {
             Section("История") {
                 Stepper("Хранить до \(historyLimit) элементов", value: $historyLimit, in: 10...1000, step: 10)
                     .onChange(of: historyLimit) { _, value in applyHistoryLimit(value) }
+                HStack {
+                    Text("Показывать в меню до")
+                    Spacer()
+                    TextField("64", text: $menuTitleLengthText)
+                        .frame(width: 52)
+                        .multilineTextAlignment(.trailing)
+                        .focused($menuTitleLengthFocused)
+                        .onSubmit(commitMenuTitleLength)
+                        .onChange(of: menuTitleLengthText) { _, value in
+                            if let parsed = Int(value), MenuTitleFormatter.validLengthRange.contains(parsed) {
+                                Settings.menuTitleLength = parsed
+                            }
+                        }
+                    Text("символов")
+                        .foregroundStyle(.secondary)
+                }
+                .onChange(of: menuTitleLengthFocused) { _, focused in
+                    if !focused { commitMenuTitleLength() }
+                }
+                Text("Допустимо 16–96. Длинные строки заканчиваются многоточием, полный текст сохраняется.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Показывать превью изображений", isOn: $showPreviews)
                     .onChange(of: showPreviews) { _, value in Settings.showImagePreviews = value }
 
@@ -118,10 +144,26 @@ private struct PreferencesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                LabeledContent("Ручное исправление") {
-                    Text("⌥⇧L")
-                        .font(.body.monospaced())
+                LabeledContent("Исправить выделение или последнее слово") {
+                    ShortcutRecorder(
+                        shortcut: manualLayoutShortcut,
+                        accessibilityLabel: "Сочетание для ручного исправления раскладки",
+                        onCandidate: applyManualLayoutShortcut
+                    )
+                    .frame(width: 126, height: 28)
                 }
+                LabeledContent("Быстро выключить автоисправление") {
+                    ShortcutRecorder(
+                        shortcut: disableAutomaticLayoutShortcut,
+                        accessibilityLabel: "Сочетание для выключения автоматического исправления",
+                        onCandidate: applyDisableAutomaticLayoutShortcut
+                    )
+                    .frame(width: 126, height: 28)
+                }
+                Button("Сбросить сочетания") { resetLayoutShortcuts() }
+                Text("Нажмите сочетание в рамке, затем введите новое. Escape отменяет. Клавиша выключения никогда не включает мониторинг ввода.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 permissionRow(
                     title: "Мониторинг ввода",
                     granted: canListenToInput,
@@ -209,6 +251,10 @@ private struct PreferencesView: View {
             capturePaused = Settings.isCapturePaused
             canListenToInput = LayoutPermissions.canListen
             automaticLayoutCorrection = Settings.automaticLayoutCorrection
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .neClipLayoutHotKeysDidChange)) { _ in
+            manualLayoutShortcut = LayoutHotKeyCoordinator.shared.manualShortcut
+            disableAutomaticLayoutShortcut = LayoutHotKeyCoordinator.shared.disableAutomaticShortcut
         }
         .alert("Очистить историю?", isPresented: $clearHistoryConfirmation) {
             Button("Удалить незакреплённое", role: .destructive) { clearHistory(includePinned: false) }
@@ -303,6 +349,25 @@ private struct PreferencesView: View {
         feedback = enabled ? "Автоисправление включено: только по пробелу" : "Автоисправление выключено"
     }
 
+    private func applyManualLayoutShortcut(_ candidate: ShortcutDescriptor) {
+        let result = LayoutHotKeyCoordinator.shared.update(.manualCorrection, to: candidate)
+        manualLayoutShortcut = LayoutHotKeyCoordinator.shared.manualShortcut
+        feedback = result.message ?? "Сочетание ручного исправления: \(manualLayoutShortcut.displayString)"
+    }
+
+    private func applyDisableAutomaticLayoutShortcut(_ candidate: ShortcutDescriptor) {
+        let result = LayoutHotKeyCoordinator.shared.update(.disableAutomaticCorrection, to: candidate)
+        disableAutomaticLayoutShortcut = LayoutHotKeyCoordinator.shared.disableAutomaticShortcut
+        feedback = result.message ?? "Сочетание выключения: \(disableAutomaticLayoutShortcut.displayString)"
+    }
+
+    private func resetLayoutShortcuts() {
+        let result = LayoutHotKeyCoordinator.shared.resetToDefaults()
+        manualLayoutShortcut = LayoutHotKeyCoordinator.shared.manualShortcut
+        disableAutomaticLayoutShortcut = LayoutHotKeyCoordinator.shared.disableAutomaticShortcut
+        feedback = result.message ?? "Сочетания восстановлены"
+    }
+
     private func applyHistoryLimit(_ value: Int) {
         Settings.historyLimit = value
         DispatchQueue.global(qos: .utility).async {
@@ -312,6 +377,14 @@ private struct PreferencesView: View {
                 DispatchQueue.main.async { feedback = "Не удалось применить новый лимит" }
             }
         }
+    }
+
+    private func commitMenuTitleLength() {
+        let requested = Int(menuTitleLengthText) ?? MenuTitleFormatter.defaultLimit
+        let normalized = MenuTitleFormatter.normalizedLimit(requested)
+        Settings.menuTitleLength = normalized
+        menuTitleLengthText = String(normalized)
+        feedback = "В меню будет показано до \(normalized) символов"
     }
 
     private func clearHistory(includePinned: Bool) {

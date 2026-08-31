@@ -15,6 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.4.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "8")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -33,12 +35,65 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("#selector(saveFirstResultAsSnippet)"))
         XCTAssertTrue(statusBar.contains("#selector(deleteFirstResult)"))
         XCTAssertTrue(statusBar.contains("#selector(undoLastDeletion)"))
+        XCTAssertTrue(statusBar.contains("MenuAppearance.applyEffectiveAppearance"))
+        XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format"))
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: repositoryRoot
                     .appendingPathComponent("Sources/NeClip/ClipboardPanelController.swift").path
             )
         )
+    }
+
+    func testUnifiedMenuHotkeyAndSnippetEditorContractsArePresent() throws {
+        let settings = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/Settings.swift"),
+            encoding: .utf8
+        )
+        let coordinator = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/LayoutHotKeyCoordinator.swift"),
+            encoding: .utf8
+        )
+        let editor = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/SnippetsEditor.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(settings.contains("MenuTitleFormatter.normalizedLimit"))
+        XCTAssertTrue(settings.contains("manualLayoutShortcut.v1"))
+        XCTAssertTrue(settings.contains("disableAutomaticLayoutShortcut.v1"))
+        XCTAssertTrue(coordinator.contains("manualRegistration = replacement"))
+        XCTAssertTrue(coordinator.contains("disableRegistration = replacement"))
+        XCTAssertTrue(editor.contains("guard flushPendingSave() else { return }"))
+        XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
+        XCTAssertTrue(editor.contains("windowShouldClose"))
+    }
+
+    func testMenuPresentationIsWiredThroughEveryProductionPath() throws {
+        let statusBar = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/StatusBarController.swift"),
+            encoding: .utf8
+        )
+        let preferences = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/PreferencesWindow.swift"),
+            encoding: .utf8
+        )
+
+        let appearance = try XCTUnwrap(statusBar.range(of: "MenuAppearance.applyEffectiveAppearance(to: menu)"))
+        let popupBranch = try XCTUnwrap(statusBar.range(of: "if anchoredToStatusItem, let button = statusItem.button"))
+        XCTAssertLessThan(appearance.lowerBound, popupBranch.lowerBound)
+
+        XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)"))
+        XCTAssertTrue(statusBar.contains("let displayTitle = cleanTitle(title)"))
+        XCTAssertTrue(statusBar.contains("cleanTitle(snippet.title + keyword)"))
+        XCTAssertTrue(statusBar.contains("cleanTitle(clip.title)"))
+        XCTAssertEqual(statusBar.components(separatedBy: "NSMenu(title:").count - 1, 1)
+        XCTAssertTrue(statusBar.contains("private func makeMenu(title: String) -> NSMenu"))
+
+        XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
+        XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
+        XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
+        XCTAssertTrue(statusBar.contains("folderID: nil"))
     }
 
     func testPackageUsesSwift6AndNoHotKeyDependency() throws {

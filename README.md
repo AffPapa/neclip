@@ -8,15 +8,16 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.3.2 (build 7)**. See [CHANGELOG.md](CHANGELOG.md)
+Current source version: **1.4.0 (build 8)**. See [CHANGELOG.md](CHANGELOG.md)
 for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
 public roadmap.
 
 The reproducible three-track audit, decisions and release gates for this cycle
-are published in [docs/AUDIT-2026-08-31.md](docs/AUDIT-2026-08-31.md).
+are published in [docs/AUDIT-1.4.0.md](docs/AUDIT-1.4.0.md).
 
-[Download the signed and notarized NeClip 1.3.2 DMG](https://github.com/AffPapa/neclip/releases/download/v1.3.2/NeClip-1.3.2.dmg).
-SHA-256: `b858dfbc3e705b1b7b9635ec661edd280c662e718dd1629f75f2061b006f3c98`.
+[Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
+The exact SHA-256 is published beside the DMG and in
+[`docs/version.json`](docs/version.json).
 
 ## Keyboard workflow
 
@@ -28,7 +29,8 @@ SHA-256: `b858dfbc3e705b1b7b9635ec661edd280c662e718dd1629f75f2061b006f3c98`.
 - `Shift-Return` — paste as plain text
 - `Command-Return` — copy without pasting
 - `Control-Return` — correct EN/RU layout and paste a text history item
-- `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo
+- `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo (customizable)
+- `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
 - `Command-1` … `Command-9` — select a visible result
 - `Command-P` — pin or unpin the first visible result
 - `Command-S` — save the first visible text result as a snippet
@@ -43,9 +45,15 @@ an explicit **Actions for First Result** submenu, pause, ignore-next-copy,
 clear, preferences, snippet
 editing, the manual update check, and quit.
 
-If macOS or another application already owns one of NeClip's three global
-shortcuts, the menu explains which combination is unavailable and keeps the
-equivalent command accessible from the menu bar.
+If macOS or another application already owns a NeClip global shortcut, the menu
+explains which combination is unavailable and keeps the equivalent command
+accessible from the menu bar. The two layout shortcuts can be recorded locally
+in Settings; a conflicting candidate never replaces the previous working one.
+
+Menu labels use one system appearance whether opened from the status item or a
+global shortcut. Long text is collapsed to one line and shortened after a
+user-defined 16–96 character limit (64 by default) without cutting an emoji or
+combined Unicode character.
 
 ## Keyboard layout correction
 
@@ -62,7 +70,14 @@ logged, saved, learned, or sent over the network.
 
 Automatic correction needs separate Input Monitoring and Accessibility access
 from macOS. NeClip requests them only when the user turns the feature on;
-disabling it removes the event tap.
+disabling it removes the event tap. The dedicated safety shortcut only turns
+this mode off; it can never enable monitoring or open a permission prompt.
+
+The focused snippet editor shows every folder, empty folders and **Unfiled** in
+one compact sidebar. Snippets can be edited, moved, pinned and searched; folders
+can be created, renamed and removed. Removing a folder keeps its snippets in
+**Unfiled**. Pending edits are flushed before navigation or close, and a failed
+save remains visible instead of discarding the draft.
 
 ## Local data and privacy
 

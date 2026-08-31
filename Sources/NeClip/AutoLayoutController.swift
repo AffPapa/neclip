@@ -77,15 +77,24 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
     private var worker: Thread?
     private var startResult = false
     private var cancelled = false
+    private var manualShortcut: ShortcutDescriptor
     private let onBoundary: @Sendable (AutoLayoutBoundary) -> Void
     private let onContextInvalidated: @Sendable () -> Void
 
     init(
+        manualShortcut: ShortcutDescriptor,
         onBoundary: @escaping @Sendable (AutoLayoutBoundary) -> Void,
         onContextInvalidated: @escaping @Sendable () -> Void
     ) {
+        self.manualShortcut = manualShortcut
         self.onBoundary = onBoundary
         self.onContextInvalidated = onContextInvalidated
+    }
+
+    func updateManualShortcut(_ shortcut: ShortcutDescriptor) {
+        lock.lock()
+        manualShortcut = shortcut
+        lock.unlock()
     }
 
     func start() -> Bool {
@@ -205,11 +214,10 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
         // The manual/undo hotkey itself must not invalidate its correction.
-        if keyCode == UInt16(kVK_ANSI_L),
-           flags.contains(.maskAlternate), flags.contains(.maskShift),
-           !flags.contains(.maskCommand), !flags.contains(.maskControl) {
-            return
-        }
+        lock.lock()
+        let isManualShortcut = manualShortcut.matches(keyCode: keyCode, cgEventFlags: flags)
+        lock.unlock()
+        if isManualShortcut { return }
 
         var boundary: AutoLayoutBoundary?
         var shouldRefresh = false
@@ -420,6 +428,7 @@ final class AutoLayoutController {
         if monitor != nil { return }
 
         let created = AutoLayoutEventMonitor(
+            manualShortcut: Settings.manualLayoutShortcut,
             onBoundary: { [weak self] boundary in
                 DispatchQueue.main.async { self?.handle(boundary) }
             },
@@ -489,6 +498,10 @@ final class AutoLayoutController {
         contextRecord = nil
         undoRecord = nil
         state = .off
+    }
+
+    func updateManualShortcut(_ shortcut: ShortcutDescriptor) {
+        monitor?.updateManualShortcut(shortcut)
     }
 
     func refreshContext() {
@@ -610,7 +623,7 @@ final class AutoLayoutController {
             createdAt: Date()
         )
         scheduleUndoExpiry()
-        onFeedback?("Раскладка исправлена · ⌥⇧L — отменить")
+        onFeedback?("Раскладка исправлена · \(Settings.manualLayoutShortcut.displayString) — отменить")
         refreshContext()
     }
 

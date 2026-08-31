@@ -34,13 +34,23 @@ not planned.
 - Private vulnerability reporting and a public bug form that forbids real
   clipboard contents
 
+## Done in 1.4.0
+
+- One system appearance for status-item and global-hotkey menus
+- User-defined 16–96 character menu labels with grapheme-safe ellipsis
+- Conflict-aware shortcut recording for manual layout correction and the new
+  off-only automatic-correction safety action
+- Visible snippet folders, empty and unfiled sections, folder CRUD and moving
+  snippets between folders
+- Draft-safe autosave that flushes before navigation and window close and keeps
+  failed edits available for retry
+
 ## Next
 
 - Verify first-run pasteboard wording across currently supported macOS releases
-- Add an opt-in shortcut recorder only if visible conflict guidance proves
-  insufficient
 - Expand local layout pairs only when system-layout tests can keep false fixes low
-- Add reusable snippet-folder ordering without making the editor heavier
+- Consider manual drag ordering only if folder counts grow beyond the current
+  compact section model
 
 ## Not planned
 

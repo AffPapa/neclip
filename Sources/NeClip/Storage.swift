@@ -60,6 +60,23 @@ enum StorageCapacityError: LocalizedError, Equatable {
     }
 }
 
+enum SnippetStorageError: LocalizedError, Equatable {
+    case emptyFolderTitle
+    case folderNotFound
+    case snippetNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyFolderTitle:
+            "Название папки не может быть пустым"
+        case .folderNotFound:
+            "Папка больше не существует"
+        case .snippetNotFound:
+            "Сниппет больше не существует"
+        }
+    }
+}
+
 struct SnippetFolder: Codable, FetchableRecord, MutablePersistableRecord, Identifiable, Hashable, Sendable {
     static let databaseTableName = "snippetFolder"
 
@@ -593,6 +610,8 @@ final class Storage: @unchecked Sendable {
 
     @discardableResult
     func addFolder(title: String) throws -> SnippetFolder? {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { throw SnippetStorageError.emptyFolderTitle }
         let folder = try dbQueue.write { db -> SnippetFolder in
             let maxIndex = try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sortIndex), -1) FROM snippetFolder") ?? -1
             var folder = SnippetFolder(title: title, sortIndex: maxIndex + 1)
@@ -630,17 +649,84 @@ final class Storage: @unchecked Sendable {
         return snippet
     }
 
-    func update(_ folder: SnippetFolder) {
-        _ = try? dbQueue.write { db in try folder.update(db) }
+    @discardableResult
+    func update(_ folder: SnippetFolder) throws -> SnippetFolder {
+        guard let id = folder.id else { throw SnippetStorageError.folderNotFound }
+        let title = folder.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { throw SnippetStorageError.emptyFolderTitle }
+        let updated = try dbQueue.write { db -> SnippetFolder in
+            guard var stored = try SnippetFolder.fetchOne(db, key: id) else {
+                throw SnippetStorageError.folderNotFound
+            }
+            stored.title = title
+            stored.sortIndex = folder.sortIndex
+            try stored.update(db)
+            return stored
+        }
         notifyChange()
+        return updated
     }
 
-    func update(_ snippet: Snippet) throws {
+    @discardableResult
+    func update(_ snippet: Snippet) throws -> Snippet {
         var snippet = snippet
         snippet.keyword = Self.normalizedKeyword(snippet.keyword)
         snippet.updatedAt = Date()
-        try dbQueue.write { db in try snippet.update(db) }
+        let updated = try dbQueue.write { db -> Snippet in
+            guard let id = snippet.id,
+                  let stored = try Snippet.fetchOne(db, key: id) else {
+                throw SnippetStorageError.snippetNotFound
+            }
+            if let folderID = snippet.folderID,
+               try SnippetFolder.fetchOne(db, key: folderID) == nil {
+                throw SnippetStorageError.folderNotFound
+            }
+            if stored.folderID != snippet.folderID {
+                snippet.sortIndex = try Self.nextSnippetSortIndex(
+                    inFolder: snippet.folderID,
+                    database: db
+                )
+            }
+            try db.execute(
+                sql: """
+                    UPDATE snippet
+                    SET folderID = ?, title = ?, content = ?, sortIndex = ?,
+                        keyword = ?, isPinned = ?, updatedAt = ?
+                    WHERE id = ?
+                    """,
+                arguments: [
+                    snippet.folderID, snippet.title, snippet.content, snippet.sortIndex,
+                    snippet.keyword, snippet.isPinned, snippet.updatedAt, id
+                ]
+            )
+            guard let updated = try Snippet.fetchOne(db, key: id) else {
+                throw SnippetStorageError.snippetNotFound
+            }
+            return updated
+        }
         notifyChange()
+        return updated
+    }
+
+    @discardableResult
+    func moveSnippet(id: Int64, toFolderID folderID: Int64?) throws -> Snippet {
+        let moved = try dbQueue.write { db -> Snippet in
+            guard var snippet = try Snippet.fetchOne(db, key: id) else {
+                throw SnippetStorageError.snippetNotFound
+            }
+            if let folderID,
+               try SnippetFolder.fetchOne(db, key: folderID) == nil {
+                throw SnippetStorageError.folderNotFound
+            }
+            guard snippet.folderID != folderID else { return snippet }
+            snippet.folderID = folderID
+            snippet.sortIndex = try Self.nextSnippetSortIndex(inFolder: folderID, database: db)
+            snippet.updatedAt = Date()
+            try snippet.update(db)
+            return snippet
+        }
+        notifyChange()
+        return moved
     }
 
     func setSnippetPinned(id: Int64, pinned: Bool) throws {
@@ -662,8 +748,12 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    func deleteFolder(id: Int64) {
-        _ = try? dbQueue.write { db in try SnippetFolder.deleteOne(db, key: id) }
+    func deleteFolder(id: Int64) throws {
+        try dbQueue.write { db in
+            guard try SnippetFolder.deleteOne(db, key: id) else {
+                throw SnippetStorageError.folderNotFound
+            }
+        }
         notifyChange()
     }
 
@@ -690,7 +780,9 @@ final class Storage: @unchecked Sendable {
     }
 
     func deleteSnippet(id: Int64) throws {
-        _ = try removeSnippet(id: id)
+        guard try removeSnippet(id: id) != nil else {
+            throw SnippetStorageError.snippetNotFound
+        }
     }
 
     func installStarterSnippetsIfNeeded(force: Bool = false) throws {
@@ -837,6 +929,18 @@ final class Storage: @unchecked Sendable {
             return nil
         }
         return value.hasPrefix(";") ? value : ";" + value
+    }
+
+    private static func nextSnippetSortIndex(
+        inFolder folderID: Int64?,
+        database db: Database
+    ) throws -> Int {
+        let maxIndex = try Int.fetchOne(
+            db,
+            sql: "SELECT COALESCE(MAX(sortIndex), -1) FROM snippet WHERE folderID IS ?",
+            arguments: [folderID]
+        ) ?? -1
+        return maxIndex + 1
     }
 
     private static func hash(for item: ClipItem) -> String? {

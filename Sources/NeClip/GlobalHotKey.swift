@@ -1,7 +1,34 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// A minimal Carbon wrapper for the three global shortcuts NeClip owns.
+enum GlobalHotKeyRegistrationError: Error, Equatable, Sendable {
+    case eventHandlerInstallationFailed(OSStatus)
+    case alreadyRegistered(OSStatus)
+    case registrationFailed(OSStatus)
+    case missingRegistrationReference
+}
+
+protocol HotKeyRegistrationToken: AnyObject {}
+
+protocol HotKeyRegistrationCreating {
+    func makeRegistration(
+        shortcut: ShortcutDescriptor,
+        identifier: UInt32,
+        action: @escaping GlobalHotKey.Action
+    ) throws -> any HotKeyRegistrationToken
+}
+
+struct CarbonHotKeyRegistrationFactory: HotKeyRegistrationCreating {
+    func makeRegistration(
+        shortcut: ShortcutDescriptor,
+        identifier: UInt32,
+        action: @escaping GlobalHotKey.Action
+    ) throws -> any HotKeyRegistrationToken {
+        try GlobalHotKey(shortcut: shortcut, identifier: identifier, action: action)
+    }
+}
+
+/// A minimal Carbon wrapper for the global shortcuts NeClip owns.
 /// Carbon still provides the native macOS registration API and avoids a
 /// separate package for this small, stable surface.
 final class GlobalHotKey: @unchecked Sendable {
@@ -12,7 +39,7 @@ final class GlobalHotKey: @unchecked Sendable {
     private var hotKey: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
 
-    init?(keyCode: UInt32, modifiers: UInt32, identifier: UInt32, action: @escaping Action) {
+    init(shortcut: ShortcutDescriptor, identifier: UInt32, action: @escaping Action) throws {
         self.identifier = identifier
         self.action = action
 
@@ -28,22 +55,34 @@ final class GlobalHotKey: @unchecked Sendable {
             Unmanaged.passUnretained(self).toOpaque(),
             &eventHandler
         )
-        guard handlerStatus == noErr else { return nil }
+        guard handlerStatus == noErr else {
+            if let eventHandler { RemoveEventHandler(eventHandler) }
+            eventHandler = nil
+            throw GlobalHotKeyRegistrationError.eventHandlerInstallationFailed(handlerStatus)
+        }
 
         var reference: EventHotKeyRef?
         let hotKeyID = EventHotKeyID(signature: Self.signature, id: identifier)
         let registrationStatus = RegisterEventHotKey(
-            keyCode,
-            modifiers,
+            shortcut.keyCode,
+            shortcut.carbonModifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
             &reference
         )
-        guard registrationStatus == noErr, let reference else {
+        guard registrationStatus == noErr else {
             if let eventHandler { RemoveEventHandler(eventHandler) }
             eventHandler = nil
-            return nil
+            if registrationStatus == OSStatus(eventHotKeyExistsErr) {
+                throw GlobalHotKeyRegistrationError.alreadyRegistered(registrationStatus)
+            }
+            throw GlobalHotKeyRegistrationError.registrationFailed(registrationStatus)
+        }
+        guard let reference else {
+            if let eventHandler { RemoveEventHandler(eventHandler) }
+            eventHandler = nil
+            throw GlobalHotKeyRegistrationError.missingRegistrationReference
         }
         hotKey = reference
     }
@@ -73,6 +112,8 @@ final class GlobalHotKey: @unchecked Sendable {
 
     private static let signature: OSType = 0x4E_43_4C_50 // "NCLP"
 }
+
+extension GlobalHotKey: HotKeyRegistrationToken {}
 
 private let neClipGlobalHotKeyHandler: EventHandlerUPP = { _, event, userData in
     guard let event, let userData else { return OSStatus(eventNotHandledErr) }
