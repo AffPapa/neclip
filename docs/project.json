@@ -23,16 +23,18 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-2026-08-31.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.4.0.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
   "features": [
     "clipboard history for text, images and files",
     "local search, pins, individual delete with undo and OCR",
-    "snippet folders, starter snippets and local placeholders",
-    "manual EN/RU layout correction",
+    "editable snippet folders, starter snippets and local placeholders",
+    "manual EN/RU layout correction with a configurable shortcut",
     "optional conservative automatic EN/RU correction",
+    "off-only automatic-correction safety shortcut",
+    "configurable grapheme-safe menu label length",
     "bounded local storage and privacy exclusions"
   ],
   "shortcuts": [

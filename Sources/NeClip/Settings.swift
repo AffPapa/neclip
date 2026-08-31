@@ -9,7 +9,9 @@ enum CapturePauseState: Equatable {
 extension Notification.Name {
     static let neClipCaptureControlsDidChange = Notification.Name("org.affpapa.neclip.captureControlsDidChange")
     static let neClipLayoutSettingsDidChange = Notification.Name("org.affpapa.neclip.layoutSettingsDidChange")
+    static let neClipLayoutHotKeysDidChange = Notification.Name("org.affpapa.neclip.layoutHotKeysDidChange")
     static let neClipManualLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.manualLayoutCorrectionRequested")
+    static let neClipDisableAutomaticLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.disableAutomaticLayoutCorrectionRequested")
 }
 
 enum Settings {
@@ -28,6 +30,8 @@ enum Settings {
         static let ignoreNextCopy = "ignoreNextCopy"
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
         static let layoutExcludedApps = "layoutExcludedApps"
+        static let manualLayoutShortcut = "manualLayoutShortcut.v1"
+        static let disableAutomaticLayoutShortcut = "disableAutomaticLayoutShortcut.v1"
     }
 
     static var historyLimit: Int {
@@ -46,8 +50,29 @@ enum Settings {
     }
 
     static var menuTitleLength: Int {
-        get { d.object(forKey: Key.menuTitleLength) as? Int ?? 60 }
-        set { d.set(newValue, forKey: Key.menuTitleLength) }
+        get {
+            let stored = d.object(forKey: Key.menuTitleLength) as? Int
+            let normalized = MenuTitleFormatter.normalizedLimit(stored ?? MenuTitleFormatter.defaultLimit)
+            if stored != normalized { d.set(normalized, forKey: Key.menuTitleLength) }
+            return normalized
+        }
+        set { d.set(MenuTitleFormatter.normalizedLimit(newValue), forKey: Key.menuTitleLength) }
+    }
+
+    static var manualLayoutShortcut: ShortcutDescriptor {
+        decodedShortcut(forKey: Key.manualLayoutShortcut, fallback: .defaultManualLayout)
+    }
+
+    static var disableAutomaticLayoutShortcut: ShortcutDescriptor {
+        decodedShortcut(forKey: Key.disableAutomaticLayoutShortcut, fallback: .defaultDisableAutomaticLayout)
+    }
+
+    static func storeManualLayoutShortcut(_ shortcut: ShortcutDescriptor) {
+        storeShortcut(shortcut, forKey: Key.manualLayoutShortcut)
+    }
+
+    static func storeDisableAutomaticLayoutShortcut(_ shortcut: ShortcutDescriptor) {
+        storeShortcut(shortcut, forKey: Key.disableAutomaticLayoutShortcut)
     }
 
     /// Global key listening is always explicit opt-in. Missing defaults and
@@ -170,6 +195,27 @@ enum Settings {
     private static func notifyLayoutSettingsChanged() {
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .neClipLayoutSettingsDidChange, object: nil)
+        }
+    }
+
+    private static func decodedShortcut(
+        forKey key: String,
+        fallback: ShortcutDescriptor
+    ) -> ShortcutDescriptor {
+        guard let data = d.data(forKey: key),
+              let decoded = try? JSONDecoder().decode(ShortcutDescriptor.self, from: data),
+              ShortcutPolicy.validationError(for: decoded) == nil else {
+            return fallback
+        }
+        return decoded
+    }
+
+    private static func storeShortcut(_ shortcut: ShortcutDescriptor, forKey key: String) {
+        guard ShortcutPolicy.validationError(for: shortcut) == nil,
+              let data = try? JSONEncoder().encode(shortcut) else { return }
+        d.set(data, forKey: key)
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .neClipLayoutHotKeysDidChange, object: nil)
         }
     }
 

@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -7,7 +6,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = ClipboardMonitor()
     private var mainHotKey: GlobalHotKey?
     private var snippetsHotKey: GlobalHotKey?
-    private var layoutHotKey: GlobalHotKey?
+    private var fixedHotKeyWarnings: [String] = []
+    private var layoutHotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
     private let automaticLayoutCorrection = AutoLayoutController()
 
@@ -19,30 +19,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Native global shortcuts keep the app dependency-light. Handlers are
         // delivered by the application event target on the main run loop.
-        mainHotKey = GlobalHotKey(
-            keyCode: UInt32(kVK_ANSI_V),
-            modifiers: UInt32(cmdKey | shiftKey),
+        mainHotKey = try? GlobalHotKey(
+            shortcut: .historyReserved,
             identifier: 1
         ) { [weak self] in
             MainActor.assumeIsolated { self?.statusBar.showHistory() }
         }
 
-        snippetsHotKey = GlobalHotKey(
-            keyCode: UInt32(kVK_ANSI_B),
-            modifiers: UInt32(cmdKey | shiftKey),
+        snippetsHotKey = try? GlobalHotKey(
+            shortcut: .snippetsReserved,
             identifier: 2
         ) { [weak self] in
             MainActor.assumeIsolated { self?.statusBar.showSnippets() }
-        }
-
-        // A normal chord works without global key monitoring. Repeating it
-        // immediately after a correction performs a validated undo.
-        layoutHotKey = GlobalHotKey(
-            keyCode: UInt32(kVK_ANSI_L),
-            modifiers: UInt32(optionKey | shiftKey),
-            identifier: 3
-        ) { [weak self] in
-            MainActor.assumeIsolated { self?.correctLayoutOrUndo() }
         }
 
         var hotKeyWarnings: [String] = []
@@ -52,10 +40,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if snippetsHotKey == nil {
             hotKeyWarnings.append("⌘⇧B занята — сниппеты доступны в меню NeClip")
         }
-        if layoutHotKey == nil {
-            hotKeyWarnings.append("⌥⇧L занята — исправление доступно в разделе «Раскладка»")
+        fixedHotKeyWarnings = hotKeyWarnings
+
+        LayoutHotKeyCoordinator.shared.onWarningsChanged = { [weak self] warnings in
+            self?.layoutHotKeyWarnings = warnings
+            self?.refreshHotKeyWarnings()
         }
-        statusBar.setHotKeyWarnings(hotKeyWarnings)
+        LayoutHotKeyCoordinator.shared.onManualShortcutChanged = { [weak self] shortcut in
+            self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
+        }
+        LayoutHotKeyCoordinator.shared.start(
+            manualAction: { [weak self] in
+                MainActor.assumeIsolated { self?.correctLayoutOrUndo() }
+            },
+            disableAction: { [weak self] in
+                MainActor.assumeIsolated { self?.disableAutomaticLayoutCorrection() }
+            }
+        )
+        refreshHotKeyWarnings()
 
         automaticLayoutCorrection.onFeedback = { [weak self] message in
             self?.statusBar.showLayoutFeedback(message)
@@ -70,6 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self,
             selector: #selector(manualLayoutCorrectionRequested),
             name: .neClipManualLayoutCorrectionRequested,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(disableAutomaticLayoutCorrectionRequested),
+            name: .neClipDisableAutomaticLayoutCorrectionRequested,
             object: nil
         )
         automaticLayoutCorrection.applySetting()
@@ -130,6 +138,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         correctLayoutOrUndo()
     }
 
+    @objc private func disableAutomaticLayoutCorrectionRequested() {
+        disableAutomaticLayoutCorrection()
+    }
+
+    private func refreshHotKeyWarnings() {
+        statusBar.setHotKeyWarnings(fixedHotKeyWarnings + layoutHotKeyWarnings)
+    }
+
+    private func disableAutomaticLayoutCorrection() {
+        guard Settings.automaticLayoutCorrection else {
+            statusBar.showLayoutFeedback("Автоисправление уже выключено")
+            return
+        }
+        // Stop the event tap before publishing the setting change. The safety
+        // shortcut is deliberately off-only and can never request access.
+        automaticLayoutCorrection.disable()
+        Settings.automaticLayoutCorrection = false
+        statusBar.showLayoutFeedback("Автоисправление выключено")
+    }
+
     private func correctLayoutOrUndo() {
         if automaticLayoutCorrection.undoLastCorrectionIfPossible(completion: { [weak self] undone in
             self?.statusBar.showLayoutFeedback(undone ? "Исправление отменено" : "Отмена уже недоступна")
@@ -142,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let message: String
             switch result {
             case .corrected:
-                message = "Раскладка исправлена · ⌥⇧L — отменить"
+                message = "Раскладка исправлена · \(LayoutHotKeyCoordinator.shared.manualShortcut.displayString) — отменить"
             case .undone:
                 message = "Исправление отменено"
             case .nothingToCorrect:

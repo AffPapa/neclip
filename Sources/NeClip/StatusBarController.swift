@@ -137,6 +137,7 @@ final class StatusBarController: NSObject {
 #endif
         activeMenuKind = kind
         let menu = kind == .history ? buildHistoryMenu() : buildSnippetsMenu(asRoot: true)
+        MenuAppearance.applyEffectiveAppearance(to: menu)
         activeMenu = menu
         if let searchField = activeSearchField {
             DispatchQueue.main.async { [weak searchField] in
@@ -204,7 +205,7 @@ final class StatusBarController: NSObject {
     }
 
     private func buildHistoryMenu() -> NSMenu {
-        let menu = NSMenu(title: "NeClip")
+        let menu = makeMenu(title: "NeClip")
         menu.addItem(makeSearchItem(placeholder: "Поиск в истории и сниппетах…"))
         menu.addItem(.separator())
         appendHistoryContents(to: menu)
@@ -264,7 +265,7 @@ final class StatusBarController: NSObject {
         let pinned = Array(snapshot.clips.filter(\.isPinned).prefix(20))
         if !pinned.isEmpty {
             let pinnedItem = item("Закреплённые", nil, symbol: "pin.fill")
-            let pinnedMenu = NSMenu(title: "Закреплённые")
+            let pinnedMenu = makeMenu(title: "Закреплённые")
             for (index, clip) in pinned.enumerated() {
                 pinnedMenu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: nil, showNumber: false))
             }
@@ -291,7 +292,7 @@ final class StatusBarController: NSObject {
             for start in stride(from: 10, to: history.count, by: 10) {
                 let end = min(start + 10, history.count)
                 let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
-                let submenu = NSMenu(title: "\(start + 1)–\(end)")
+                let submenu = makeMenu(title: "\(start + 1)–\(end)")
                 for index in start..<end {
                     submenu.addItem(clipMenuItem(history[index], absoluteIndex: index, quickKey: nil, showNumber: true))
                 }
@@ -321,7 +322,7 @@ final class StatusBarController: NSObject {
     }
 
     private func buildSnippetsMenu(asRoot: Bool) -> NSMenu {
-        let menu = NSMenu(title: "Сниппеты")
+        let menu = makeMenu(title: "Сниппеты")
         if asRoot {
             menu.addItem(makeSearchItem(placeholder: "Поиск сниппетов…"))
             menu.addItem(.separator())
@@ -566,7 +567,7 @@ final class StatusBarController: NSObject {
     private func appendHotKeyWarnings(to menu: NSMenu) {
         guard !hotKeyWarnings.isEmpty else { return }
         let root = item("Некоторые быстрые клавиши заняты", nil, symbol: "exclamationmark.triangle")
-        let submenu = NSMenu(title: "Недоступные быстрые клавиши")
+        let submenu = makeMenu(title: "Недоступные быстрые клавиши")
         for warning in hotKeyWarnings {
             submenu.addItem(NSMenuItem(title: warning, action: nil, keyEquivalent: ""))
         }
@@ -584,7 +585,7 @@ final class StatusBarController: NSObject {
         root.toolTip = hasEntry
             ? "Команды применяются к первому видимому элементу списка"
             : "Восстановить последний удалённый элемент"
-        let submenu = NSMenu(title: rootTitle)
+        let submenu = makeMenu(title: rootTitle)
         if let entry = visibleKeyboardEntries.first {
             let isPinned: Bool
             switch entry {
@@ -672,22 +673,12 @@ final class StatusBarController: NSObject {
                     DispatchQueue.main.async { self?.showFeedback("Сниппет можно создать только из текста") }
                     return
                 }
-                let folders = try Storage.shared.snippetFolders()
-                let folderID: Int64?
-                if let existing = folders.first?.id {
-                    folderID = existing
-                } else {
-                    let isRussian = Locale.preferredLanguages.first?.lowercased().hasPrefix("ru") == true
-                    folderID = try Storage.shared.addFolder(
-                        title: isRussian ? "Быстрые ответы" : "Quick replies"
-                    )?.id
-                }
                 _ = try Storage.shared.addSnippet(
-                    folderID: folderID,
+                    folderID: nil,
                     title: String(summary.title.prefix(60)),
                     content: content
                 )
-                DispatchQueue.main.async { self?.showFeedback("Сохранено в сниппеты") }
+                DispatchQueue.main.async { self?.showFeedback("Сохранено в «Без папки»") }
             } catch {
                 DispatchQueue.main.async { self?.showFeedback("Не удалось создать сниппет") }
             }
@@ -745,8 +736,9 @@ final class StatusBarController: NSObject {
     }
 
     private func snippetFolderItem(title: String, snippets: [Snippet]) -> NSMenuItem {
-        let folderItem = item(title, nil, symbol: "folder")
-        let submenu = NSMenu(title: title)
+        let displayTitle = cleanTitle(title)
+        let folderItem = item(displayTitle, nil, symbol: "folder")
+        let submenu = makeMenu(title: displayTitle)
         for snippet in snippets {
             submenu.addItem(snippetMenuItem(snippet, resultIndex: nil, quickKey: nil))
         }
@@ -796,7 +788,8 @@ final class StatusBarController: NSObject {
 
     private func layoutMenuItem() -> NSMenuItem {
         let root = item("Раскладка", nil, symbol: "character.cursor.ibeam")
-        let submenu = NSMenu(title: "Раскладка")
+        let submenu = makeMenu(title: "Раскладка")
+        let shortcuts = LayoutHotKeyCoordinator.shared
         let automatic = item(
             "Автоматически исправлять (бета)",
             #selector(toggleAutomaticLayoutCorrection),
@@ -804,12 +797,23 @@ final class StatusBarController: NSObject {
         )
         automatic.state = Settings.automaticLayoutCorrection ? .on : .off
         submenu.addItem(automatic)
+        let disableShortcut = shortcuts.disableAutomaticShortcut
+        let disable = item(
+            "Быстро выключить автоисправление",
+            #selector(disableAutomaticLayoutCorrection),
+            symbol: "stop.circle",
+            keyEquivalent: disableShortcut.keyEquivalent ?? "",
+            modifiers: disableShortcut.nsEventModifiers
+        )
+        disable.isEnabled = Settings.automaticLayoutCorrection
+        submenu.addItem(disable)
+        let manualShortcut = shortcuts.manualShortcut
         submenu.addItem(item(
             "Исправить выделение или последнее слово",
             #selector(correctFocusedLayout),
             symbol: "text.cursor",
-            keyEquivalent: "l",
-            modifiers: [.option, .shift]
+            keyEquivalent: manualShortcut.keyEquivalent ?? "",
+            modifiers: manualShortcut.nsEventModifiers
         ))
         submenu.addItem(.separator())
         let hint = NSMenuItem(title: "⌃↩ — исправить выбранную запись истории и вставить", action: nil, keyEquivalent: "")
@@ -837,7 +841,7 @@ final class StatusBarController: NSObject {
             ignore.state = Settings.ignoreNextCopy ? .on : .off
             menu.addItem(ignore)
             let pause = item("Приостановить запись", nil, symbol: "pause.fill")
-            let pauseMenu = NSMenu(title: "Приостановить запись")
+            let pauseMenu = makeMenu(title: "Приостановить запись")
             pauseMenu.addItem(item("На 15 минут", #selector(pauseForFifteenMinutes), symbol: "timer"))
             pauseMenu.addItem(item("До возобновления", #selector(pauseIndefinitely), symbol: "pause.fill"))
             pause.submenu = pauseMenu
@@ -861,6 +865,12 @@ final class StatusBarController: NSObject {
         return menuItem
     }
 
+    private func makeMenu(title: String) -> NSMenu {
+        let menu = NSMenu(title: title)
+        menu.appearance = NSApp.effectiveAppearance
+        return menu
+    }
+
     private func symbol(_ name: String, description: String?) -> NSImage? {
         let image = NSImage(systemSymbolName: name, accessibilityDescription: description)
         image?.isTemplate = true
@@ -881,12 +891,7 @@ final class StatusBarController: NSObject {
     }
 
     private func cleanTitle(_ value: String) -> String {
-        let singleLine = value
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "\r", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard singleLine.count > 62 else { return singleLine }
-        return String(singleLine.prefix(61)) + "…"
+        MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)
     }
 
     private func captureTargetPID() -> pid_t? {
@@ -948,8 +953,10 @@ final class StatusBarController: NSObject {
 
     @objc private func toggleAutomaticLayoutCorrection() {
         if Settings.automaticLayoutCorrection {
-            Settings.automaticLayoutCorrection = false
-            showFeedback("Автоисправление выключено")
+            NotificationCenter.default.post(
+                name: .neClipDisableAutomaticLayoutCorrectionRequested,
+                object: nil
+            )
             return
         }
         PreferencesWindowController.shared.show()
@@ -958,6 +965,13 @@ final class StatusBarController: NSObject {
 
     @objc private func correctFocusedLayout() {
         NotificationCenter.default.post(name: .neClipManualLayoutCorrectionRequested, object: nil)
+    }
+
+    @objc private func disableAutomaticLayoutCorrection() {
+        NotificationCenter.default.post(
+            name: .neClipDisableAutomaticLayoutCorrectionRequested,
+            object: nil
+        )
     }
 
     @objc private func pasteSnippet(_ sender: NSMenuItem) {

@@ -205,6 +205,269 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(try storage.allSnippets().first?.id, pinnedID)
     }
 
+    func testFolderRenamePersistsAndRejectsAnEmptyTitle() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        var folder = try XCTUnwrap(storage.addFolder(title: "Original"))
+        folder.title = "  Renamed  "
+
+        let updated = try storage.update(folder)
+        XCTAssertEqual(updated.title, "Renamed")
+        XCTAssertEqual(try storage.snippetFolders().first?.title, "Renamed")
+
+        folder = updated
+        folder.title = "   "
+        XCTAssertThrowsError(try storage.update(folder)) { error in
+            XCTAssertEqual(error as? SnippetStorageError, .emptyFolderTitle)
+        }
+        XCTAssertEqual(try storage.snippetFolders().first?.title, "Renamed")
+    }
+
+    func testSnippetMovePreservesFieldsAndAssignsDestinationOrder() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let sourceID = try XCTUnwrap(storage.addFolder(title: "Source")?.id)
+        let destinationID = try XCTUnwrap(storage.addFolder(title: "Destination")?.id)
+        let existingID = try XCTUnwrap(storage.addSnippet(
+            folderID: destinationID,
+            title: "Existing",
+            content: "first"
+        )?.id)
+        let snippet = try XCTUnwrap(storage.addSnippet(
+            folderID: sourceID,
+            title: "Move me",
+            content: "Body {date}",
+            keyword: "move"
+        ))
+        let id = try XCTUnwrap(snippet.id)
+        try storage.setSnippetPinned(id: id, pinned: true)
+        try storage.markSnippetUsed(id: id)
+        let before = try XCTUnwrap(storage.allSnippets(search: "move").first)
+
+        let moved = try storage.moveSnippet(id: id, toFolderID: destinationID)
+        XCTAssertEqual(moved.folderID, destinationID)
+        XCTAssertEqual(moved.sortIndex, 1)
+        XCTAssertEqual(moved.title, before.title)
+        XCTAssertEqual(moved.content, before.content)
+        XCTAssertEqual(moved.keyword, before.keyword)
+        XCTAssertEqual(moved.isPinned, before.isPinned)
+        XCTAssertEqual(moved.useCount, before.useCount)
+        XCTAssertEqual(moved.lastUsedAt, before.lastUsedAt)
+        XCTAssertEqual(storage.snippets(inFolder: destinationID).map(\.id), [existingID, id])
+
+        let unfiled = try storage.moveSnippet(id: id, toFolderID: nil)
+        XCTAssertNil(unfiled.folderID)
+        XCTAssertEqual(unfiled.content, before.content)
+    }
+
+    func testSnippetEditDoesNotOverwriteNewerUsageMetadata() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        var staleEditorCopy = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Concurrent edit",
+            content: "before"
+        ))
+        let id = try XCTUnwrap(staleEditorCopy.id)
+
+        try storage.markSnippetUsed(id: id)
+        staleEditorCopy.content = "after"
+        let updated = try storage.update(staleEditorCopy)
+
+        XCTAssertEqual(updated.content, "after")
+        XCTAssertEqual(updated.useCount, 1)
+        XCTAssertNotNil(updated.lastUsedAt)
+    }
+
+    func testDeletingFolderLeavesLiveSnippetsUnfiledWithMetadataIntact() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let folderID = try XCTUnwrap(storage.addFolder(title: "Temporary")?.id)
+        let snippet = try XCTUnwrap(storage.addSnippet(
+            folderID: folderID,
+            title: "Keep me",
+            content: "Preserved body",
+            keyword: "keep"
+        ))
+        let id = try XCTUnwrap(snippet.id)
+        try storage.setSnippetPinned(id: id, pinned: true)
+        try storage.markSnippetUsed(id: id)
+        let before = try XCTUnwrap(storage.allSnippets(search: "keep").first)
+
+        try storage.deleteFolder(id: folderID)
+
+        XCTAssertTrue(try storage.snippetFolders().isEmpty)
+        let after = try XCTUnwrap(storage.allSnippets(search: "keep").first)
+        XCTAssertNil(after.folderID)
+        XCTAssertEqual(after.id, before.id)
+        XCTAssertEqual(after.title, before.title)
+        XCTAssertEqual(after.content, before.content)
+        XCTAssertEqual(after.keyword, before.keyword)
+        XCTAssertEqual(after.isPinned, before.isPinned)
+        XCTAssertEqual(after.useCount, before.useCount)
+        XCTAssertEqual(after.lastUsedAt, before.lastUsedAt)
+        XCTAssertEqual(after.createdAt, before.createdAt)
+        XCTAssertEqual(after.updatedAt, before.updatedAt)
+    }
+
+    @MainActor
+    func testSnippetEditorFlushesOldDraftBeforeSelectionChanges() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let first = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "First",
+            content: "old"
+        ))
+        let second = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Second",
+            content: "second"
+        ))
+        let firstID = try XCTUnwrap(first.id)
+        let secondID = try XCTUnwrap(second.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload()
+        model.selectSnippet(firstID)
+
+        model.editorContent = "saved before switching"
+        model.editorChanged()
+        model.selectSnippet(secondID)
+
+        XCTAssertEqual(model.selectedSnippetID, secondID)
+        XCTAssertEqual(
+            try storage.allSnippets().first(where: { $0.id == firstID })?.content,
+            "saved before switching"
+        )
+    }
+
+    @MainActor
+    func testSnippetEditorKeepsFailedDraftAndBlocksSelectionUntilRetrySucceeds() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let first = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "First",
+            content: "first",
+            keyword: "reserved"
+        ))
+        let second = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Second",
+            content: "second"
+        ))
+        let firstID = try XCTUnwrap(first.id)
+        let secondID = try XCTUnwrap(second.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload()
+        model.selectSnippet(secondID)
+
+        model.editorKeyword = "reserved"
+        model.editorChanged()
+        model.selectSnippet(firstID)
+
+        XCTAssertEqual(model.selectedSnippetID, secondID)
+        XCTAssertEqual(model.editorKeyword, "reserved")
+        guard case .failed = model.saveState else {
+            return XCTFail("A failed save must remain visible")
+        }
+
+        model.editorKeyword = "available"
+        model.editorChanged()
+        model.selectSnippet(firstID)
+
+        XCTAssertEqual(model.selectedSnippetID, firstID)
+        XCTAssertEqual(
+            try storage.allSnippets().first(where: { $0.id == secondID })?.keyword,
+            ";available"
+        )
+    }
+
+    @MainActor
+    func testSnippetEditorCancelsStaleDraftWhenFieldsReturnToSavedValue() async throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let snippet = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Original",
+            content: "Body"
+        ))
+        let id = try XCTUnwrap(snippet.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload()
+        model.selectSnippet(id)
+
+        model.editorTitle = "Intermediate"
+        model.editorChanged()
+        model.editorTitle = "Original"
+        model.editorChanged()
+        try await Task.sleep(for: .milliseconds(450))
+
+        XCTAssertTrue(model.flushPendingSave())
+        XCTAssertEqual(model.saveState, .saved)
+        XCTAssertEqual(
+            try storage.allSnippets().first(where: { $0.id == id })?.title,
+            "Original"
+        )
+    }
+
+    @MainActor
+    func testSnippetEditorCanReturnFromFailedDraftToSavedValue() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let first = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "First",
+            content: "first",
+            keyword: "reserved"
+        ))
+        let second = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Second",
+            content: "second"
+        ))
+        let firstID = try XCTUnwrap(first.id)
+        let secondID = try XCTUnwrap(second.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload()
+        model.selectSnippet(secondID)
+
+        model.editorKeyword = "reserved"
+        model.editorChanged()
+        model.selectSnippet(firstID)
+        guard case .failed = model.saveState else {
+            return XCTFail("Duplicate keyword must fail before the revert")
+        }
+
+        model.editorKeyword = ""
+        model.editorChanged()
+        model.selectSnippet(firstID)
+
+        XCTAssertEqual(model.selectedSnippetID, firstID)
+        XCTAssertEqual(
+            try storage.allSnippets().first(where: { $0.id == secondID })?.keyword,
+            nil
+        )
+    }
+
+    @MainActor
+    func testSnippetEditorKeepsDraftWhenDeletionFails() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let snippet = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Keep draft",
+            content: "old"
+        ))
+        let id = try XCTUnwrap(snippet.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload()
+        model.selectSnippet(id)
+        model.editorContent = "unsaved text"
+        model.editorChanged()
+
+        try storage.deleteSnippet(id: id)
+        model.deleteSelected()
+
+        XCTAssertEqual(model.selectedSnippetID, id)
+        XCTAssertEqual(model.editorContent, "unsaved text")
+        guard case .failed = model.saveState else {
+            return XCTFail("Failed deletion must retain the draft")
+        }
+        XCTAssertFalse(model.flushPendingSave())
+    }
+
     func testSnippetDeleteUndoRestoresExactMetadataAndSurvivesMissingFolder() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let folder = try XCTUnwrap(storage.addFolder(title: "Reusable"))
@@ -226,7 +489,7 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(try storage.allSnippets(search: "undo").first, original)
 
         let removedAgain = try XCTUnwrap(storage.removeSnippet(id: id))
-        storage.deleteFolder(id: folderID)
+        try storage.deleteFolder(id: folderID)
         try storage.restoreSnippet(removedAgain)
         let restoredWithoutFolder = try XCTUnwrap(storage.allSnippets(search: "undo").first)
         XCTAssertNil(restoredWithoutFolder.folderID)

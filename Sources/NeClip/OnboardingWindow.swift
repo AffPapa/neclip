@@ -90,7 +90,8 @@ private struct OnboardingView: View {
                 shortcut("⌘⇧V", "Открыть историю")
                 shortcut("Поиск → ↩", "Найти и вставить")
                 shortcut("⌘⇧B", "Открыть готовые сниппеты")
-                shortcut("⌥⇧L", "Исправить неверную раскладку")
+                shortcut(Settings.manualLayoutShortcut.displayString, "Исправить неверную раскладку")
+                shortcut(Settings.disableAutomaticLayoutShortcut.displayString, "Быстро выключить автоисправление")
             }
             .padding(14)
             .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))

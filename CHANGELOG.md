@@ -4,6 +4,30 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.4.0 — 31 August 2026
+
+- Unified the complete native menu tree under the application's current system
+  appearance, so status-item and global-hotkey entry points no longer inherit
+  different light/dark presentation contexts.
+- Added a Settings field for menu-label length (16–96, default 64). Multiline
+  and Unicode whitespace collapse to one line; truncation counts complete Swift
+  graphemes and appends an ellipsis without splitting emoji or combined text.
+- Made manual layout correction configurable and added a configurable,
+  deliberately off-only shortcut for immediately disabling automatic
+  correction. Conflicting candidates fail transactionally and preserve the old
+  working registration and persisted preference.
+- Rebuilt the snippet editor as a compact two-column interface with visible
+  folders, empty sections, an explicit unfiled section, folder-aware search,
+  fixed labels, folder create/rename/delete and snippet moves.
+- Fixed a draft-loss race in the previous editor. Pending edits now flush before
+  selection, folder operations, window close, view disappearance and app exit;
+  failed saves remain visible and block navigation until retry succeeds.
+- Preserved snippets when their folder is removed and prevented stale editor
+  state from overwriting newer usage counters and timestamps.
+- Expanded the suite from 45 to 76 tests. The full suite and strict Swift 6
+  complete-concurrency build pass locally; signing/notarization status is
+  published only after the release artifact clears the fail-closed release gate.
+
 ## 1.3.2 — 31 August 2026
 
 - Restored individual item management inside the compact native menu without
