@@ -18,6 +18,9 @@ VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resource
 BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Resources/Info.plist)
 IDENTITY="${NECLIP_SIGN_IDENTITY:-474F7C78F33EE324C24F6F5AE0443EB713E85E60}"
 PROFILE="${NECLIP_NOTARY_PROFILE:-neclip}"
+KEY_PATH="${NECLIP_NOTARY_KEY_PATH:-}"
+KEY_ID="${NECLIP_NOTARY_KEY_ID:-}"
+ISSUER="${NECLIP_NOTARY_ISSUER:-}"
 
 for tool in swift codesign diskutil xcrun spctl ditto shasum; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
@@ -32,8 +35,29 @@ security find-identity -v -p codesigning | grep -F "$IDENTITY" >/dev/null || {
 }
 
 # Verify notarization credentials before touching any existing dist artifact.
-echo "== Checking notarization profile =="
-xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null
+# A direct API key avoids storing another persistent secret in the Keychain.
+# Individual API keys need only the key file and key ID; Team keys also set
+# NECLIP_NOTARY_ISSUER.
+NOTARY_ARGS=()
+if [[ -n "$KEY_PATH" || -n "$KEY_ID" || -n "$ISSUER" ]]; then
+  [[ -n "$KEY_PATH" && -n "$KEY_ID" ]] || {
+    echo "Direct notarization requires NECLIP_NOTARY_KEY_PATH and NECLIP_NOTARY_KEY_ID." >&2
+    exit 1
+  }
+  [[ -f "$KEY_PATH" ]] || {
+    echo "Notarization key file is unavailable." >&2
+    exit 1
+  }
+  NOTARY_ARGS=(--key "$KEY_PATH" --key-id "$KEY_ID")
+  if [[ -n "$ISSUER" ]]; then
+    NOTARY_ARGS+=(--issuer "$ISSUER")
+  fi
+  echo "== Checking direct notarization credentials =="
+else
+  NOTARY_ARGS=(--keychain-profile "$PROFILE")
+  echo "== Checking notarization profile =="
+fi
+xcrun notarytool history "${NOTARY_ARGS[@]}" >/dev/null
 
 WORK_DIR=$(mktemp -d /tmp/neclip-release.XXXXXX)
 MOUNT_DIR=""
@@ -68,7 +92,7 @@ codesign --verify --strict --verbose=2 "$APP"
 # makes the exact app inside the DMG independently verifiable offline.
 ditto -c -k --keepParent "$APP" "$ZIP"
 echo "== Notarizing application =="
-xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
+xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
 
@@ -81,7 +105,7 @@ codesign --force --timestamp --sign "$IDENTITY" "$DMG"
 codesign --verify --strict --verbose=2 "$DMG"
 
 echo "== Notarizing disk image =="
-xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
+xcrun notarytool submit "$DMG" "${NOTARY_ARGS[@]}" --wait
 xcrun stapler staple "$DMG"
 
 echo "== Verifying exact release artifacts =="

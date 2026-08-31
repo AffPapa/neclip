@@ -114,7 +114,7 @@ final class ApplicationModeContractTests: XCTestCase {
         )
 
         let credentialPreflight = try XCTUnwrap(
-            script.range(of: "notarytool history --keychain-profile")
+            script.range(of: "notarytool history \"${NOTARY_ARGS[@]}\"")
         )
         let temporaryWorkspace = try XCTUnwrap(script.range(of: "WORK_DIR=$(mktemp -d"))
         let distMutation = try XCTUnwrap(script.range(of: "rm -rf dist/NeClip.app"))
@@ -122,6 +122,12 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertLessThan(credentialPreflight.lowerBound, temporaryWorkspace.lowerBound)
         XCTAssertLessThan(credentialPreflight.lowerBound, distMutation.lowerBound)
         XCTAssertTrue(script.contains("notarytool submit \"$ZIP\""))
+        XCTAssertTrue(script.contains("NECLIP_NOTARY_KEY_PATH"))
+        XCTAssertTrue(script.contains("NECLIP_NOTARY_KEY_ID"))
+        XCTAssertTrue(script.contains("NECLIP_NOTARY_ISSUER"))
+        XCTAssertTrue(script.contains("NOTARY_ARGS=(--key \"$KEY_PATH\" --key-id \"$KEY_ID\")"))
+        XCTAssertTrue(script.contains("NOTARY_ARGS=(--keychain-profile \"$PROFILE\")"))
+        XCTAssertTrue(script.contains("[[ -f \"$KEY_PATH\" ]]"))
         XCTAssertTrue(script.contains("stapler staple \"$APP\""))
         XCTAssertTrue(script.contains("stapler staple \"$DMG\""))
         XCTAssertTrue(script.contains("spctl --assess --type execute"))

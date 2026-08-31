@@ -119,7 +119,10 @@ swift test
 preflights credentials before touching `dist`, runs tests and a strict Swift 6
 release build, signs inside-out, notarizes and staples both the app and DMG,
 verifies Gatekeeper against the exact mounted image, and writes SHA-256. Do not
-publish any artifact produced outside that gate.
+publish any artifact produced outside that gate. It accepts either the
+`NECLIP_NOTARY_PROFILE` Keychain profile or a non-persistent App Store Connect
+API key through `NECLIP_NOTARY_KEY_PATH` and `NECLIP_NOTARY_KEY_ID`; Team keys
+also provide `NECLIP_NOTARY_ISSUER`.
 
 The sole source dependency is GRDB.swift 7.11.1, pinned exactly. Global
 shortcuts use the native Carbon registration API. See
