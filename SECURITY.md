@@ -10,7 +10,28 @@ only when the user explicitly chooses “Check for Updates”.
 
 Release binaries are accepted only after Developer ID signing, Apple
 notarization, stapling, Gatekeeper assessment and published SHA-256 verification.
-Published releases and their assets are immutable. GitHub also checks Swift and
-workflow source with CodeQL, allows only GitHub-owned Actions referenced by full
-SHA, monitors the exact SwiftPM dependency for vulnerabilities and blocks
+Repository-wide release immutability is enabled. Releases `v1.3.2` and later,
+including the current `v1.4.0`, have immutable assets and tags; GitHub's policy
+cannot retroactively lock the earlier `v1.3.0` and `v1.3.1` releases. Their
+published SHA-256 files remain the verification source. GitHub also checks Swift
+and workflow source with CodeQL, allows only GitHub-owned Actions referenced by
+full SHA, monitors the exact SwiftPM dependency for vulnerabilities and blocks
 force-pushes or deletion of `main`.
+
+Every push, pull request and weekly scheduled run also executes a fully
+redacted Gitleaks scan over both the publishable working tree and every fetched
+Git ref. The workflow downloads a fixed Gitleaks version and verifies the exact
+archive SHA-256 before execution. It receives read-only repository permission,
+does not use repository secrets and never runs through `pull_request_target`.
+
+To run the same gate locally, install Gitleaks and execute:
+
+```sh
+scripts/secret-scan.sh
+```
+
+The repository ignores local environment files, signing keys, Keychains,
+provisioning profiles, clipboard databases, logs and release archives. These
+rules are defense in depth, not a substitute for revoking a credential: if a
+real secret is ever committed, revoke it at the provider first, then remove it
+from Git history and public artifacts.
