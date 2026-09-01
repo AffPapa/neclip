@@ -50,6 +50,7 @@ not planned.
 - Direct recent-history sequential paste without a collection mode
 - Configurable, conflict-safe history, snippet and sequential-paste shortcuts
 - Five concise Settings sections instead of one long form
+- Matching editable numeric controls for history size and menu-label length
 - Immediately discoverable snippet editing with automatic initial selection,
   full-row edit actions and explicit autosave status
 - Always-enabled native Quit command with draft-safe snippet termination

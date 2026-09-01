@@ -25,6 +25,69 @@ final class PreferencesWindowController {
     }
 }
 
+private struct NumericPreferenceRow: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    let unit: String
+    let accessibilityLabel: String
+
+    @State private var text: String
+    @FocusState private var isEditing: Bool
+
+    init(
+        _ title: String,
+        value: Binding<Int>,
+        range: ClosedRange<Int>,
+        step: Int,
+        unit: String,
+        accessibilityLabel: String
+    ) {
+        self.title = title
+        _value = value
+        self.range = range
+        self.step = step
+        self.unit = unit
+        self.accessibilityLabel = accessibilityLabel
+        _text = State(initialValue: String(value.wrappedValue))
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+            Spacer()
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 72)
+                .multilineTextAlignment(.trailing)
+                .font(.body.monospacedDigit())
+                .accessibilityLabel(accessibilityLabel)
+                .focused($isEditing)
+                .onSubmit(commitText)
+            Text(unit)
+                .foregroundStyle(.secondary)
+                .frame(width: 84, alignment: .leading)
+            Stepper("", value: $value, in: range, step: step)
+                .labelsHidden()
+                .accessibilityLabel("Изменить: \(accessibilityLabel.lowercased())")
+        }
+        .onChange(of: value) { _, newValue in
+            text = String(newValue)
+        }
+        .onChange(of: isEditing) { _, editing in
+            if !editing { commitText() }
+        }
+    }
+
+    private func commitText() {
+        let requested = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? value
+        let normalized = min(range.upperBound, max(range.lowerBound, requested))
+        value = normalized
+        text = String(normalized)
+    }
+}
+
 private struct PreferencesView: View {
     private enum PreferencesTab: Hashable {
         case general
@@ -36,7 +99,7 @@ private struct PreferencesView: View {
 
     @State private var selectedTab = PreferencesTab.general
     @State private var historyLimit = Settings.historyLimit
-    @State private var menuTitleLengthText = String(Settings.menuTitleLength)
+    @State private var menuTitleLength = Settings.menuTitleLength
     @State private var clipboardAccess = ClipboardAccess.current
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
@@ -57,7 +120,6 @@ private struct PreferencesView: View {
     @State private var deleteAllConfirmation = false
     @State private var clearHistoryConfirmation = false
     @State private var feedback: String?
-    @FocusState private var menuTitleLengthFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -136,29 +198,25 @@ private struct PreferencesView: View {
     private var generalTab: some View {
         Form {
             Section("История") {
-                Stepper("Хранить до \(historyLimit) элементов", value: $historyLimit, in: 10...1000, step: 10)
+                NumericPreferenceRow(
+                    "Размер истории",
+                    value: $historyLimit,
+                    range: 10...1_000,
+                    step: 10,
+                    unit: "элементов",
+                    accessibilityLabel: "Количество элементов истории"
+                )
                     .onChange(of: historyLimit) { _, value in applyHistoryLimit(value) }
-                HStack {
-                    Text("Показывать в меню до")
-                    Spacer()
-                    TextField("", text: $menuTitleLengthText)
-                        .frame(width: 52)
-                        .multilineTextAlignment(.trailing)
-                        .accessibilityLabel("Количество символов в строке меню")
-                        .focused($menuTitleLengthFocused)
-                        .onSubmit(commitMenuTitleLength)
-                        .onChange(of: menuTitleLengthText) { _, value in
-                            if let parsed = Int(value), MenuTitleFormatter.validLengthRange.contains(parsed) {
-                                Settings.menuTitleLength = parsed
-                            }
-                        }
-                    Text("символов")
-                        .foregroundStyle(.secondary)
-                }
-                .onChange(of: menuTitleLengthFocused) { _, focused in
-                    if !focused { commitMenuTitleLength() }
-                }
-                Text("Допустимо 16–96. Длинные строки заканчиваются многоточием, полный текст сохраняется.")
+                NumericPreferenceRow(
+                    "Длина строки в меню",
+                    value: $menuTitleLength,
+                    range: MenuTitleFormatter.validLengthRange,
+                    step: 1,
+                    unit: "символов",
+                    accessibilityLabel: "Количество символов в строке меню"
+                )
+                    .onChange(of: menuTitleLength) { _, value in applyMenuTitleLength(value) }
+                Text("Число можно ввести или изменить стрелками. Диапазоны: 10–1000 элементов и 16–96 символов. Полный текст сохраняется.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Сохранять изображения", isOn: $captureImages)
@@ -528,8 +586,13 @@ private struct PreferencesView: View {
         disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
     }
 
-    private func applyHistoryLimit(_ value: Int) {
-        Settings.historyLimit = value
+    private func applyHistoryLimit(_ requested: Int) {
+        let normalized = min(1_000, max(10, requested))
+        if historyLimit != normalized {
+            historyLimit = normalized
+            return
+        }
+        Settings.historyLimit = normalized
         DispatchQueue.global(qos: .utility).async {
             do {
                 try Storage.shared.trimToLimits()
@@ -539,11 +602,13 @@ private struct PreferencesView: View {
         }
     }
 
-    private func commitMenuTitleLength() {
-        let requested = Int(menuTitleLengthText) ?? MenuTitleFormatter.defaultLimit
+    private func applyMenuTitleLength(_ requested: Int) {
         let normalized = MenuTitleFormatter.normalizedLimit(requested)
+        if menuTitleLength != normalized {
+            menuTitleLength = normalized
+            return
+        }
         Settings.menuTitleLength = normalized
-        menuTitleLengthText = String(normalized)
         feedback = "В меню будет показано до \(normalized) символов"
     }
 

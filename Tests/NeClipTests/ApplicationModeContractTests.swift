@@ -98,6 +98,10 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertEqual(statusBar.components(separatedBy: "NSMenu(title:").count - 1, 1)
         XCTAssertTrue(statusBar.contains("private func makeMenu(title: String) -> NSMenu"))
 
+        XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
+        XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
+        XCTAssertTrue(preferences.contains("\"Размер истории\""))
+        XCTAssertTrue(preferences.contains("\"Длина строки в меню\""))
         XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
         XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))

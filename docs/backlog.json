@@ -20,6 +20,7 @@
     "Direct recent-history sequential paste without collection mode",
     "Configurable conflict-safe history, snippet and sequential-paste shortcuts",
     "Five concise Settings sections",
+    "Matching editable numeric controls for history size and menu-label length",
     "Immediately discoverable snippet editing with automatic selection and full-row edit actions",
     "Always-enabled native Quit command with draft-safe snippet termination",
     "Bounded browsing for 100 recent and 100 pinned values",

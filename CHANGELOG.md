@@ -17,6 +17,9 @@ DMG checksum verification have passed.
   configurable. All five NeClip shortcuts share conflict validation;
   registration failure preserves the previous working shortcut.
 - Reorganized Settings into General, Keys, Privacy, Layout and Data sections.
+- Unified the history-size and menu-label-length settings into matching numeric
+  rows with a visible editable value, identical steppers, clear units and safe
+  range normalization.
 - Made snippet editing self-explanatory: the top visible snippet opens
   automatically, every full-width row has an edit affordance and accessible
   action, and the editor explicitly labels editing and automatic saving.
