@@ -19,6 +19,7 @@ final class SecretScanningContractTests: XCTestCase {
         XCTAssertTrue(workflow.contains("GITLEAKS_VERSION: 8.30.1"))
         XCTAssertTrue(workflow.contains("shasum -a 256 -c -"))
         XCTAssertTrue(workflow.contains("run: scripts/secret-scan.sh"))
+        XCTAssertTrue(workflow.contains("+refs/pull/*/head:refs/remotes/origin/pr/*"))
         XCTAssertFalse(workflow.contains("pull_request_target"))
         XCTAssertFalse(workflow.contains("secrets."))
     }
@@ -42,7 +43,7 @@ final class SecretScanningContractTests: XCTestCase {
     func testSensitiveLocalArtifactsAreIgnored() throws {
         let gitignore = try text(".gitignore")
         for pattern in [
-            ".env.*", "AuthKey_*.p8", "*.pem", "*.p12", "*.key",
+            ".env.*", "*.p8", "*.pem", "*.p12", "*.key",
             "*.mobileprovision", "*.keychain-db", "*.sqlite", "*.db-wal",
             "*.log", "*.xcarchive", "*.dmg", "*.zip"
         ] {
@@ -74,6 +75,8 @@ final class SecretScanningContractTests: XCTestCase {
         XCTAssertTrue(policy.contains("Releases `v1.3.2` and later"))
         XCTAssertTrue(policy.contains("cannot retroactively lock"))
         XCTAssertFalse(policy.contains("Published releases and their assets are immutable"))
+        XCTAssertFalse(policy.contains("blocks force-pushes"))
+        XCTAssertTrue(policy.contains("authenticated GitHub release gate"))
     }
 
     private func text(_ relativePath: String) throws -> String {

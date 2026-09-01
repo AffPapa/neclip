@@ -1,5 +1,8 @@
+import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
+import UniformTypeIdentifiers
 @testable import NeClip
 
 @Suite(.serialized)
@@ -55,6 +58,42 @@ struct HistoryItemActionsTests {
         let stored = try #require(fetched)
         #expect(stored.title == "keep me")
         #expect(stored.text == "keep me")
+    }
+
+    @Test func imagePreviewIsDownsampledToTheInspectorBudget() throws {
+        let width = 2_000
+        let height = 1_000
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let context = try #require(CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.setFillColor(CGColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        let image = try #require(context.makeImage())
+        let original = NSMutableData()
+        let destination = try #require(CGImageDestinationCreateWithData(
+            original,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ))
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+
+        let preview = try #require(HistoryImagePreview.pngData(from: original as Data))
+        let source = try #require(CGImageSourceCreateWithData(preview as CFData, nil))
+        let properties = try #require(
+            CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        )
+        let previewWidth = try #require(properties[kCGImagePropertyPixelWidth] as? Int)
+        let previewHeight = try #require(properties[kCGImagePropertyPixelHeight] as? Int)
+        #expect(max(previewWidth, previewHeight) <= HistoryImagePreview.maximumPixelSize)
     }
 
     private func textItem(_ value: String) -> ClipItem {

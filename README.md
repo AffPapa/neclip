@@ -8,7 +8,7 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.6.2 (build 12)**. The latest public, signed and
+Current source version: **1.7.0 (build 13)**. The latest public, signed and
 notarized release remains **1.4.0** until a separate release gate is completed.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
@@ -16,7 +16,7 @@ for the intentionally small public roadmap.
 The current module ownership and invariants are in
 [docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
 audit, decisions and verification gates are in
-[docs/AUDIT-1.6.2-2026-09-01.md](docs/AUDIT-1.6.2-2026-09-01.md).
+[docs/AUDIT-1.7.0-2026-09-01.md](docs/AUDIT-1.7.0-2026-09-01.md).
 The current from-scratch comparison of 20 clipboard products, 20 layout tools,
 100 candidate improvements and the 1.6.0 decisions is in
 [docs/RESEARCH-1.6.0-ZERO-2026-09-01.md](docs/RESEARCH-1.6.0-ZERO-2026-09-01.md).
@@ -52,11 +52,9 @@ The first ten recent items are inline; up to 100 are browsable in one compact
 same bounded hierarchy; older values remain available through database search.
 The snippet hotkey shows nine quick items first and then a bounded folder
 hierarchy; larger imported libraries remain fully searchable and editable. The
-history menu also contains
-an explicit **Actions for Top Item** submenu, pause, ignore-next-copy,
-append-next-text,
-clear, preferences, snippet
-editing, the manual update check, and quit.
+history menu also contains an explicit **Actions for Top Item** submenu.
+Lower-frequency capture, cleanup, sequential-paste, layout and update controls
+are grouped under **Management**, followed by snippet editing, Settings and Quit.
 
 If macOS or another application already owns a NeClip global shortcut, the menu
 explains which combination is unavailable and keeps the equivalent command
@@ -70,18 +68,19 @@ user-defined 16–96 character limit (64 by default) without cutting an emoji or
 combined Unicode character.
 
 Search accepts ordinary text together with compact local filters:
-`type:text/image/file/link/email/color/code`, `app:safari`,
+`type:text/image/file/link/email/color/code`, `app:com.apple.Safari`,
 `when:today/week/month`, and `is:pinned/history`. When exact search has no
 result, NeClip performs a bounded typo-tolerant pass over lightweight recent
 summaries, never image or RTF payloads.
 The standard magnifier inside the history search field exposes the common
-filters, so their syntax does not have to be memorized.
+filters and recent source applications, so their syntax and bundle identifiers
+do not have to be memorized.
 
 The top-item action submenu keeps advanced workflows out of the main menu:
-preview/edit/rename, safe URL or file opening, OCR-text paste, paste-and-delete
-and local text transforms. Paste-and-delete is available only for unpinned
-history and removes the record only after the direct paste command is
-successfully dispatched; copy-only fallback does not delete it. Sequential paste needs no collection mode: the first invocation
+preview/edit/rename, safe URL or file opening, OCR-text paste and local text
+transforms. Deletion remains a separate explicit action with exact local undo;
+NeClip never infers that a receiving application accepted an injected paste.
+Sequential paste needs no collection mode: the first invocation
 captures a stable list of the 50 latest database identifiers, each successful
 invocation advances once, and the sequence resets after 30 seconds or a new
 external copy. Clipboard content is not duplicated.
@@ -121,9 +120,9 @@ disabling it removes the event tap. The dedicated safety shortcut only turns
 this mode off; it can never enable monitoring or open a permission prompt.
 
 The focused snippet editor shows every folder, empty folders and **Unfiled** in
-one compact sidebar. It selects the top visible snippet on open; every snippet
-row is a full-width edit button with a pencil and opens clearly labelled fields
-on the right. Snippets can be edited, moved, pinned and searched; folders can be
+one compact sidebar. It selects the top visible snippet on open; every complete
+native list row selects the clearly labelled fields on the right and arrow keys
+follow the same visible order. Snippets can be edited, moved, pinned and searched; folders can be
 created, renamed and removed. Removing a folder keeps its snippets in
 **Unfiled**. Changes save automatically, pending edits are flushed before
 navigation or close, and a failed save remains visible instead of discarding

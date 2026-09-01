@@ -22,7 +22,7 @@ KEY_PATH="${NECLIP_NOTARY_KEY_PATH:-}"
 KEY_ID="${NECLIP_NOTARY_KEY_ID:-}"
 ISSUER="${NECLIP_NOTARY_ISSUER:-}"
 
-for tool in swift codesign diskutil xcrun spctl ditto shasum; do
+for tool in git swift codesign diskutil xcrun spctl ditto shasum lipo; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 [[ -n "${DEVELOPER_DIR:-}" && -d "$DEVELOPER_DIR" ]] || {
@@ -33,6 +33,35 @@ security find-identity -v -p codesigning | grep -F "$IDENTITY" >/dev/null || {
   echo "Developer ID identity is unavailable: $IDENTITY" >&2
   exit 1
 }
+
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "CFBundleShortVersionString must be semantic version x.y.z." >&2
+  exit 1
+}
+[[ "$BUILD" =~ ^[1-9][0-9]*$ ]] || {
+  echo "CFBundleVersion must be a positive integer." >&2
+  exit 1
+}
+[[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]] || {
+  echo "Release requires a clean tracked and untracked working tree." >&2
+  exit 1
+}
+SOURCE_COMMIT=$(git rev-parse --verify HEAD)
+EXPECTED_COMMIT="${NECLIP_RELEASE_COMMIT:-}"
+[[ -n "$EXPECTED_COMMIT" ]] || {
+  echo "Set NECLIP_RELEASE_COMMIT to the reviewed full commit SHA." >&2
+  exit 1
+}
+[[ "$EXPECTED_COMMIT" == "$SOURCE_COMMIT" ]] || {
+  echo "NECLIP_RELEASE_COMMIT does not match HEAD." >&2
+  exit 1
+}
+if git rev-parse --verify --quiet "refs/tags/v${VERSION}" >/dev/null; then
+  [[ "$(git rev-list -n 1 "v${VERSION}")" == "$SOURCE_COMMIT" ]] || {
+    echo "Existing v${VERSION} tag does not point to the reviewed commit." >&2
+    exit 1
+  }
+fi
 
 # Verify notarization credentials before touching any existing dist artifact.
 # A direct API key avoids storing another persistent secret in the Keychain.
@@ -61,9 +90,13 @@ xcrun notarytool history "${NOTARY_ARGS[@]}" >/dev/null
 
 WORK_DIR=$(mktemp -d /tmp/neclip-release.XXXXXX)
 MOUNT_DIR=""
+DIST_STAGE=""
 cleanup() {
   if [[ -n "$MOUNT_DIR" ]]; then
     diskutil eject "$MOUNT_DIR" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$DIST_STAGE" && -d "$DIST_STAGE" ]]; then
+    rm -rf "$DIST_STAGE"
   fi
   rm -rf "$WORK_DIR"
 }
@@ -77,6 +110,10 @@ echo "== Swift 6 tests and strict build =="
 swift test --disable-sandbox
 swift build --disable-sandbox -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 BIN_DIR=$(swift build --disable-sandbox -c release --show-bin-path)
+[[ "$(lipo -archs "$BIN_DIR/NeClip")" == "arm64" ]] || {
+  echo "Release binary must contain exactly arm64." >&2
+  exit 1
+}
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/NeClip" "$APP/Contents/MacOS/NeClip"
@@ -125,13 +162,34 @@ rmdir "$MOUNT_DIR"
 MOUNT_DIR=""
 
 (cd "$WORK_DIR" && shasum -a 256 "NeClip-${VERSION}.dmg" > "NeClip-${VERSION}.dmg.sha256")
+DMG_SHA=$(awk '{print $1}' "$DMG.sha256")
+printf '{"version":"%s","build":%s,"commit":"%s","architecture":"arm64","sha256":"%s"}\n' \
+  "$VERSION" "$BUILD" "$SOURCE_COMMIT" "$DMG_SHA" > "$WORK_DIR/NeClip-${VERSION}.release.json"
 
-# Publish locally only after every gate passes. Existing known-good downloads
-# remain untouched on any earlier error.
-mkdir -p dist
+# Publish one immutable local release directory, then atomically move the
+# `current` pointer. Compatibility paths resolve through that single pointer,
+# so an interrupted copy can never expose a mixed app/DMG/checksum set.
+mkdir -p dist/releases
+DIST_STAGE=$(mktemp -d "dist/releases/.stage-${VERSION}.XXXXXX")
+DIST_RELEASE="dist/releases/${VERSION}-${BUILD}-${SOURCE_COMMIT}"
+[[ ! -e "$DIST_RELEASE" ]] || {
+  echo "Local release directory already exists: $DIST_RELEASE" >&2
+  exit 1
+}
+cp -R "$APP" "$DIST_STAGE/NeClip.app"
+cp "$DMG" "$DIST_STAGE/NeClip-${VERSION}.dmg"
+cp "$DMG.sha256" "$DIST_STAGE/NeClip-${VERSION}.dmg.sha256"
+cp "$WORK_DIR/NeClip-${VERSION}.release.json" "$DIST_STAGE/"
+(cd "$DIST_STAGE" && shasum -a 256 -c "NeClip-${VERSION}.dmg.sha256")
+mv "$DIST_STAGE" "$DIST_RELEASE"
+DIST_STAGE=""
+CURRENT_LINK="dist/releases/.current-${SOURCE_COMMIT}"
+ln -s "$(basename "$DIST_RELEASE")" "$CURRENT_LINK"
+mv -fh "$CURRENT_LINK" dist/releases/current
 rm -rf dist/NeClip.app
-cp -R "$APP" dist/NeClip.app
-cp "$DMG" "dist/NeClip-${VERSION}.dmg"
-cp "$DMG.sha256" "dist/NeClip-${VERSION}.dmg.sha256"
+ln -s "releases/current/NeClip.app" dist/NeClip.app
+ln -sfn "releases/current/NeClip-${VERSION}.dmg" "dist/NeClip-${VERSION}.dmg"
+ln -sfn "releases/current/NeClip-${VERSION}.dmg.sha256" "dist/NeClip-${VERSION}.dmg.sha256"
+ln -sfn "releases/current/NeClip-${VERSION}.release.json" "dist/NeClip-${VERSION}.release.json"
 
 echo "OK: NeClip ${VERSION} (${BUILD}) signed, notarized, stapled and verified"

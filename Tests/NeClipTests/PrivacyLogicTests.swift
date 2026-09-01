@@ -89,15 +89,6 @@ final class PrivacyLogicTests: XCTestCase {
         )
     }
 
-    func testPasteAndDeleteRequiresConfirmedDirectPasteAndUnpinnedItem() {
-        XCTAssertTrue(PasteService.shouldDeleteAfterPaste(.pasted, isPinned: false))
-        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.pasted, isPinned: true))
-        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnly, isPinned: false))
-        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnlyNoAccessibility, isPinned: false))
-        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnlyTargetChanged, isPinned: false))
-        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.failed(.eventCreation), isPinned: false))
-    }
-
     @MainActor
     func testPasteboardSnapshotPreservesEveryRepresentationAndEmptyState() throws {
         XCTAssertEqual(
@@ -148,6 +139,27 @@ final class PrivacyLogicTests: XCTestCase {
         Settings.resumeCapture()
         XCTAssertFalse(Settings.isCapturePaused)
         XCTAssertEqual(Settings.capturePauseState, .active)
+    }
+
+    @MainActor
+    func testClipboardMonitorDrainWaitsForQueuedProcessing() {
+        let queue = DispatchQueue(label: "org.affpapa.neclip.tests.clipboard-drain")
+        let started = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let completed = DispatchSemaphore(value: 0)
+        queue.async {
+            started.signal()
+            release.wait()
+        }
+        queue.async { completed.signal() }
+        XCTAssertEqual(started.wait(timeout: .now() + 1), .success)
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) {
+            release.signal()
+        }
+        ClipboardMonitor(processingQueue: queue).stopAndDrain()
+
+        XCTAssertEqual(completed.wait(timeout: .now()), .success)
     }
 
     func testExpiredPauseResumesCapture() {

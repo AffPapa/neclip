@@ -388,6 +388,7 @@ final class AutoLayoutController {
     private var nextContextID: UInt64 = 0
     private var undoRecord: UndoRecord?
     private var undoExpiry: DispatchWorkItem?
+    private var contextRefreshWorkItem: DispatchWorkItem?
     private var ignoredTokens = BoundedLayoutIgnoreList()
     private var secureTimer: Timer?
     private var focusCheckCounter = 0
@@ -434,9 +435,7 @@ final class AutoLayoutController {
                 DispatchQueue.main.async { self?.handle(boundary) }
             },
             onContextInvalidated: { [weak self] in
-                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(40)) {
-                    self?.refreshContext()
-                }
+                DispatchQueue.main.async { self?.scheduleContextRefresh() }
             }
         )
         guard created.start() else {
@@ -486,6 +485,8 @@ final class AutoLayoutController {
     }
 
     func disable() {
+        contextRefreshWorkItem?.cancel()
+        contextRefreshWorkItem = nil
         secureTimer?.invalidate()
         secureTimer = nil
         if let inputSourceObserver {
@@ -506,6 +507,8 @@ final class AutoLayoutController {
     }
 
     func refreshContext() {
+        contextRefreshWorkItem?.cancel()
+        contextRefreshWorkItem = nil
         guard state == .running, let monitor else { return }
         guard case .success(let focused) = accessibility.focusedContext(
             scope: .automatic,
@@ -530,6 +533,15 @@ final class AutoLayoutController {
             contextID: record.id,
             validKeyCodes: validKeyCodes
         )
+    }
+
+    private func scheduleContextRefresh() {
+        contextRefreshWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.refreshContext()
+        }
+        contextRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(40), execute: workItem)
     }
 
     func undoLastCorrectionIfPossible(completion: @escaping (Bool) -> Void) -> Bool {

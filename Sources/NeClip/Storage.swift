@@ -204,6 +204,21 @@ extension Notification.Name {
     static let neClipStorageDidChange = Notification.Name("org.affpapa.neclip.storageDidChange")
 }
 
+enum StorageChangeDomain: String, Sendable {
+    case clips
+    case snippets
+    case all
+
+    static let notificationKey = "domain"
+
+    var includesSnippets: Bool { self == .snippets || self == .all }
+
+    static func from(_ notification: Notification) -> StorageChangeDomain? {
+        guard let rawValue = notification.userInfo?[notificationKey] as? String else { return nil }
+        return StorageChangeDomain(rawValue: rawValue)
+    }
+}
+
 final class Storage: @unchecked Sendable {
     static let maximumStorageBytes: Int64 = 250 * 1024 * 1024
     static let maximumSnippetImportBytes = 16 * 1024 * 1024
@@ -263,6 +278,10 @@ final class Storage: @unchecked Sendable {
                     at: directory,
                     withIntermediateDirectories: true,
                     attributes: [.posixPermissions: 0o700]
+                )
+                try FileManager.default.setAttributes(
+                    [.posixPermissions: 0o700],
+                    ofItemAtPath: directory.path
                 )
                 databasePath = directory.appendingPathComponent("neclip.sqlite").path
             }
@@ -435,6 +454,39 @@ final class Storage: @unchecked Sendable {
                 WHERE thumbnail IS NOT NULL
                 """)
         }
+        // Metadata-only changes (pin/use counters/timestamps) must not delete
+        // and reinsert complete FTS bodies. Large snippets can be up to 2 MB,
+        // so guarding these triggers materially reduces every snippet paste.
+        migrator.registerMigration("v6-guard-fts-update-triggers") { db in
+            try db.execute(sql: """
+                DROP TRIGGER IF EXISTS clipSearch_au;
+                CREATE TRIGGER clipSearch_au
+                AFTER UPDATE OF title, text, ocrText, appBundleID ON clip
+                WHEN old.title IS NOT new.title
+                    OR old.text IS NOT new.text
+                    OR old.ocrText IS NOT new.ocrText
+                    OR old.appBundleID IS NOT new.appBundleID
+                BEGIN
+                    INSERT INTO clipSearch(clipSearch, rowid, title, text, ocrText, appBundleID)
+                    VALUES ('delete', old.id, old.title, old.text, old.ocrText, old.appBundleID);
+                    INSERT INTO clipSearch(rowid, title, text, ocrText, appBundleID)
+                    VALUES (new.id, new.title, new.text, new.ocrText, new.appBundleID);
+                END;
+
+                DROP TRIGGER IF EXISTS snippetSearch_au;
+                CREATE TRIGGER snippetSearch_au
+                AFTER UPDATE OF title, content, keyword ON snippet
+                WHEN old.title IS NOT new.title
+                    OR old.content IS NOT new.content
+                    OR old.keyword IS NOT new.keyword
+                BEGIN
+                    INSERT INTO snippetSearch(snippetSearch, rowid, title, content, keyword)
+                    VALUES ('delete', old.id, old.title, old.content, old.keyword);
+                    INSERT INTO snippetSearch(rowid, title, content, keyword)
+                    VALUES (new.id, new.title, new.content, new.keyword);
+                END;
+                """)
+        }
         try migrator.migrate(dbQueue)
         // Apply retention immediately after a migration/recount. Only ordinary
         // history can be removed; pinned clips remain protected even if they
@@ -516,7 +568,7 @@ final class Storage: @unchecked Sendable {
             try trim(db)
             return item.id
         }
-        notifyChange()
+        notifyChange(.clips)
         return id
     }
 
@@ -579,7 +631,7 @@ final class Storage: @unchecked Sendable {
             try trim(db)
             return .appended(latestID)
         }
-        if case .appended = result { notifyChange() }
+        if case .appended = result { notifyChange(.clips) }
         return result
     }
 
@@ -604,28 +656,56 @@ final class Storage: @unchecked Sendable {
         query: ClipboardSearchQuery,
         limit: Int = 20
     ) throws -> [ClipSummary] {
-        let candidateLimit = query.needsPostFiltering ? max(200, limit * 10) : limit
-        var exact = try fetchSearchSummaries(
+        let exact = try searchCandidates(
             query: query,
             includeTerms: true,
-            limit: candidateLimit
+            requestedMatches: limit
         )
-        exact = exact.filter { SmartClipClassifier.matches($0, category: query.smartCategory) }
         if !exact.isEmpty || query.terms.isEmpty {
             return Array(exact.prefix(limit))
         }
 
-        // Fuzzy search is deliberately bounded and runs only after exact FTS
-        // produced no visible result. It never loads image or RTF BLOBs.
-        var candidates = try fetchSearchSummaries(
+        // Fuzzy ranking stays bounded to 300 lightweight summaries, but a
+        // semantic filter may page past many unrelated recent rows to collect
+        // those candidates. This keeps old links/emails/colors/code searchable.
+        let candidates = try searchCandidates(
             query: query,
             includeTerms: false,
-            limit: 300
+            requestedMatches: 300
         )
-        candidates = candidates.filter {
-            SmartClipClassifier.matches($0, category: query.smartCategory)
-        }
         return ClipboardFuzzySearch.ranked(candidates, query: query.terms, limit: limit)
+    }
+
+    private func searchCandidates(
+        query: ClipboardSearchQuery,
+        includeTerms: Bool,
+        requestedMatches: Int
+    ) throws -> [ClipSummary] {
+        guard query.needsPostFiltering else {
+            return try fetchSearchSummaries(
+                query: query,
+                includeTerms: includeTerms,
+                limit: requestedMatches
+            )
+        }
+
+        let batchSize = max(200, min(1_000, requestedMatches * 10))
+        var offset = 0
+        var matches: [ClipSummary] = []
+        while matches.count < requestedMatches {
+            let batch = try fetchSearchSummaries(
+                query: query,
+                includeTerms: includeTerms,
+                limit: batchSize,
+                offset: offset
+            )
+            matches.append(contentsOf: batch.filter {
+                SmartClipClassifier.matches($0, category: query.smartCategory)
+            })
+            guard batch.count == batchSize else { break }
+            offset += batch.count
+        }
+        return Array(matches.prefix(requestedMatches))
     }
 
     func recentSummaries(
@@ -683,7 +763,8 @@ final class Storage: @unchecked Sendable {
     private func fetchSearchSummaries(
         query: ClipboardSearchQuery,
         includeTerms: Bool,
-        limit: Int
+        limit: Int,
+        offset: Int = 0
     ) throws -> [ClipSummary] {
         try dbQueue.read { db in
             var sql = """
@@ -729,8 +810,8 @@ final class Storage: @unchecked Sendable {
             if !conditions.isEmpty {
                 sql += " WHERE " + conditions.joined(separator: " AND ")
             }
-            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC LIMIT ?"
-            arguments += [max(1, limit)]
+            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC LIMIT ? OFFSET ?"
+            arguments += [max(1, limit), max(0, offset)]
             let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
             return rows.compactMap(Self.summary(from:))
         }
@@ -749,7 +830,7 @@ final class Storage: @unchecked Sendable {
             try item.update(db)
             try trim(db)
         }
-        notifyChange()
+        notifyChange(.clips)
     }
 
     func setPinned(id: Int64, pinned: Bool) throws {
@@ -762,7 +843,7 @@ final class Storage: @unchecked Sendable {
                 arguments: [pinned, pinned ? Date() : nil, id]
             )
         }
-        notifyChange()
+        notifyChange(.clips)
     }
 
     /// Renames any clip and optionally replaces the payload of a text clip.
@@ -793,7 +874,7 @@ final class Storage: @unchecked Sendable {
             try trim(db)
             return item
         }
-        notifyChange()
+        notifyChange(.clips)
         return updated
     }
 
@@ -803,7 +884,7 @@ final class Storage: @unchecked Sendable {
             try ClipItem.deleteOne(db, key: id)
             return RemovedClip(item: item)
         }
-        if removed != nil { notifyChange() }
+        if removed != nil { notifyChange(.clips) }
         return removed
     }
 
@@ -814,7 +895,7 @@ final class Storage: @unchecked Sendable {
             try item.insert(db, onConflict: .replace)
             try trim(db)
         }
-        notifyChange()
+        notifyChange(.clips)
     }
 
     /// Deletes history in one transaction. `createdAfter` supports privacy
@@ -833,7 +914,7 @@ final class Storage: @unchecked Sendable {
             try db.execute(sql: "DELETE FROM clip" + suffix, arguments: arguments)
             return db.changesCount
         }
-        if removed > 0 { notifyChange() }
+        if removed > 0 { notifyChange(.clips) }
         return removed
     }
 
@@ -845,7 +926,7 @@ final class Storage: @unchecked Sendable {
             try Snippet.deleteAll(db)
             try SnippetFolder.deleteAll(db)
         }
-        notifyChange()
+        notifyChange(.all)
     }
 
     func vacuum() throws {
@@ -857,7 +938,7 @@ final class Storage: @unchecked Sendable {
 
     func trimToLimits() throws {
         try dbQueue.write { db in try trim(db) }
-        notifyChange()
+        notifyChange(.clips)
     }
 
     var count: Int {
@@ -981,7 +1062,7 @@ final class Storage: @unchecked Sendable {
             try folder.insert(db)
             return folder
         }
-        notifyChange()
+        notifyChange(.snippets)
         return folder
     }
 
@@ -1013,7 +1094,7 @@ final class Storage: @unchecked Sendable {
             try snippet.insert(db)
             return snippet
         }
-        notifyChange()
+        notifyChange(.snippets)
         return snippet
     }
 
@@ -1034,7 +1115,7 @@ final class Storage: @unchecked Sendable {
             try stored.update(db)
             return stored
         }
-        notifyChange()
+        notifyChange(.snippets)
         return updated
     }
 
@@ -1082,7 +1163,7 @@ final class Storage: @unchecked Sendable {
             }
             return updated
         }
-        notifyChange()
+        notifyChange(.snippets)
         return updated
     }
 
@@ -1103,7 +1184,7 @@ final class Storage: @unchecked Sendable {
             try snippet.update(db)
             return snippet
         }
-        notifyChange()
+        notifyChange(.snippets)
         return moved
     }
 
@@ -1114,7 +1195,7 @@ final class Storage: @unchecked Sendable {
                 arguments: [pinned, Date(), id]
             )
         }
-        notifyChange()
+        notifyChange(.snippets)
     }
 
     func markSnippetUsed(id: Int64) throws {
@@ -1132,7 +1213,7 @@ final class Storage: @unchecked Sendable {
                 throw SnippetStorageError.folderNotFound
             }
         }
-        notifyChange()
+        notifyChange(.snippets)
     }
 
     func removeSnippet(id: Int64) throws -> RemovedSnippet? {
@@ -1141,7 +1222,7 @@ final class Storage: @unchecked Sendable {
             try Snippet.deleteOne(db, key: id)
             return RemovedSnippet(item: item)
         }
-        if removed != nil { notifyChange() }
+        if removed != nil { notifyChange(.snippets) }
         return removed
     }
 
@@ -1154,7 +1235,7 @@ final class Storage: @unchecked Sendable {
             }
             try item.insert(db)
         }
-        notifyChange()
+        notifyChange(.snippets)
     }
 
     func deleteSnippet(id: Int64) throws {
@@ -1281,7 +1362,7 @@ final class Storage: @unchecked Sendable {
             }
             return inserted
         }
-        if inserted > 0 { notifyChange() }
+        if inserted > 0 { notifyChange(.snippets) }
         return inserted
     }
 
@@ -1340,7 +1421,7 @@ final class Storage: @unchecked Sendable {
                 sql: "INSERT OR REPLACE INTO appMetadata(key, value) VALUES ('starterSnippetsInstalled', '1')"
             )
         }
-        notifyChange()
+        notifyChange(.snippets)
     }
 
     // MARK: - Internals
@@ -1487,9 +1568,13 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    private func notifyChange() {
+    private func notifyChange(_ domain: StorageChangeDomain) {
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .neClipStorageDidChange, object: self)
+            NotificationCenter.default.post(
+                name: .neClipStorageDidChange,
+                object: self,
+                userInfo: [StorageChangeDomain.notificationKey: domain.rawValue]
+            )
         }
     }
 

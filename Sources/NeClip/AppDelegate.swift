@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        configureApplicationMenu()
         statusBar = StatusBarController()
         DispatchQueue.global(qos: .utility).async {
             try? Storage.shared.installStarterSnippetsIfNeeded(force: false)
@@ -118,10 +119,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateCancel
         }
         guard Settings.clearHistoryOnQuit else { return .terminateNow }
+        monitor.stopAndDrain()
         do {
             try Storage.shared.clearHistory(includePinned: false)
             return .terminateNow
         } catch {
+            monitor.start()
             let alert = NSAlert()
             alert.messageText = "Не удалось очистить историю"
             alert.informativeText = "NeClip не завершит работу, чтобы настройка приватности не создала ложного ощущения удаления. Попробуйте ещё раз."
@@ -135,6 +138,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         automaticLayoutCorrection.refreshContext()
         monitor.refreshAuthorization()
         statusBar.refreshAuthorizationState()
+    }
+
+    private func configureApplicationMenu() {
+        let mainMenu = NSMenu(title: "Main")
+        let applicationItem = NSMenuItem()
+        let applicationMenu = NSMenu(title: "NeClip")
+        let quitItem = NSMenuItem(
+            title: "Выйти из NeClip",
+            action: #selector(quitFromApplicationMenu),
+            keyEquivalent: "q"
+        )
+        quitItem.keyEquivalentModifierMask = [.command]
+        quitItem.target = self
+        applicationMenu.addItem(quitItem)
+        applicationItem.submenu = applicationMenu
+        mainMenu.addItem(applicationItem)
+        NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func quitFromApplicationMenu() {
+        NSApp.terminate(nil)
     }
 
     private func startMonitorAroundOnboarding() {

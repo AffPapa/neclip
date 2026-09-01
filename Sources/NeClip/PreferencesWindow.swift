@@ -125,6 +125,7 @@ private struct PreferencesView: View {
     @State private var clearHistoryConfirmation = false
     @State private var clearHistoryOnQuit = Settings.clearHistoryOnQuit
     @State private var feedback: String?
+    @State private var dataOperationRunning = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -143,6 +144,11 @@ private struct PreferencesView: View {
             if let feedback {
                 Divider()
                 HStack {
+                    if dataOperationRunning {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Операция с локальными данными выполняется")
+                    }
                     Image(systemName: "info.circle")
                     Text(feedback)
                     Spacer()
@@ -332,10 +338,8 @@ private struct PreferencesView: View {
         Form {
             Section("Доступ") {
                 HStack(alignment: .top) {
-                    Image(systemName: clipboardAccess == .denied
-                        ? "exclamationmark.shield.fill"
-                        : "checkmark.shield.fill")
-                        .foregroundStyle(clipboardAccess == .denied ? .orange : .green)
+                    Image(systemName: clipboardPermissionSymbol)
+                        .foregroundStyle(clipboardPermissionColor)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(clipboardAccessTitle)
                         Text(clipboardAccessDetail)
@@ -428,7 +432,7 @@ private struct PreferencesView: View {
                         Settings.rememberLayoutPerApplication = value
                     }
                 HStack {
-                    Text("Запомнено приложений: \(rememberedApplicationCount)")
+                    Text("Запомнено автоматически: \(rememberedApplicationCount)")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Очистить память") {
@@ -438,7 +442,7 @@ private struct PreferencesView: View {
                     .disabled(rememberedApplicationCount == 0)
                 }
                 HStack {
-                    Text("Закреплено приложений: \(fixedApplicationCount)")
+                    Text("Закреплено вручную: \(fixedApplicationCount)")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Снять все") {
@@ -531,6 +535,7 @@ private struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
+        .disabled(dataOperationRunning)
     }
 
     @ViewBuilder
@@ -555,6 +560,21 @@ private struct PreferencesView: View {
         case .unrestricted, .allowed: "История буфера разрешена"
         case .needsChoice: "macOS может спрашивать доступ"
         case .denied: "История буфера заблокирована"
+        }
+    }
+
+    private var clipboardPermissionSymbol: String {
+        switch clipboardAccess {
+        case .unrestricted, .allowed: "checkmark.shield.fill"
+        case .needsChoice: "questionmark.diamond.fill"
+        case .denied: "exclamationmark.shield.fill"
+        }
+    }
+
+    private var clipboardPermissionColor: Color {
+        switch clipboardAccess {
+        case .unrestricted, .allowed: .green
+        case .needsChoice, .denied: .orange
         }
     }
 
@@ -675,31 +695,37 @@ private struct PreferencesView: View {
     }
 
     private func clearHistory(includePinned: Bool) {
-        do {
-            try Storage.shared.clearHistory(includePinned: includePinned)
-            feedback = "История очищена"
-            vacuumInBackground()
-        } catch {
-            feedback = "Не удалось очистить историю"
+        runDataOperation {
+            do {
+                try Storage.shared.clearHistory(includePinned: includePinned)
+                try Storage.shared.vacuum()
+                return "История очищена"
+            } catch {
+                return "Не удалось очистить историю"
+            }
         }
     }
 
     private func deleteAllData() {
-        do {
-            try Storage.shared.deleteAllUserData()
-            feedback = "История, сниппеты и их папки удалены"
-            vacuumInBackground()
-        } catch {
-            feedback = "Не удалось удалить все данные"
+        runDataOperation {
+            do {
+                try Storage.shared.deleteAllUserData()
+                try Storage.shared.vacuum()
+                return "История, сниппеты и их папки удалены"
+            } catch {
+                return "Не удалось удалить все данные"
+            }
         }
     }
 
     private func restoreStarterSnippets() {
-        do {
-            try Storage.shared.installStarterSnippetsIfNeeded(force: true)
-            feedback = "Готовые сниппеты восстановлены"
-        } catch {
-            feedback = "Не удалось восстановить сниппеты"
+        runDataOperation {
+            do {
+                try Storage.shared.installStarterSnippetsIfNeeded(force: true)
+                return "Готовые сниппеты восстановлены"
+            } catch {
+                return "Не удалось восстановить сниппеты"
+            }
         }
     }
 
@@ -708,11 +734,13 @@ private struct PreferencesView: View {
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "NeClip Snippets.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try Storage.shared.exportSnippetData().write(to: url, options: .atomic)
-            feedback = "Сниппеты экспортированы"
-        } catch {
-            feedback = "Не удалось экспортировать сниппеты"
+        runDataOperation {
+            do {
+                try Storage.shared.exportSnippetData().write(to: url, options: .atomic)
+                return "Сниппеты экспортированы"
+            } catch {
+                return "Не удалось экспортировать сниппеты"
+            }
         }
     }
 
@@ -721,24 +749,31 @@ private struct PreferencesView: View {
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
-            guard let fileSize = resourceValues.fileSize,
-                  fileSize > 0,
-                  fileSize <= Storage.maximumSnippetImportBytes else {
-                throw SnippetTransferError.fileTooLarge
+        runDataOperation {
+            do {
+                let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
+                guard let fileSize = resourceValues.fileSize,
+                      fileSize > 0,
+                      fileSize <= Storage.maximumSnippetImportBytes else {
+                    throw SnippetTransferError.fileTooLarge
+                }
+                let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                let count = try Storage.shared.importSnippetData(data)
+                return count == 0 ? "Новых сниппетов нет" : "Добавлено сниппетов: \(count)"
+            } catch {
+                return error.localizedDescription
             }
-            let data = try Data(contentsOf: url, options: .mappedIfSafe)
-            let count = try Storage.shared.importSnippetData(data)
-            feedback = count == 0 ? "Новых сниппетов нет" : "Добавлено сниппетов: \(count)"
-        } catch {
-            feedback = error.localizedDescription
         }
     }
 
-    private func vacuumInBackground() {
-        DispatchQueue.global(qos: .utility).async {
-            try? Storage.shared.vacuum()
+    private func runDataOperation(_ operation: @escaping @Sendable () -> String) {
+        guard !dataOperationRunning else { return }
+        dataOperationRunning = true
+        feedback = "Выполняется…"
+        Task {
+            let message = await Task.detached(priority: .utility, operation: operation).value
+            feedback = message
+            dataOperationRunning = false
         }
     }
 
@@ -793,6 +828,7 @@ private struct ExcludedApplicationRow: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(displayName)
                 Text(bundleIdentifier)

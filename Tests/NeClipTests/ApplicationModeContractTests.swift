@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.6.2")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "12")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.7.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "13")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -35,12 +35,12 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("#selector(saveFirstResultAsSnippet)"))
         XCTAssertTrue(statusBar.contains("#selector(deleteFirstResult)"))
         XCTAssertTrue(statusBar.contains("#selector(undoLastDeletion)"))
-        XCTAssertEqual(statusBar.components(separatedBy: "#selector(quitApplication)").count - 1, 2)
+        XCTAssertEqual(statusBar.components(separatedBy: "#selector(quitApplication)").count - 1, 3)
         XCTAssertFalse(statusBar.contains("#selector(NSApplication.terminate"))
         XCTAssertTrue(statusBar.contains("NSApp.terminate(nil)"))
         XCTAssertTrue(statusBar.contains("MenuAppearance.applyEffectiveAppearance"))
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format"))
-        XCTAssertTrue(statusBar.contains("Вставить и удалить"))
+        XCTAssertFalse(statusBar.contains("Вставить и удалить"))
         XCTAssertTrue(statusBar.contains("За последний час…"))
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
         XCTAssertTrue(statusBar.contains("Закрепить текущую для"))
@@ -77,10 +77,22 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
         XCTAssertTrue(editor.contains("windowShouldClose"))
         XCTAssertTrue(editor.contains("prepareForTermination"))
+        XCTAssertTrue(editor.contains("Button(\"Очистить поиск\")"))
         XCTAssertTrue(editor.contains("Нажмите сниппет, чтобы изменить его справа"))
         XCTAssertTrue(editor.contains("Редактирование сниппета"))
         XCTAssertTrue(editor.contains("Сохраняется автоматически"))
-        XCTAssertTrue(editor.contains("model.selectSnippet(snippet.id)"))
+    }
+
+    func testSnippetListSelectionUsesConcreteIDsAndDefersModelMutation() throws {
+        let editor = try String(
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/SnippetsEditor.swift"),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(editor.contains("List(selection:"))
+        XCTAssertTrue(editor.contains("DispatchQueue.main.async { model.selectSnippet(id) }"))
+        XCTAssertTrue(editor.contains(".tag(id)"))
+        XCTAssertFalse(editor.contains(".tag(snippet.id)"))
     }
 
     func testMenuPresentationIsWiredThroughEveryProductionPath() throws {
@@ -120,6 +132,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("Размер текста одной записи"))
         XCTAssertTrue(preferences.contains("Очищать незакреплённую историю при выходе"))
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
+        XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
         XCTAssertTrue(statusBar.contains("folderID: nil"))
     }
@@ -145,7 +158,7 @@ final class ApplicationModeContractTests: XCTestCase {
             script.range(of: "notarytool history \"${NOTARY_ARGS[@]}\"")
         )
         let temporaryWorkspace = try XCTUnwrap(script.range(of: "WORK_DIR=$(mktemp -d"))
-        let distMutation = try XCTUnwrap(script.range(of: "rm -rf dist/NeClip.app"))
+        let distMutation = try XCTUnwrap(script.range(of: "DIST_STAGE=$(mktemp -d"))
 
         XCTAssertLessThan(credentialPreflight.lowerBound, temporaryWorkspace.lowerBound)
         XCTAssertLessThan(credentialPreflight.lowerBound, distMutation.lowerBound)
@@ -164,6 +177,10 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(script.contains("diskutil image attach --readOnly"))
         XCTAssertFalse(script.contains("hdiutil"))
         XCTAssertTrue(script.contains("(cd \"$WORK_DIR\" && shasum -a 256"))
+        XCTAssertTrue(script.contains("NECLIP_RELEASE_COMMIT"))
+        XCTAssertTrue(script.contains("git status --porcelain=v1 --untracked-files=all"))
+        XCTAssertTrue(script.contains("lipo -archs"))
+        XCTAssertTrue(script.contains("dist/releases/current"))
     }
 
     func testGitHubIsTheOnlyPublicationAndUpdateSource() throws {

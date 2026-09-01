@@ -30,7 +30,7 @@ not planned.
 - Visible explanation when a global shortcut is already occupied
 - Single storage-driven menu refresh path and removal of the unused large window
 - Weekly dependency updates plus immutable releases, CodeQL, vulnerability
-  alerts, action SHA enforcement and protected `main`
+  alerts and action SHA enforcement
 - Private vulnerability reporting and a public bug form that forbids real
   clipboard contents
 
@@ -47,7 +47,20 @@ not planned.
 
 ## Done in current unreleased source
 
-- Source 1.6.2/build 12 separated from the still-public signed 1.4.0 release
+- Source 1.7.0/build 13 separated from the still-public signed 1.4.0 release
+- Native snippet-list selection and visible-order arrow navigation, debounced
+  search and a query-aware empty state
+- A shorter root menu with low-frequency actions under **Management**, plus
+  exact recent-application filters with readable names
+- Distinct pending/denied pasteboard permission states and recovery actions
+- Off-main Data operations, bounded image previews, newest-pending OCR and
+  coalesced layout-context refreshes
+- FTS triggers that ignore metadata-only writes and semantic search that pages
+  beyond the newest 200 rows
+- Race-free clear-on-quit, a native application-menu Quit command and removal
+  of the unsafe paste-and-delete workflow
+- Build-number-aware updates and a provenance-bound, atomic local release
+  pipeline with pull-request ref secret scanning
 - Self-verifying secret scanning with generated canaries plus explicit HEAD and
   side-ref-only history scans
 - Lightweight 280-character snippet projections in menus, search and editor;
@@ -69,8 +82,6 @@ not planned.
 - Normalized and deduplicated clipboard/layout application exclusions
 - User-bounded 64–2048 KB text records
 - Last-hour/today/all-unpinned cleanup and optional fail-closed cleanup on quit
-- Paste-and-delete only after successful direct-paste dispatch, never after
-  copy-only fallback
 - Per-application last-used input source without keyboard-event monitoring
 - Bounded session ignore after undoing a false automatic correction
 - Reset and visible count for up to 200 remembered application layouts

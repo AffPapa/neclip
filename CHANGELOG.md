@@ -6,6 +6,31 @@ DMG checksum verification have passed.
 
 ## Unreleased
 
+- Prepared source version 1.7.0/build 13 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until the exact release
+  artifact passes the external notarization and publication gates.
+- Replaced the snippet sidebar's nested row buttons with native List selection,
+  visible-order arrow navigation, debounced search, cached grouping and a clear
+  no-results recovery state.
+- Shortened the history root menu by grouping capture, cleanup, sequential
+  paste, layout and update controls under **Management**. Recent source apps are
+  now offered by readable name while inserting their exact bundle identifiers.
+- Removed paste-and-delete. A clipboard utility cannot prove that the receiving
+  application accepted an injected paste, so deletion is now always a separate,
+  undoable user action.
+- Fixed the clear-on-quit queue race, added a native Command-Q application menu,
+  distinguished pending pasteboard permission from granted access and moved
+  destructive/import/export Data work off the main actor with visible progress.
+- Reduced hot-path work with content-only FTS update triggers, paged semantic
+  filtering, bounded off-main image previews, newest-pending OCR, cached layout
+  key maps and coalesced Accessibility context refreshes.
+- Made update comparison include the build number. Hardened release provenance,
+  exact architecture checks, atomic local dist publication, CI credential
+  persistence and secret scanning of fetched pull-request refs.
+- Re-ran 143 normal checks, AddressSanitizer, ThreadSanitizer, a disposable copy
+  of the live database and a strict Swift 6.4 release build with complete
+  concurrency and warnings as errors.
+
 - Prepared source version 1.6.2/build 12 while keeping the public update
   manifest and signed/notarized download on 1.4.0 until a separate release gate.
 - Reworked snippet presentation around lightweight 280-character summaries.

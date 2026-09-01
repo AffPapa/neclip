@@ -15,6 +15,12 @@
     "interface": "menu-bar-only",
     "dockIcon": false
   },
+  "sourceCandidate": {
+    "version": "1.7.0",
+    "build": 13,
+    "status": "verified-source-candidate",
+    "publicVersion": "1.4.0"
+  },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
     "website": "https://affpapa.github.io/neclip/",
@@ -23,7 +29,7 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.6.2-2026-09-01.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.7.0-2026-09-01.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/COMPETITOR-UX-2026-09-01.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
@@ -50,12 +56,14 @@
     "bounded menu browsing with complete on-demand search",
     "atomic local history and snippet erasure",
     "partial or on-quit history cleanup and bounded text capture",
-    "paste-and-delete only after successful direct-paste dispatch",
+    "race-free clear-on-quit after queued capture drain",
     "bounded local storage and privacy exclusions",
     "immutable password-manager capture protection and quick per-app capture rules",
     "bounded snippet summaries with one-body-at-a-time loading",
     "lossless fail-closed pasteboard restoration",
-    "self-verifying complete-ref secret scanning"
+    "self-verifying complete-ref and pull-request-ref secret scanning",
+    "native snippet-list selection with visible-order keyboard navigation",
+    "atomic provenance-bound local release staging"
   ],
   "shortcuts": [
     {"action": "open-history", "keys": "Command-Shift-V", "customizable": true},

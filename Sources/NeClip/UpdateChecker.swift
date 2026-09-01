@@ -74,6 +74,22 @@ enum UpdateManifestPolicy {
             (48...57).contains(scalar.value) || (65...70).contains(scalar.value) || (97...102).contains(scalar.value)
         }
     }
+
+    static func isNewer(
+        remoteVersion: String,
+        remoteBuild: Int,
+        currentVersion: String,
+        currentBuild: Int
+    ) -> Bool {
+        switch remoteVersion.compare(currentVersion, options: .numeric) {
+        case .orderedDescending:
+            return true
+        case .orderedSame:
+            return remoteBuild > currentBuild
+        case .orderedAscending:
+            return false
+        }
+    }
 }
 
 /// Manual update check against the repository-owned GitHub Pages manifest.
@@ -83,6 +99,10 @@ enum UpdateManifestPolicy {
 enum UpdateChecker {
     static var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    }
+
+    static var currentBuild: Int {
+        Int(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0") ?? 0
     }
 
     static func check() {
@@ -107,10 +127,15 @@ enum UpdateChecker {
                 }
 
                 let remote = validated.manifest
-                if remote.version.compare(currentVersion, options: .numeric) == .orderedDescending {
+                if UpdateManifestPolicy.isNewer(
+                    remoteVersion: remote.version,
+                    remoteBuild: remote.build,
+                    currentVersion: currentVersion,
+                    currentBuild: currentBuild
+                ) {
                     let alert = NSAlert()
-                    alert.messageText = "Доступна версия \(remote.version)"
-                    alert.informativeText = "У вас установлена \(currentVersion). Скачать обновление с GitHub?"
+                    alert.messageText = "Доступна версия \(remote.version) (\(remote.build))"
+                    alert.informativeText = "У вас установлена \(currentVersion) (\(currentBuild)). Скачать обновление с GitHub?"
                     alert.addButton(withTitle: "Скачать")
                     alert.addButton(withTitle: "Позже")
                     NSApp.activate(ignoringOtherApps: true)
@@ -120,7 +145,7 @@ enum UpdateChecker {
                 } else {
                     showAlert(
                         title: "У вас последняя версия",
-                        text: "NeClip \(currentVersion) — новее ничего нет."
+                        text: "NeClip \(currentVersion) (\(currentBuild)) — новее ничего нет."
                     )
                 }
             }

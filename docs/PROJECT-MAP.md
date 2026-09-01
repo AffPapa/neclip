@@ -4,7 +4,7 @@ Updated: 1 September 2026. This is the source map for the current unreleased
 tree. Public release metadata remains pinned to 1.4.0 until the release gate is
 completed.
 
-The matching evidence report is `AUDIT-1.6.2-2026-09-01.md`; competitor
+The matching evidence report is `AUDIT-1.7.0-2026-09-01.md`; competitor
 matrices, the 100-item catalogue and top-20 decisions are in
 `RESEARCH-1.6.0-ZERO-2026-09-01.md`.
 
@@ -52,8 +52,9 @@ local history and snippet bodies are fetched only for the chosen action.
   bounded fuzzy fallback.
 - `PasteService.swift`: direct/plain/copy-only paste and lossless,
   compare-and-swap restoration of a temporary pasteboard; an unreadable
-  advertised representation aborts before clearing. Paste-and-delete proceeds
-  only for an unpinned record after the direct-paste result.
+  advertised representation aborts before clearing. Deletion is an explicit,
+  separately undoable action because event dispatch cannot prove target-app
+  acceptance.
 - `HistoryItemInspector.swift`: preview, rename/edit, safe open and OCR paste.
 - `TextTransform.swift`: deterministic local transforms.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.

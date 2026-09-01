@@ -82,6 +82,25 @@ final class UpdateManifestTests: XCTestCase {
         XCTAssertNil(UpdateManifestPolicy.validatedManifest(from: Data(repeating: 0, count: UpdateManifestPolicy.maximumResponseBytes + 1)))
     }
 
+    func testUpdateComparisonIncludesBuildNumber() {
+        XCTAssertTrue(UpdateManifestPolicy.isNewer(
+            remoteVersion: "1.6.2", remoteBuild: 13,
+            currentVersion: "1.6.2", currentBuild: 12
+        ))
+        XCTAssertTrue(UpdateManifestPolicy.isNewer(
+            remoteVersion: "1.7.0", remoteBuild: 1,
+            currentVersion: "1.6.2", currentBuild: 99
+        ))
+        XCTAssertFalse(UpdateManifestPolicy.isNewer(
+            remoteVersion: "1.6.2", remoteBuild: 12,
+            currentVersion: "1.6.2", currentBuild: 12
+        ))
+        XCTAssertFalse(UpdateManifestPolicy.isNewer(
+            remoteVersion: "1.6.1", remoteBuild: 99,
+            currentVersion: "1.6.2", currentBuild: 1
+        ))
+    }
+
     private func manifest(
         version: String,
         sha256: String,

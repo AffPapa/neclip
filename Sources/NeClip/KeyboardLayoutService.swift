@@ -23,6 +23,7 @@ final class KeyboardLayoutService {
 
     private var cachedPair: LayoutPair?
     private var cachedMaps: LayoutCharacterMaps?
+    private var cachedValidLetterKeyCodes: [String: Set<UInt16>] = [:]
 
     func layoutPair() -> LayoutPair? {
         if let cachedPair { return cachedPair }
@@ -113,6 +114,7 @@ final class KeyboardLayoutService {
     }
 
     func validLetterKeyCodes(sourceID: String) -> Set<UInt16> {
+        if let cached = cachedValidLetterKeyCodes[sourceID] { return cached }
         guard let pair = layoutPair() else { return [] }
         let source: Source
         let target: Source
@@ -125,13 +127,15 @@ final class KeyboardLayoutService {
         } else {
             return []
         }
-        return Set((UInt16(0)..<UInt16(128)).filter { keyCode in
+        let valid = Set((UInt16(0)..<UInt16(128)).filter { keyCode in
             guard let a = translate(keyCode: keyCode, shift: false, capsLock: false, data: source.layoutData),
                   let b = translate(keyCode: keyCode, shift: false, capsLock: false, data: target.layoutData) else {
                 return false
             }
             return a.isLetter && b.isLetter
         })
+        cachedValidLetterKeyCodes[sourceID] = valid
+        return valid
     }
 
     func currentSourceID() -> String? {
@@ -176,6 +180,7 @@ final class KeyboardLayoutService {
     func invalidate() {
         cachedPair = nil
         cachedMaps = nil
+        cachedValidLetterKeyCodes = [:]
     }
 
     private func enabledKeyboardLayouts() -> [Source] {

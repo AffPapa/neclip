@@ -179,6 +179,38 @@ final class StorageTests: XCTestCase {
         })
     }
 
+    func testFTSUpdateTriggersIgnoreMetadataOnlyChanges() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neclip-fts-trigger-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("fixture.sqlite").path
+        let storage = try Storage(path: path, installStarterContent: false)
+        var snippet = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "FTS metadata guard",
+            content: "original searchable needle"
+        ))
+        let id = try XCTUnwrap(snippet.id)
+
+        let triggerSQL = try DatabaseQueue(path: path).read { db in
+            try String.fetchOne(
+                db,
+                sql: "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'snippetSearch_au'"
+            )
+        }
+        XCTAssertTrue(triggerSQL?.contains("AFTER UPDATE OF title, content, keyword") == true)
+        XCTAssertTrue(triggerSQL?.contains("old.content IS NOT new.content") == true)
+
+        try storage.markSnippetUsed(id: id)
+        XCTAssertEqual(try storage.allSnippets(search: "original").first?.id, id)
+
+        snippet.content = "replacement searchable value"
+        _ = try storage.update(snippet)
+        XCTAssertTrue(try storage.allSnippets(search: "original").isEmpty)
+        XCTAssertEqual(try storage.allSnippets(search: "replacement").first?.id, id)
+    }
+
     func testPinSurvivesTrimAndClearThenUndoRestoresPayload() throws {
         Settings.historyLimit = 10
         let storage = try Storage(inMemory: true, installStarterContent: false)

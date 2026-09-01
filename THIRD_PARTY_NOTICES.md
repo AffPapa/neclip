@@ -1,6 +1,6 @@
 # Third-party notices
 
-NeClip 1.3.2 uses one source dependency:
+NeClip uses one source dependency:
 
 ## GRDB.swift 7.11.1
 

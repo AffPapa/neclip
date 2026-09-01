@@ -414,15 +414,9 @@ final class StatusBarController: NSObject {
         snippetsItem.submenu = buildSnippetsMenu(asRoot: false)
         menu.addItem(snippetsItem)
 
-        appendSequentialPasteControls(to: menu)
-        menu.addItem(layoutMenuItem())
-
-        menu.addItem(.separator())
-        addCaptureControls(to: menu)
-        menu.addItem(historyCleanupMenuItem())
+        menu.addItem(utilityMenuItem())
         menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
         menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
-        menu.addItem(item("Проверить обновления…", #selector(checkUpdates), symbol: "arrow.triangle.2.circlepath"))
         menu.addItem(.separator())
         menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
     }
@@ -434,6 +428,11 @@ final class StatusBarController: NSObject {
             menu.addItem(.separator())
         }
         appendSnippetContents(to: menu, showHeader: asRoot)
+        if asRoot {
+            menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
+            menu.addItem(.separator())
+            menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
+        }
         return menu
     }
 
@@ -507,7 +506,7 @@ final class StatusBarController: NSObject {
             searchField.searchMenuTemplate = historySearchMenu()
         }
         searchField.toolTip = """
-            Фильтры: type:text/image/file/link/email/color/code · app:имя · \
+            Фильтры: type:text/image/file/link/email/color/code · app:bundle.id · \
             when:today/week/month · is:pinned/history
             """
         searchField.onEscape = { [weak self, weak searchField] in
@@ -568,18 +567,41 @@ final class StatusBarController: NSObject {
             ("Сегодня", "when:today"),
             ("За неделю", "when:week"),
             ("Закреплённые", "is:pinned"),
-            ("Только история", "is:history"),
-            ("Приложение…", "app:")
+            ("Только история", "is:history")
         ]
         for filter in filters {
             let item = NSMenuItem(
-                title: "\(filter.title)  ·  \(filter.token)",
+                title: filter.title,
                 action: #selector(insertSearchFilter(_:)),
                 keyEquivalent: ""
             )
             item.target = self
             item.representedObject = filter.token
+            item.toolTip = filter.token
             menu.addItem(item)
+        }
+        var seenBundleIDs = Set<String>()
+        let recentBundleIDs = snapshot.clips.compactMap(\.appBundleID).filter { bundleID in
+            seenBundleIDs.insert(bundleID.lowercased()).inserted
+        }
+        if !recentBundleIDs.isEmpty {
+            menu.addItem(.separator())
+            let applications = item("Приложение", nil, symbol: "app")
+            let applicationMenu = makeMenu(title: "Приложение")
+            for bundleID in recentBundleIDs.prefix(12) {
+                let metadata = AppMetadataStore.shared.metadata(for: bundleID)
+                let application = NSMenuItem(
+                    title: MenuTitleFormatter.format(metadata.name, limit: 48),
+                    action: #selector(insertSearchFilter(_:)),
+                    keyEquivalent: ""
+                )
+                application.target = self
+                application.representedObject = "app:\(bundleID)"
+                application.toolTip = bundleID
+                applicationMenu.addItem(application)
+            }
+            applications.submenu = applicationMenu
+            menu.addItem(applications)
         }
         return menu
     }
@@ -707,11 +729,7 @@ final class StatusBarController: NSObject {
         }
         menu.addItem(.separator())
         if kind == .history {
-            appendSequentialPasteControls(to: menu)
-            menu.addItem(layoutMenuItem())
-            menu.addItem(.separator())
-            addCaptureControls(to: menu)
-            menu.addItem(historyCleanupMenuItem())
+            menu.addItem(utilityMenuItem())
             menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
             menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
             menu.addItem(.separator())
@@ -802,13 +820,6 @@ final class StatusBarController: NSObject {
                         "Вставить распознанный текст",
                         #selector(pasteFirstResultOCR),
                         symbol: "text.viewfinder"
-                    ))
-                }
-                if !clip.isPinned {
-                    submenu.addItem(item(
-                        "Вставить и удалить",
-                        #selector(pasteAndDeleteFirstResult),
-                        symbol: "arrow.down.doc"
                     ))
                 }
                 submenu.addItem(.separator())
@@ -921,52 +932,6 @@ final class StatusBarController: NSObject {
         }
     }
 
-    @objc private func pasteAndDeleteFirstResult() {
-        guard case .clip(let summary) = visibleKeyboardEntries.first,
-              !summary.isPinned else { return }
-        let capturedTargetPID = targetPID
-        activeMenu?.cancelTracking()
-        dataQueue.async { [weak self] in
-            do {
-                guard let stored = try Storage.shared.fetchClip(id: summary.id),
-                      !stored.isPinned else {
-                    DispatchQueue.main.async { self?.showFeedback("Закреплённый элемент не удаляется") }
-                    return
-                }
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    PasteService.paste(
-                        stored,
-                        plainText: Settings.preferPlainText,
-                        targetPID: capturedTargetPID
-                    ) { [weak self] result in
-                        guard let self else { return }
-                        self.handlePasteResult(result)
-                        guard PasteService.shouldDeleteAfterPaste(result, isPinned: stored.isPinned) else { return }
-                        self.dataQueue.async { [weak self] in
-                            do {
-                                let removed = try Storage.shared.removeClip(id: summary.id)
-                                DispatchQueue.main.async {
-                                    guard let self else { return }
-                                    guard let removed else {
-                                        self.showFeedback("Вставлено · элемент уже удалён")
-                                        return
-                                    }
-                                    self.undoDeletion = .clip(removed)
-                                    self.showFeedback("Вставлено и удалено · ⌘Z вернуть")
-                                }
-                            } catch {
-                                DispatchQueue.main.async { self?.showFeedback("Вставлено · удалить не удалось") }
-                            }
-                        }
-                    }
-                }
-            } catch {
-                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент") }
-            }
-        }
-    }
-
     private func textTransformMenuItem() -> NSMenuItem {
         let root = item("Преобразовать и вставить", nil, symbol: "textformat")
         let submenu = makeMenu(title: "Преобразовать и вставить")
@@ -1029,6 +994,27 @@ final class StatusBarController: NSObject {
                 symbol: "arrow.counterclockwise"
             ))
         }
+    }
+
+    /// Keeps low-frequency controls one level below the history itself. The
+    /// root stays short and ClipMenu-like while every action remains reachable
+    /// from one clearly named native submenu.
+    private func utilityMenuItem() -> NSMenuItem {
+        let root = item("Управление", nil, symbol: "slider.horizontal.3")
+        let submenu = makeMenu(title: "Управление")
+        appendSequentialPasteControls(to: submenu)
+        submenu.addItem(layoutMenuItem())
+        submenu.addItem(.separator())
+        addCaptureControls(to: submenu)
+        submenu.addItem(historyCleanupMenuItem())
+        submenu.addItem(.separator())
+        submenu.addItem(item(
+            "Проверить обновления…",
+            #selector(checkUpdates),
+            symbol: "arrow.triangle.2.circlepath"
+        ))
+        root.submenu = submenu
+        return root
     }
 
     @objc private func pasteNextSequentiallyFromMenu() {
@@ -1750,6 +1736,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func checkUpdates() {
+        showFeedback("проверяем обновления…")
         UpdateChecker.check()
     }
 

@@ -1,5 +1,34 @@
 import AppKit
+import ImageIO
 import SwiftUI
+import UniformTypeIdentifiers
+
+enum HistoryImagePreview {
+    static let maximumPixelSize = 1_600
+
+    /// Produces a bounded preview off the main actor. The inspector never keeps
+    /// or repeatedly decodes the original image BLOB while SwiftUI recomputes.
+    static func pngData(from data: Data, maximumPixelSize: Int = maximumPixelSize) -> Data? {
+        guard maximumPixelSize > 0,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize,
+                  kCGImageSourceShouldCacheImmediately: true
+              ] as CFDictionary) else { return nil }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else { return nil }
+        CGImageDestinationAddImage(destination, thumbnail, nil)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return output as Data
+    }
+}
 
 enum HistoryItemActionResolver {
     static func openTarget(for item: ClipItem, fileExists: (String) -> Bool = {
@@ -35,22 +64,26 @@ final class HistoryItemInspectorWindowController {
     func show(clipID: Int64) {
         Task { [weak self] in
             do {
-                let item = try await Task.detached {
-                    try Storage.shared.fetchClip(id: clipID)
+                let payload = try await Task.detached {
+                    let item = try Storage.shared.fetchClip(id: clipID)
+                    let preview = item?.data.flatMap {
+                        HistoryImagePreview.pngData(from: $0)
+                    }
+                    return (item, preview)
                 }.value
-                guard let item else {
+                guard let item = payload.0 else {
                     self?.showError("Элемент истории уже удалён")
                     return
                 }
-                self?.present(item)
+                self?.present(item, imagePreviewData: payload.1)
             } catch {
                 self?.showError("Не удалось открыть элемент")
             }
         }
     }
 
-    private func present(_ item: ClipItem) {
-        let model = HistoryItemInspectorModel(item: item)
+    private func present(_ item: ClipItem, imagePreviewData: Data?) {
+        let model = HistoryItemInspectorModel(item: item, imagePreviewData: imagePreviewData)
         let hosting = NSHostingController(rootView: HistoryItemInspectorView(model: model))
         let window = NSWindow(contentViewController: hosting)
         window.title = "NeClip — Просмотр"
@@ -81,20 +114,20 @@ private final class HistoryItemInspectorModel: ObservableObject {
     let appBundleID: String?
     let createdAt: Date
     let contentBytes: Int64
-    let imageData: Data?
+    let imagePreview: NSImage?
     let ocrText: String?
 
     @Published var title: String
     @Published var text: String
     @Published var feedback: String?
 
-    init(item: ClipItem) {
+    init(item: ClipItem, imagePreviewData: Data?) {
         id = item.id ?? 0
         kind = item.kind
         appBundleID = item.appBundleID
         createdAt = item.createdAt
         contentBytes = item.contentBytes
-        imageData = item.data
+        imagePreview = imagePreviewData.flatMap(NSImage.init(data:))
         ocrText = item.ocrText
         title = item.title
         text = item.text ?? ""
@@ -133,7 +166,7 @@ private final class HistoryItemInspectorModel: ObservableObject {
             kind: kind,
             title: title,
             text: text,
-            data: imageData,
+            data: nil,
             ocrText: ocrText,
             appBundleID: appBundleID,
             createdAt: createdAt,
@@ -168,7 +201,7 @@ private struct HistoryItemInspectorView: View {
                     }
                     .background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
                 case .image:
-                    if let data = model.imageData, let image = NSImage(data: data) {
+                    if let image = model.imagePreview {
                         Image(nsImage: image)
                             .resizable()
                             .scaledToFit()
