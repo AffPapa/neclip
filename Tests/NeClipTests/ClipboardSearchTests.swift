@@ -66,7 +66,6 @@ struct ClipboardSearchTests {
             kind: .text,
             title: value,
             text: value,
-            thumbnail: nil,
             appBundleID: nil,
             createdAt: Date(),
             isPinned: false

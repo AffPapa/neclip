@@ -29,7 +29,6 @@ private struct PreferencesView: View {
     @State private var historyLimit = Settings.historyLimit
     @State private var menuTitleLengthText = String(Settings.menuTitleLength)
     @State private var clipboardAccess = ClipboardAccess.current
-    @State private var showPreviews = Settings.showImagePreviews
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
     @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
@@ -95,8 +94,6 @@ private struct PreferencesView: View {
                 Text("Допустимо 16–96. Длинные строки заканчиваются многоточием, полный текст сохраняется.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Toggle("Показывать превью изображений", isOn: $showPreviews)
-                    .onChange(of: showPreviews) { _, value in Settings.showImagePreviews = value }
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
                 Picker("Удалять незакреплённое", selection: $retentionDays) {

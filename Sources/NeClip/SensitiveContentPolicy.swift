@@ -20,11 +20,15 @@ enum SensitiveContentPolicy {
     }
 
     static func matches(_ text: String, rules: [String]) -> Bool {
+        matches(text, normalizedRules: normalizedRules(rules))
+    }
+
+    static func matches(_ text: String, normalizedRules rules: [String]) -> Bool {
         let normalizedText = text.folding(
             options: [.caseInsensitive, .diacriticInsensitive],
             locale: .current
         )
-        return normalizedRules(rules).contains { rule in
+        return rules.contains { rule in
             normalizedText.contains(rule.folding(
                 options: [.caseInsensitive, .diacriticInsensitive],
                 locale: .current

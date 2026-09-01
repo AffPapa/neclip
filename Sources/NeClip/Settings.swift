@@ -23,7 +23,6 @@ enum Settings {
     private enum Key {
         static let historyLimit = "historyLimit"
         static let excludedApps = "excludedApps"
-        static let showImagePreviews = "showImagePreviews"
         static let captureImages = "captureImages"
         static let retentionDays = "retentionDays"
         static let sensitiveContentRules = "sensitiveContentRules"
@@ -46,11 +45,6 @@ enum Settings {
     static var excludedApps: [String] {
         get { d.stringArray(forKey: Key.excludedApps) ?? defaultExcluded }
         set { d.set(newValue, forKey: Key.excludedApps) }
-    }
-
-    static var showImagePreviews: Bool {
-        get { d.object(forKey: Key.showImagePreviews) as? Bool ?? true }
-        set { d.set(newValue, forKey: Key.showImagePreviews) }
     }
 
     static var captureImages: Bool {

@@ -81,6 +81,7 @@ final class ClipboardMonitor: @unchecked Sendable {
         let createdAt: Date
         let fileURLs: [URL]
         let imageData: Data?
+        let imageDataIsPNG: Bool
         let text: String?
         let rtf: Data?
     }
@@ -152,7 +153,7 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     /// The timer only observes policy state and snapshots immutable pasteboard
-    /// values. Decode, hashing, thumbnail work and every DB call run serially
+    /// values. Decode, hashing and every DB call run serially
     /// on `processingQueue`.
     private func check() {
         precondition(Thread.isMainThread)
@@ -215,9 +216,8 @@ final class ClipboardMonitor: @unchecked Sendable {
             notifySkipped(.disabledContentType)
             return
         }
-        let imageData = fileURLs.isEmpty
-            ? (pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff))
-            : nil
+        let pngData = fileURLs.isEmpty ? pasteboard.data(forType: .png) : nil
+        let imageData = pngData ?? (fileURLs.isEmpty ? pasteboard.data(forType: .tiff) : nil)
         let text = fileURLs.isEmpty && imageData == nil
             ? pasteboard.string(forType: .string)
             : nil
@@ -232,6 +232,7 @@ final class ClipboardMonitor: @unchecked Sendable {
             createdAt: now,
             fileURLs: fileURLs,
             imageData: imageData,
+            imageDataIsPNG: pngData != nil,
             text: text,
             rtf: rtf
         )
@@ -247,7 +248,7 @@ final class ClipboardMonitor: @unchecked Sendable {
         if !snapshot.fileURLs.isEmpty {
             processFiles(snapshot)
         } else if let imageData = snapshot.imageData {
-            processImage(imageData, snapshot: snapshot)
+            processImage(imageData, isPNG: snapshot.imageDataIsPNG, snapshot: snapshot)
         } else if let text = snapshot.text {
             processText(text, snapshot: snapshot)
         } else {
@@ -286,7 +287,10 @@ final class ClipboardMonitor: @unchecked Sendable {
             notifySkipped(.empty)
             return
         }
-        guard !SensitiveContentPolicy.matches(text, rules: Settings.sensitiveContentRules) else {
+        guard !SensitiveContentPolicy.matches(
+            text,
+            normalizedRules: Settings.sensitiveContentRules
+        ) else {
             notifySkipped(.sensitiveContent)
             return
         }
@@ -313,7 +317,7 @@ final class ClipboardMonitor: @unchecked Sendable {
         insert(item)
     }
 
-    private func processImage(_ imageData: Data, snapshot: Snapshot) {
+    private func processImage(_ imageData: Data, isPNG: Bool, snapshot: Snapshot) {
         guard Settings.captureImages else {
             notifySkipped(.disabledContentType)
             return
@@ -328,21 +332,31 @@ final class ClipboardMonitor: @unchecked Sendable {
             byteCount: imageData.count,
             width: dimensions.width,
             height: dimensions.height
-        ), let png = Self.pngData(from: source),
-           png.count <= ClipboardCapturePolicy.maxEncodedImageBytes else {
+        ) else {
+            notifySkipped(.tooLarge)
+            return
+        }
+        let png: Data
+        if isPNG {
+            png = imageData
+        } else if let converted = Self.pngData(from: source) {
+            png = converted
+        } else {
+            notifySkipped(.invalidImage)
+            return
+        }
+        guard png.count <= ClipboardCapturePolicy.maxEncodedImageBytes else {
             notifySkipped(.tooLarge)
             return
         }
 
-        let thumbnail = Self.thumbnailData(from: source, maxPixelSize: 96)
         let item = ClipItem(
             kind: .image,
             title: "Image \(dimensions.width)×\(dimensions.height)",
             data: png,
-            thumbnail: thumbnail,
             appBundleID: snapshot.appBundleID,
             createdAt: snapshot.createdAt,
-            contentBytes: Int64(png.count + (thumbnail?.count ?? 0)),
+            contentBytes: Int64(png.count),
             contentHash: Self.sha256(png)
         )
 
@@ -398,18 +412,6 @@ final class ClipboardMonitor: @unchecked Sendable {
 
     private static func pngData(from source: CGImageSource) -> Data? {
         guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        return encodedPNG(image)
-    }
-
-    private static func thumbnailData(from source: CGImageSource, maxPixelSize: Int) -> Data? {
-        let options: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
-        ]
-        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-            return nil
-        }
         return encodedPNG(image)
     }
 

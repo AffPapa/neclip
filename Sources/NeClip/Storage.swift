@@ -18,7 +18,6 @@ struct ClipItem: Codable, FetchableRecord, MutablePersistableRecord, Identifiabl
     var data: Data? = nil
     var rtf: Data? = nil
     var ocrText: String? = nil
-    var thumbnail: Data? = nil
     var appBundleID: String? = nil
     var createdAt: Date
     var contentBytes: Int64 = 0
@@ -38,7 +37,6 @@ struct ClipSummary: Identifiable, Hashable, Sendable {
     let kind: ClipKind
     let title: String
     let text: String?
-    let thumbnail: Data?
     let appBundleID: String?
     let createdAt: Date
     let isPinned: Bool
@@ -374,6 +372,20 @@ final class Storage: @unchecked Sendable {
                     + COALESCE(length(thumbnail), 0)
                 """)
         }
+        // Thumbnails were generated for a preview toggle that never had a
+        // renderer. They are derived data, so remove them once and reclaim the
+        // disk/quota cost while preserving every original image.
+        migrator.registerMigration("v5-remove-unused-thumbnails") { db in
+            try db.execute(sql: """
+                UPDATE clip
+                SET thumbnail = NULL,
+                    contentBytes = COALESCE(length(CAST(text AS BLOB)), 0)
+                        + COALESCE(length(CAST(ocrText AS BLOB)), 0)
+                        + COALESCE(length(data), 0)
+                        + COALESCE(length(rtf), 0)
+                WHERE thumbnail IS NOT NULL
+                """)
+        }
         try migrator.migrate(dbQueue)
         // Apply retention immediately after a migration/recount. Only ordinary
         // history can be removed; pinned clips remain protected even if they
@@ -394,7 +406,6 @@ final class Storage: @unchecked Sendable {
                     + (item.ocrText?.utf8.count ?? 0)
                     + (item.data?.count ?? 0)
                     + (item.rtf?.count ?? 0)
-                    + (item.thumbnail?.count ?? 0)
             )
         }
         if item.contentHash == nil {
@@ -415,13 +426,21 @@ final class Storage: @unchecked Sendable {
                 case .text, .file:
                     if let text = item.text {
                         existing = try ClipItem
-                            .filter(Column("kind") == item.kind.rawValue && Column("text") == text)
+                            .filter(
+                                Column("contentHash") == nil
+                                    && Column("kind") == item.kind.rawValue
+                                    && Column("text") == text
+                            )
                             .fetchOne(db)
                     }
                 case .image:
                     if let data = item.data {
                         existing = try ClipItem
-                            .filter(Column("kind") == item.kind.rawValue && Column("data") == data)
+                            .filter(
+                                Column("contentHash") == nil
+                                    && Column("kind") == item.kind.rawValue
+                                    && Column("data") == data
+                            )
                             .fetchOne(db)
                     }
                 }
@@ -431,7 +450,6 @@ final class Storage: @unchecked Sendable {
                 existing.text = item.text ?? existing.text
                 existing.data = item.data ?? existing.data
                 existing.rtf = item.rtf ?? existing.rtf
-                existing.thumbnail = item.thumbnail ?? existing.thumbnail
                 existing.appBundleID = item.appBundleID
                 existing.createdAt = item.createdAt
                 existing.contentBytes = Self.payloadBytes(existing)
@@ -506,7 +524,7 @@ final class Storage: @unchecked Sendable {
             var sql = """
                 SELECT c.id, c.kind, c.title,
                        substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
-                       c.thumbnail, c.appBundleID, c.createdAt, c.isPinned
+                       c.appBundleID, c.createdAt, c.isPinned
                 FROM clip c
                 """
             var conditions: [String] = []
@@ -544,7 +562,7 @@ final class Storage: @unchecked Sendable {
             var sql = """
                 SELECT c.id, c.kind, c.title,
                        substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
-                       c.thumbnail, c.appBundleID, c.createdAt, c.isPinned
+                       c.appBundleID, c.createdAt, c.isPinned
                 FROM clip c
                 """
             var conditions: [String] = []
@@ -593,22 +611,6 @@ final class Storage: @unchecked Sendable {
 
     func fetchClip(id: Int64) throws -> ClipItem? {
         try dbQueue.read { db in try ClipItem.fetchOne(db, key: id) }
-    }
-
-    func recent(limit: Int? = nil, search: String? = nil) -> [ClipItem] {
-        (try? dbQueue.read { db in
-            var request = ClipItem.order(Column("isPinned").desc, Column("createdAt").desc)
-            if let search, !search.isEmpty {
-                let escaped = Self.likePattern(search)
-                request = request.filter(
-                    Column("title").like(escaped, escape: "\\")
-                        || Column("text").like(escaped, escape: "\\")
-                        || Column("ocrText").like(escaped, escape: "\\")
-                )
-            }
-            if let limit { request = request.limit(limit) }
-            return try request.fetchAll(db)
-        }) ?? []
     }
 
     func setOCRText(_ text: String, forClipID id: Int64) throws {
@@ -668,9 +670,7 @@ final class Storage: @unchecked Sendable {
         return updated
     }
 
-    func removeClip(id: Int64) throws -> RemovedClip? { try remove(id: id) }
-
-    func remove(id: Int64) throws -> RemovedClip? {
+    func removeClip(id: Int64) throws -> RemovedClip? {
         let removed = try dbQueue.write { db -> RemovedClip? in
             guard let item = try ClipItem.fetchOne(db, key: id) else { return nil }
             try ClipItem.deleteOne(db, key: id)
@@ -680,9 +680,7 @@ final class Storage: @unchecked Sendable {
         return removed
     }
 
-    func restoreClip(_ removed: RemovedClip) throws { try restore(removed) }
-
-    func restore(_ removed: RemovedClip) throws {
+    func restoreClip(_ removed: RemovedClip) throws {
         var item = removed.item
         try dbQueue.write { db in
             try ensureCapacityForItem(item, replacing: item.isPinned ? item.id : nil, in: db)
@@ -691,8 +689,6 @@ final class Storage: @unchecked Sendable {
         }
         notifyChange()
     }
-
-    func delete(id: Int64) { _ = try? remove(id: id) }
 
     func clearHistory(includePinned: Bool = false) throws { try clearAll(includePinned: includePinned) }
 
@@ -706,8 +702,6 @@ final class Storage: @unchecked Sendable {
         }
         notifyChange()
     }
-
-    func clearAll() { try? clearAll(includePinned: true) }
 
     func vacuum() throws {
         try dbQueue.writeWithoutTransaction { db in
@@ -740,7 +734,11 @@ final class Storage: @unchecked Sendable {
         }) ?? []
     }
 
-    func allSnippets(search: String? = nil, pinnedOnly: Bool = false) throws -> [Snippet] {
+    func allSnippets(
+        search: String? = nil,
+        pinnedOnly: Bool = false,
+        limit: Int? = nil
+    ) throws -> [Snippet] {
         try dbQueue.read { db in
             var sql = "SELECT s.* FROM snippet s"
             var conditions: [String] = []
@@ -770,6 +768,10 @@ final class Storage: @unchecked Sendable {
                 arguments += [search]
             } else {
                 sql += " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
+            }
+            if let limit {
+                sql += " LIMIT ?"
+                arguments += [max(1, limit)]
             }
             return try Snippet.fetchAll(db, sql: sql, arguments: arguments)
         }
@@ -1140,19 +1142,18 @@ final class Storage: @unchecked Sendable {
             )
         }
         let limit = max(10, Settings.historyLimit)
-        let unpinned = try Row.fetchAll(
-            db,
-            sql: "SELECT id, contentBytes FROM clip WHERE isPinned = 0 ORDER BY createdAt DESC, id DESC"
-        )
-        if unpinned.count > limit {
-            let ids: [Int64] = unpinned.dropFirst(limit).map { $0["id"] }
-            if !ids.isEmpty {
-                try db.execute(
-                    sql: "DELETE FROM clip WHERE id IN (\(ids.map { _ in "?" }.joined(separator: ",")))",
-                    arguments: StatementArguments(ids)
+        try db.execute(
+            sql: """
+                DELETE FROM clip
+                WHERE id IN (
+                    SELECT id FROM clip
+                    WHERE isPinned = 0
+                    ORDER BY createdAt DESC, id DESC
+                    LIMIT -1 OFFSET ?
                 )
-            }
-        }
+                """,
+            arguments: [limit]
+        )
 
         var total = try Int64.fetchOne(db, sql: "SELECT COALESCE(SUM(contentBytes), 0) FROM clip") ?? 0
         if total > Self.maximumStorageBytes {
@@ -1200,7 +1201,6 @@ final class Storage: @unchecked Sendable {
             kind: kind,
             title: row["title"],
             text: row["text"],
-            thumbnail: row["thumbnail"],
             appBundleID: row["appBundleID"],
             createdAt: row["createdAt"],
             isPinned: row["isPinned"]
@@ -1213,7 +1213,6 @@ final class Storage: @unchecked Sendable {
                 + (item.ocrText?.utf8.count ?? 0)
                 + (item.data?.count ?? 0)
                 + (item.rtf?.count ?? 0)
-                + (item.thumbnail?.count ?? 0)
         )
     }
 

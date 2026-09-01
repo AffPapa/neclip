@@ -73,6 +73,64 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(item.createdAt, secondDate)
     }
 
+    func testModernRowsNeverFallBackToFullPayloadComparison() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let firstID = try storage.insert(ClipItem(
+            kind: .text,
+            title: "first",
+            text: "same payload with distinct authoritative hashes",
+            createdAt: Date(timeIntervalSince1970: 10),
+            contentHash: String(repeating: "a", count: 64)
+        ))
+        let secondID = try storage.insert(ClipItem(
+            kind: .text,
+            title: "second",
+            text: "same payload with distinct authoritative hashes",
+            createdAt: Date(timeIntervalSince1970: 20),
+            contentHash: String(repeating: "b", count: 64)
+        ))
+
+        XCTAssertNotEqual(firstID, secondID)
+        XCTAssertEqual(storage.count, 2)
+    }
+
+    func testUnusedLegacyThumbnailsAreRemovedWithoutTouchingOriginalImages() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neclip-thumbnail-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("fixture.sqlite").path
+        let original = Data([1, 2, 3, 4])
+        let derivedThumbnail = Data(repeating: 9, count: 128)
+
+        var initial: Storage? = try Storage(path: path, installStarterContent: false)
+        let id = try XCTUnwrap(initial?.insert(ClipItem(
+            kind: .image,
+            title: "image",
+            data: original,
+            createdAt: Date()
+        )))
+        initial = nil
+
+        try DatabaseQueue(path: path).write { db in
+            try db.execute(
+                sql: "UPDATE clip SET thumbnail = ?, contentBytes = ? WHERE id = ?",
+                arguments: [derivedThumbnail, original.count + derivedThumbnail.count, id]
+            )
+            try db.execute(
+                sql: "DELETE FROM grdb_migrations WHERE identifier = 'v5-remove-unused-thumbnails'"
+            )
+        }
+
+        let migrated = try Storage(path: path, installStarterContent: false)
+        let item = try XCTUnwrap(migrated.fetchClip(id: id))
+        XCTAssertEqual(item.data, original)
+        XCTAssertEqual(item.contentBytes, Int64(original.count))
+        XCTAssertNil(try DatabaseQueue(path: path).read { db in
+            try Data.fetchOne(db, sql: "SELECT thumbnail FROM clip WHERE id = ?", arguments: [id])
+        })
+    }
+
     func testPinSurvivesTrimAndClearThenUndoRestoresPayload() throws {
         Settings.historyLimit = 10
         let storage = try Storage(inMemory: true, installStarterContent: false)
@@ -165,6 +223,20 @@ final class StorageTests: XCTestCase {
         XCTAssertFalse(snippets.contains { snippet in
             snippet.content.contains("@") || snippet.content.contains("+7")
         })
+    }
+
+    func testSnippetSearchCanStopAtTheMenuResultLimit() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        for index in 0..<30 {
+            _ = try storage.addSnippet(
+                folderID: nil,
+                title: "Bulk result \(index)",
+                content: "bulk searchable content \(index)"
+            )
+        }
+
+        XCTAssertEqual(try storage.allSnippets(search: "bulk", limit: 20).count, 20)
+        XCTAssertEqual(try storage.allSnippets(search: "bulk").count, 30)
     }
 
     func testSnippetKeywordNormalizationPinAndUsage() throws {
@@ -560,6 +632,16 @@ final class StorageTests: XCTestCase {
         )
         XCTAssertEqual(try migrated.allSnippets(search: "legacy").first?.title, "legacy snippet")
         XCTAssertEqual(try migrated.allSnippets().first?.folderID, 1)
+
+        let deduplicatedID = try migrated.insert(ClipItem(
+            kind: .text,
+            title: "legacy clip copied again",
+            text: "legacy body Привет",
+            createdAt: Date().addingTimeInterval(1)
+        ))
+        XCTAssertEqual(deduplicatedID, migratedClipID)
+        XCTAssertEqual(migrated.count, 1)
+        XCTAssertNotNil(try migrated.fetchClip(id: migratedClipID)?.contentHash)
     }
 
     func testSearchOnTenThousandMigratedRowsStaysFast() throws {

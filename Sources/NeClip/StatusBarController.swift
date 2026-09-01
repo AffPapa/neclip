@@ -40,6 +40,7 @@ final class StatusBarController: NSObject {
     private var activeMenuKind: MenuKind?
     private var searchGeneration = 0
     private var searchWorkItem: DispatchWorkItem?
+    private var snapshotRefreshWorkItem: DispatchWorkItem?
     private var visibleKeyboardEntries: [SearchEntry] = []
     private var undoDeletion: UndoDeletion?
     private var hotKeyWarnings: [String] = []
@@ -117,7 +118,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func storageDidChange() {
-        refreshSnapshot()
+        scheduleSnapshotRefresh()
     }
 
     @objc private func statusItemPressed(_ sender: NSStatusBarButton) {
@@ -169,6 +170,8 @@ final class StatusBarController: NSObject {
     }
 
     private func refreshSnapshot() {
+        snapshotRefreshWorkItem?.cancel()
+        snapshotRefreshWorkItem = nil
         refreshGeneration += 1
         let generation = refreshGeneration
         dataQueue.async { [weak self] in
@@ -208,6 +211,18 @@ final class StatusBarController: NSObject {
                 }
             }
         }
+    }
+
+    /// Insert and OCR completion often arrive as a short notification burst.
+    /// Collapse that burst into one database snapshot without delaying a menu
+    /// explicitly requested by the user.
+    private func scheduleSnapshotRefresh() {
+        snapshotRefreshWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.refreshSnapshot()
+        }
+        snapshotRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(35), execute: workItem)
     }
 
     private func buildHistoryMenu() -> NSMenu {
@@ -472,7 +487,11 @@ final class StatusBarController: NSObject {
                         : []
                     let snippets = parsed.usesStructuredFilters
                         ? []
-                        : try Storage.shared.allSnippets(search: parsed.terms, pinnedOnly: false)
+                        : try Storage.shared.allSnippets(
+                            search: parsed.terms,
+                            pinnedOnly: false,
+                            limit: 20
+                        )
                     DispatchQueue.main.async {
                         guard generation == self.searchGeneration,
                               let menu = self.activeMenu else { return }
@@ -511,8 +530,10 @@ final class StatusBarController: NSObject {
 
         let normalizedQuery = normalizeSearchToken(query)
         let exactSnippets = snippets.filter { normalizeSearchToken($0.keyword ?? "") == normalizedQuery }
+        let exactSnippetIDs = Set(exactSnippets.compactMap(\.id))
         let remainingSnippets = snippets.filter { snippet in
-            !exactSnippets.contains(where: { $0.id == snippet.id })
+            guard let id = snippet.id else { return true }
+            return !exactSnippetIDs.contains(id)
         }
         var results: [SearchEntry]
         if kind == .history {
