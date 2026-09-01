@@ -20,6 +20,9 @@ DMG checksum verification have passed.
 - Made snippet editing self-explanatory: the top visible snippet opens
   automatically, every full-width row has an edit affordance and accessible
   action, and the editor explicitly labels editing and automatic saving.
+- Fixed the disabled **Quit NeClip** command by targeting a real controller
+  action; application termination now flushes snippet edits and cancels quit if
+  a draft cannot be saved.
 - Expanded bounded menu browsing from 40 to 100 ordinary and pinned entries,
   while keeping older values searchable without constructing 1,000 menu rows.
 - Simplified search wording and renamed first-result actions to explicitly say

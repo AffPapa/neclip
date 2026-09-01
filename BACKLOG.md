@@ -52,6 +52,7 @@ not planned.
 - Five concise Settings sections instead of one long form
 - Immediately discoverable snippet editing with automatic initial selection,
   full-row edit actions and explicit autosave status
+- Always-enabled native Quit command with draft-safe snippet termination
 - Bounded browsing for 100 recent and 100 pinned values, with full search for
   older local history
 - Simpler search/action labels and removal of obsolete paste compatibility code

@@ -110,6 +110,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.removeObserver(self)
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        SnippetsEditorWindowController.shared.prepareForTermination()
+            ? .terminateNow
+            : .terminateCancel
+    }
+
     func applicationDidBecomeActive(_ notification: Notification) {
         automaticLayoutCorrection.refreshContext()
         monitor.refreshAuthorization()

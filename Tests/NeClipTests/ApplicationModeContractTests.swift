@@ -35,6 +35,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("#selector(saveFirstResultAsSnippet)"))
         XCTAssertTrue(statusBar.contains("#selector(deleteFirstResult)"))
         XCTAssertTrue(statusBar.contains("#selector(undoLastDeletion)"))
+        XCTAssertEqual(statusBar.components(separatedBy: "#selector(quitApplication)").count - 1, 2)
+        XCTAssertFalse(statusBar.contains("#selector(NSApplication.terminate"))
+        XCTAssertTrue(statusBar.contains("NSApp.terminate(nil)"))
         XCTAssertTrue(statusBar.contains("MenuAppearance.applyEffectiveAppearance"))
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format"))
         XCTAssertFalse(
@@ -67,6 +70,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("guard flushPendingSave() else { return }"))
         XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
         XCTAssertTrue(editor.contains("windowShouldClose"))
+        XCTAssertTrue(editor.contains("prepareForTermination"))
         XCTAssertTrue(editor.contains("Нажмите сниппет, чтобы изменить его справа"))
         XCTAssertTrue(editor.contains("Редактирование сниппета"))
         XCTAssertTrue(editor.contains("Сохраняется автоматически"))

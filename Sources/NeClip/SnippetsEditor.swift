@@ -32,6 +32,14 @@ final class SnippetsEditorWindowController: NSObject, NSWindowDelegate {
         }
         return true
     }
+
+    func prepareForTermination() -> Bool {
+        guard model.flushPendingSave() else {
+            show()
+            return false
+        }
+        return true
+    }
 }
 
 @MainActor

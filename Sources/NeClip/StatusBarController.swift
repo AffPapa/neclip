@@ -388,7 +388,7 @@ final class StatusBarController: NSObject {
         menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
         menu.addItem(item("Проверить обновления…", #selector(checkUpdates), symbol: "arrow.triangle.2.circlepath"))
         menu.addItem(.separator())
-        menu.addItem(item("Выйти из NeClip", #selector(NSApplication.terminate(_:)), keyEquivalent: "q", modifiers: [.command]))
+        menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
     }
 
     private func buildSnippetsMenu(asRoot: Bool) -> NSMenu {
@@ -621,7 +621,7 @@ final class StatusBarController: NSObject {
             menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
             menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
             menu.addItem(.separator())
-            menu.addItem(item("Выйти из NeClip", #selector(NSApplication.terminate(_:)), keyEquivalent: "q", modifiers: [.command]))
+            menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
         } else {
             menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
         }
@@ -1461,6 +1461,13 @@ final class StatusBarController: NSObject {
 
     @objc private func checkUpdates() {
         UpdateChecker.check()
+    }
+
+    /// NSMenu actions are explicitly targeted at this controller. Forwarding
+    /// `NSApplication.terminate(_:)` with that target leaves AppKit without a
+    /// responder and disables the item, so quit uses a real local action.
+    @objc private func quitApplication() {
+        NSApp.terminate(nil)
     }
 }
 
