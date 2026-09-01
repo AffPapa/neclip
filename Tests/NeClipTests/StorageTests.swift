@@ -810,6 +810,40 @@ final class StorageTests: XCTestCase {
         XCTAssertTrue(try storage.allSnippets().isEmpty)
         XCTAssertTrue(try storage.snippetFolders().isEmpty)
     }
+
+    func testPartialHistoryCleanupDeletesOnlyRecentUnpinnedItems() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let now = Date()
+        let oldID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "old",
+            text: "old partial cleanup value",
+            createdAt: now.addingTimeInterval(-7_200)
+        )))
+        let recentID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "recent",
+            text: "recent partial cleanup value",
+            createdAt: now.addingTimeInterval(-60)
+        )))
+        let pinnedID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "pinned",
+            text: "pinned partial cleanup value",
+            createdAt: now.addingTimeInterval(-30)
+        )))
+        try storage.setPinned(id: pinnedID, pinned: true)
+
+        let removed = try storage.clearHistory(
+            includePinned: false,
+            createdAfter: now.addingTimeInterval(-3_600)
+        )
+
+        XCTAssertEqual(removed, 1)
+        XCTAssertNotNil(try storage.fetchClip(id: oldID))
+        XCTAssertNil(try storage.fetchClip(id: recentID))
+        XCTAssertNotNil(try storage.fetchClip(id: pinnedID))
+    }
 }
 
 final class SnippetRendererTests: XCTestCase {

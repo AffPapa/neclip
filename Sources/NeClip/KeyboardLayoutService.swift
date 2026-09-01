@@ -143,11 +143,34 @@ final class KeyboardLayoutService {
         return property(source, kTISPropertyInputSourceID) as String?
     }
 
+    /// Accepts selectable input methods as well as direct keyboard layouts.
+    /// Automatic correction deliberately keeps using the stricter method above
+    /// because it requires keyboard-layout translation data.
+    func currentSelectableSourceID() -> String? {
+        guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
+              let id: String = property(source, kTISPropertyInputSourceID),
+              (property(source, kTISPropertyInputSourceIsSelectCapable) as Bool?) != false else {
+            return nil
+        }
+        return id
+    }
+
     @discardableResult
     func selectSource(id: String) -> Bool {
         guard let source = enabledKeyboardLayouts().first(where: { $0.id == id }) else { return false }
         guard TISSelectInputSource(source.inputSource) == noErr else { return false }
         return currentSourceID() == id
+    }
+
+    @discardableResult
+    func selectSelectableSource(id: String) -> Bool {
+        guard let raw = TISCreateInputSourceList(nil, false)?.takeRetainedValue() as? [TISInputSource],
+              let source = raw.first(where: {
+                (property($0, kTISPropertyInputSourceID) as String?) == id
+                    && (property($0, kTISPropertyInputSourceIsEnabled) as Bool?) == true
+                    && (property($0, kTISPropertyInputSourceIsSelectCapable) as Bool?) == true
+              }), TISSelectInputSource(source) == noErr else { return false }
+        return currentSelectableSourceID() == id
     }
 
     func invalidate() {

@@ -4,6 +4,11 @@
       "version": "next",
       "status": "in-development",
       "highlights": [
+        "Source 1.5.0 build 9; public signed release remains 1.4.0",
+        "User-bounded text capture and partial or on-quit history cleanup",
+        "Paste-and-delete only after successful direct-paste dispatch, never copy-only fallback",
+        "Per-application input-source memory without keyboard-event monitoring",
+        "Session ignore after undoing a false automatic correction",
         "Sequential paste directly from recent history without collection mode",
         "Configurable conflict-safe primary and layout shortcuts",
         "General, Keys, Privacy, Layout and Data Settings sections",
@@ -13,7 +18,7 @@
         "Bounded browsing for 100 recent and 100 pinned entries",
         "Native structured-search filter menu and bounded snippet browsing",
         "Atomic full-data erasure and readable source application names",
-        "111 local checks with one opt-in external-database case"
+        "Expanded local tests with one opt-in external-database case"
       ]
     },
     {

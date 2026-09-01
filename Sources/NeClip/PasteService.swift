@@ -58,6 +58,10 @@ enum PasteService {
         return .paste(targetPID)
     }
 
+    nonisolated static func shouldDeleteAfterPaste(_ result: PasteResult, isPinned: Bool) -> Bool {
+        result == .pasted && !isPinned
+    }
+
     static func paste(
         _ item: ClipItem,
         plainText: Bool,

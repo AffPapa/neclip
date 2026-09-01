@@ -100,6 +100,7 @@ private struct PreferencesView: View {
     @State private var selectedTab = PreferencesTab.general
     @State private var historyLimit = Settings.historyLimit
     @State private var menuTitleLength = Settings.menuTitleLength
+    @State private var maximumTextCaptureKilobytes = Settings.maximumTextCaptureKilobytes
     @State private var clipboardAccess = ClipboardAccess.current
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
@@ -110,6 +111,8 @@ private struct PreferencesView: View {
     @State private var axTrusted = PasteService.isAccessibilityTrusted
     @State private var capturePaused = Settings.isCapturePaused
     @State private var automaticLayoutCorrection = Settings.automaticLayoutCorrection
+    @State private var rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
+    @State private var rememberedApplicationCount = Settings.rememberedApplicationCount
     @State private var historyShortcut = Settings.historyShortcut
     @State private var snippetsShortcut = Settings.snippetsShortcut
     @State private var sequentialPasteShortcut = Settings.sequentialPasteShortcut
@@ -119,6 +122,7 @@ private struct PreferencesView: View {
     @State private var canListenToInput = LayoutPermissions.canListen
     @State private var deleteAllConfirmation = false
     @State private var clearHistoryConfirmation = false
+    @State private var clearHistoryOnQuit = Settings.clearHistoryOnQuit
     @State private var feedback: String?
 
     var body: some View {
@@ -162,6 +166,9 @@ private struct PreferencesView: View {
             sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)
             manualLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .manualCorrection)
             disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .neClipApplicationLayoutMemoryDidChange)) { _ in
+            rememberedApplicationCount = Settings.rememberedApplicationCount
         }
         .onChange(of: feedback) { _, message in
             guard let message else { return }
@@ -216,7 +223,18 @@ private struct PreferencesView: View {
                     accessibilityLabel: "Количество символов в строке меню"
                 )
                     .onChange(of: menuTitleLength) { _, value in applyMenuTitleLength(value) }
-                Text("Число можно ввести или изменить стрелками. Диапазоны: 10–1000 элементов и 16–96 символов. Полный текст сохраняется.")
+                NumericPreferenceRow(
+                    "Размер текста одной записи",
+                    value: $maximumTextCaptureKilobytes,
+                    range: Settings.maximumTextCaptureKilobytesRange,
+                    step: 64,
+                    unit: "КБ",
+                    accessibilityLabel: "Максимальный размер текста одной записи"
+                )
+                    .onChange(of: maximumTextCaptureKilobytes) { _, value in
+                        Settings.maximumTextCaptureKilobytes = value
+                    }
+                Text("Число можно ввести или изменить стрелками. Полный текст записи не сокращается: слишком большой новый текст просто не попадёт в историю.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Сохранять изображения", isOn: $captureImages)
@@ -232,6 +250,8 @@ private struct PreferencesView: View {
                     Settings.retentionDays = value
                     DispatchQueue.global(qos: .utility).async { try? Storage.shared.trimToLimits() }
                 }
+                Toggle("Очищать незакреплённую историю при выходе", isOn: $clearHistoryOnQuit)
+                    .onChange(of: clearHistoryOnQuit) { _, value in Settings.clearHistoryOnQuit = value }
 
             }
 
@@ -393,6 +413,26 @@ private struct PreferencesView: View {
 
     private var layoutTab: some View {
         Form {
+            Section("Раскладка приложений") {
+                Toggle("Запоминать последнюю раскладку для каждого приложения", isOn: $rememberLayoutPerApplication)
+                    .onChange(of: rememberLayoutPerApplication) { _, value in
+                        Settings.rememberLayoutPerApplication = value
+                    }
+                HStack {
+                    Text("Запомнено приложений: \(rememberedApplicationCount)")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Сбросить") {
+                        Settings.clearRememberedApplicationLayouts()
+                        feedback = "Запомненные раскладки сброшены"
+                    }
+                    .disabled(rememberedApplicationCount == 0)
+                }
+                Text("Следит только за активным приложением и выбранной системной раскладкой. Текст и нажатия клавиш не читаются; «Мониторинг ввода» не нужен.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Автоматическое исправление") {
                 Toggle("Автоматически исправлять (бета)", isOn: Binding(
                     get: { automaticLayoutCorrection },
@@ -425,8 +465,8 @@ private struct PreferencesView: View {
                 }
             }
 
-            Section("Не исправлять в приложениях") {
-                DisclosureGroup("Не исправлять автоматически в приложениях") {
+            Section("Исключения приложений") {
+                DisclosureGroup("Не менять раскладку автоматически в приложениях") {
                     List {
                         ForEach(layoutExcludedApps, id: \.self) { bundleID in
                             ExcludedApplicationRow(bundleIdentifier: bundleID) {
@@ -437,7 +477,7 @@ private struct PreferencesView: View {
                     }
                     .frame(height: 95)
                     Button("Добавить приложение…", action: addLayoutExcludedApp)
-                    Text("Пароли, терминалы, IDE и удалённые рабочие столы заблокированы всегда.")
+                    Text("Список применяется к автоисправлению и запоминанию раскладки. Пароли, терминалы, IDE и удалённые рабочие столы дополнительно защищены от автоисправления всегда.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -79,6 +79,15 @@ final class PrivacyLogicTests: XCTestCase {
         )
     }
 
+    func testPasteAndDeleteRequiresConfirmedDirectPasteAndUnpinnedItem() {
+        XCTAssertTrue(PasteService.shouldDeleteAfterPaste(.pasted, isPinned: false))
+        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.pasted, isPinned: true))
+        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnly, isPinned: false))
+        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnlyNoAccessibility, isPinned: false))
+        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnlyTargetChanged, isPinned: false))
+        XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.failed(.eventCreation), isPinned: false))
+    }
+
     func testPauseAndResumeArePersistedThroughSettingsAPI() {
         Settings.pause(until: nil)
         XCTAssertTrue(Settings.isCapturePaused)

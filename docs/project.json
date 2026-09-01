@@ -23,9 +23,10 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-2026-09-01.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.5.0-2026-09-01.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/COMPETITOR-UX-2026-09-01.md",
+    "deepResearch15": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.5.0-2026-09-01.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
@@ -35,6 +36,8 @@
     "discoverable editable snippet folders, starter snippets and local placeholders",
     "manual EN/RU layout correction with a configurable shortcut",
     "optional conservative automatic EN/RU correction",
+    "per-application input-source memory without keyboard monitoring",
+    "session ignore after undoing a false automatic correction",
     "off-only automatic-correction safety shortcut",
     "direct recent-history sequential paste",
     "five configurable conflict-safe global shortcuts",
@@ -43,6 +46,8 @@
     "discoverable native structured-search filters",
     "bounded menu browsing with complete on-demand search",
     "atomic local history and snippet erasure",
+    "partial or on-quit history cleanup and bounded text capture",
+    "paste-and-delete only after successful direct-paste dispatch",
     "bounded local storage and privacy exclusions"
   ],
   "shortcuts": [
@@ -61,7 +66,7 @@
   "permissions": {
     "pasteboard": "Explained before monitoring; denied access fails closed on macOS 15.4+",
     "accessibility": "Optional; used for one-click paste and manual selected-text replacement",
-    "inputMonitoring": "Requested only when automatic layout correction is explicitly enabled"
+    "inputMonitoring": "Requested only when automatic layout correction is explicitly enabled; per-application layout memory does not need it"
   },
   "notPlanned": [
     "accounts",

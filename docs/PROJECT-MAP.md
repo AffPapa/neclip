@@ -4,6 +4,10 @@ Updated: 1 September 2026. This is the source map for the current unreleased
 tree. Public release metadata remains pinned to 1.4.0 until the release gate is
 completed.
 
+The matching evidence report is `AUDIT-1.5.0-2026-09-01.md`; competitor
+matrices, the 100-item catalogue and top-20 decisions are in
+`RESEARCH-1.5.0-2026-09-01.md`.
+
 ## Product boundary
 
 - Native macOS 14+ menu-bar utility; `LSUIElement=true`, no Dock icon.
@@ -24,7 +28,7 @@ Important owners:
 
 - `ClipboardAccess.swift`: macOS pasteboard authorization state and recovery.
 - `ClipboardMonitor.swift`: generation-based polling, source attribution and
-  asynchronous payload processing.
+  asynchronous payload processing, including the user-bounded text payload.
 - `SensitiveContentPolicy.swift`: concealed/transient/password-manager and
   literal sensitive-phrase rejection.
 - `OCRService.swift`: serialized local Vision OCR.
@@ -44,7 +48,8 @@ available through bounded database search.
 - `ClipboardSearch.swift`: ordinary and structured search, smart categories,
   bounded fuzzy fallback.
 - `PasteService.swift`: direct/plain/copy-only paste and compare-and-swap
-  restoration of a temporary pasteboard.
+  restoration of a temporary pasteboard; paste-and-delete proceeds only for an
+  unpinned record after the direct-paste result.
 - `HistoryItemInspector.swift`: preview, rename/edit, safe open and OCR paste.
 - `TextTransform.swift`: deterministic local transforms.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.
@@ -64,14 +69,19 @@ JSON export and atomic merge-only import without history or usage metadata.
 - `LayoutAccessibility.swift`: guarded focused-range read/write.
 - `AutoLayoutController.swift`: bounded in-memory keystroke buffer and event tap.
 - `LayoutFeedbackHUD.swift`: brief status/undo feedback.
+- `ApplicationLayoutMemory.swift`: independent app-activation/TIS observer for
+  a bounded last-used source map; it never observes text or key events.
 
 Manual correction is the dependable path. Automatic correction is conservative,
 off by default, EN/RU-only, Space-boundary-only and fails closed in secure,
 unknown, terminal, IDE, remote-control and input-method contexts.
+Undoing an automatic correction adds the token to a 200-entry memory-only
+ignore list until restart.
 
 ### Settings, shortcuts and lifecycle
 
-- `Settings.swift`: normalized local preferences.
+- `Settings.swift`: normalized local preferences and a 200-entry per-app layout
+  map with explicit reset.
 - `ShortcutDescriptor.swift`, `ShortcutRecorder.swift`, `GlobalHotKey.swift`,
   `HotKeyCoordinator.swift`: five transactional, conflict-safe native hotkeys.
 - `PreferencesWindow.swift`: General, Keys, Privacy, Layout and Data.
@@ -89,6 +99,8 @@ unknown, terminal, IDE, remote-control and input-method contexts.
 6. Sensitive-content decisions happen before persistence.
 7. Automatic correction never writes typed tokens to disk or the pasteboard.
 8. A conflicting shortcut never replaces the previous working registration.
+9. Partial/quit cleanup never removes pins or snippets.
+10. Per-app layout memory does not enable or depend on automatic key monitoring.
 
 ## Verification map
 

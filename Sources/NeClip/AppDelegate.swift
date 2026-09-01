@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
     private let automaticLayoutCorrection = AutoLayoutController()
+    private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBar = StatusBarController()
@@ -65,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         automaticLayoutCorrection.applySetting()
+        applicationLayoutMemory.applySetting()
 
         // Accessibility is requested only after the onboarding explanation and
         // an explicit user action.
@@ -107,13 +109,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         monitor.stop()
         automaticLayoutCorrection.disable()
+        applicationLayoutMemory.stop()
         NotificationCenter.default.removeObserver(self)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        SnippetsEditorWindowController.shared.prepareForTermination()
-            ? .terminateNow
-            : .terminateCancel
+        guard SnippetsEditorWindowController.shared.prepareForTermination() else {
+            return .terminateCancel
+        }
+        guard Settings.clearHistoryOnQuit else { return .terminateNow }
+        do {
+            try Storage.shared.clearHistory(includePinned: false)
+            return .terminateNow
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Не удалось очистить историю"
+            alert.informativeText = "NeClip не завершит работу, чтобы настройка приватности не создала ложного ощущения удаления. Попробуйте ещё раз."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return .terminateCancel
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -132,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func layoutSettingsChanged() {
         automaticLayoutCorrection.applySetting()
+        applicationLayoutMemory.applySetting()
     }
 
     @objc private func manualLayoutCorrectionRequested() {
@@ -160,7 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func correctLayoutOrUndo() {
         if automaticLayoutCorrection.undoLastCorrectionIfPossible(completion: { [weak self] undone in
-            self?.statusBar.showLayoutFeedback(undone ? "Исправление отменено" : "Отмена уже недоступна")
+            self?.statusBar.showLayoutFeedback(
+                undone ? "Отменено · слово игнорируется до перезапуска" : "Отмена уже недоступна"
+            )
         }) {
             return
         }

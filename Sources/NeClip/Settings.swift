@@ -12,6 +12,7 @@ extension Notification.Name {
     static let neClipHotKeysDidChange = Notification.Name("org.affpapa.neclip.hotKeysDidChange")
     static let neClipManualLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.manualLayoutCorrectionRequested")
     static let neClipDisableAutomaticLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.disableAutomaticLayoutCorrectionRequested")
+    static let neClipApplicationLayoutMemoryDidChange = Notification.Name("org.affpapa.neclip.applicationLayoutMemoryDidChange")
 }
 
 enum Settings {
@@ -25,6 +26,8 @@ enum Settings {
         static let excludedApps = "excludedApps"
         static let captureImages = "captureImages"
         static let retentionDays = "retentionDays"
+        static let maximumTextCaptureKilobytes = "maximumTextCaptureKilobytes"
+        static let clearHistoryOnQuit = "clearHistoryOnQuit"
         static let sensitiveContentRules = "sensitiveContentRules"
         static let preferPlainText = "preferPlainText"
         static let menuTitleLength = "menuTitleLength"
@@ -33,6 +36,9 @@ enum Settings {
         static let ignoreNextCopy = "ignoreNextCopy"
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
         static let layoutExcludedApps = "layoutExcludedApps"
+        static let rememberLayoutPerApplication = "rememberLayoutPerApplication"
+        static let applicationLayoutMemory = "applicationLayoutMemory.v1"
+        static let applicationLayoutMemoryOrder = "applicationLayoutMemoryOrder.v1"
         static let historyShortcut = "historyShortcut.v1"
         static let snippetsShortcut = "snippetsShortcut.v1"
         static let sequentialPasteShortcut = "sequentialPasteShortcut.v1"
@@ -66,6 +72,29 @@ enum Settings {
     static var retentionDays: Int {
         get { max(0, d.integer(forKey: Key.retentionDays)) }
         set { d.set(max(0, newValue), forKey: Key.retentionDays) }
+    }
+
+    static let maximumTextCaptureKilobytesRange = 64...2_048
+
+    static var maximumTextCaptureKilobytes: Int {
+        get {
+            let stored = d.object(forKey: Key.maximumTextCaptureKilobytes) as? Int ?? 2_048
+            return min(maximumTextCaptureKilobytesRange.upperBound, max(maximumTextCaptureKilobytesRange.lowerBound, stored))
+        }
+        set {
+            let normalized = min(maximumTextCaptureKilobytesRange.upperBound, max(maximumTextCaptureKilobytesRange.lowerBound, newValue))
+            d.set(normalized, forKey: Key.maximumTextCaptureKilobytes)
+            notifyCaptureControlsChanged()
+        }
+    }
+
+    static var maximumTextCaptureBytes: Int {
+        maximumTextCaptureKilobytes * 1_024
+    }
+
+    static var clearHistoryOnQuit: Bool {
+        get { d.bool(forKey: Key.clearHistoryOnQuit) }
+        set { d.set(newValue, forKey: Key.clearHistoryOnQuit) }
     }
 
     static var sensitiveContentRules: [String] {
@@ -149,6 +178,51 @@ enum Settings {
             d.set(Array(Set(newValue)).sorted(), forKey: Key.layoutExcludedApps)
             notifyLayoutSettingsChanged()
         }
+    }
+
+    /// This observes only application activation and the selected system input
+    /// source. It never enables or depends on the automatic key-event monitor.
+    static var rememberLayoutPerApplication: Bool {
+        get { d.bool(forKey: Key.rememberLayoutPerApplication) }
+        set {
+            d.set(newValue, forKey: Key.rememberLayoutPerApplication)
+            notifyLayoutSettingsChanged()
+        }
+    }
+
+    static let maximumRememberedApplications = 200
+
+    static func rememberedLayoutSource(for bundleID: String) -> String? {
+        applicationLayoutMemory()[normalizedBundleID(bundleID)]
+    }
+
+    static var rememberedApplicationCount: Int {
+        applicationLayoutMemory().count
+    }
+
+    static func rememberLayoutSource(_ sourceID: String, for bundleID: String) {
+        let bundle = normalizedBundleID(bundleID)
+        let source = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !bundle.isEmpty, bundle.count <= 255, !source.isEmpty, source.count <= 512 else { return }
+
+        var mapping = applicationLayoutMemory()
+        var order = (d.stringArray(forKey: Key.applicationLayoutMemoryOrder) ?? [])
+            .map(normalizedBundleID)
+            .filter { !$0.isEmpty && mapping[$0] != nil && $0 != bundle }
+        mapping[bundle] = source
+        order.append(bundle)
+        while order.count > maximumRememberedApplications {
+            mapping.removeValue(forKey: order.removeFirst())
+        }
+        d.set(mapping, forKey: Key.applicationLayoutMemory)
+        d.set(order, forKey: Key.applicationLayoutMemoryOrder)
+        notifyApplicationLayoutMemoryChanged()
+    }
+
+    static func clearRememberedApplicationLayouts() {
+        d.removeObject(forKey: Key.applicationLayoutMemory)
+        d.removeObject(forKey: Key.applicationLayoutMemoryOrder)
+        notifyApplicationLayoutMemoryChanged()
     }
 
     /// Persisted capture pause. An expired timed pause is cleared lazily so a
@@ -252,6 +326,39 @@ enum Settings {
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .neClipLayoutSettingsDidChange, object: nil)
         }
+    }
+
+    private static func notifyApplicationLayoutMemoryChanged() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .neClipApplicationLayoutMemoryDidChange, object: nil)
+        }
+    }
+
+    private static func applicationLayoutMemory() -> [String: String] {
+        let raw = d.dictionary(forKey: Key.applicationLayoutMemory) as? [String: String] ?? [:]
+        let order = d.stringArray(forKey: Key.applicationLayoutMemoryOrder) ?? []
+        var result: [String: String] = [:]
+        for bundle in order.suffix(maximumRememberedApplications) {
+            let normalized = normalizedBundleID(bundle)
+            guard !normalized.isEmpty,
+                  let source = raw[bundle]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !source.isEmpty else { continue }
+            result[normalized] = source
+        }
+        if result.isEmpty {
+            for bundle in raw.keys.sorted().prefix(maximumRememberedApplications) {
+                let normalized = normalizedBundleID(bundle)
+                guard !normalized.isEmpty,
+                      let source = raw[bundle]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !source.isEmpty else { continue }
+                result[normalized] = source
+            }
+        }
+        return result
+    }
+
+    private static func normalizedBundleID(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func decodedShortcut(

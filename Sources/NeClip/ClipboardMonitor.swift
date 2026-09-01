@@ -16,6 +16,15 @@ enum ClipboardCapturePolicy {
     static let maxFileCount = 256
     static let excludedActivationWindow: TimeInterval = 0.8
 
+    static func effectiveTextPayloadLimit(userLimit: Int) -> Int {
+        min(maxTextBytes, max(1, userLimit))
+    }
+
+    static func acceptsTextPayload(textBytes: Int, rtfBytes: Int, userLimit: Int) -> Bool {
+        guard textBytes > 0, rtfBytes >= 0 else { return false }
+        return textBytes + rtfBytes <= effectiveTextPayloadLimit(userLimit: userLimit)
+    }
+
     static func shouldRejectSource(
         bundleID: String?,
         excludedTransitionActive: Bool,
@@ -296,12 +305,24 @@ final class ClipboardMonitor: @unchecked Sendable {
         }
 
         let textData = Data(text.utf8)
-        guard textData.count <= ClipboardCapturePolicy.maxTextBytes else {
+        let payloadLimit = ClipboardCapturePolicy.effectiveTextPayloadLimit(
+            userLimit: Settings.maximumTextCaptureBytes
+        )
+        guard ClipboardCapturePolicy.acceptsTextPayload(
+            textBytes: textData.count,
+            rtfBytes: 0,
+            userLimit: payloadLimit
+        ) else {
             notifySkipped(.tooLarge)
             return
         }
         let safeRTF = snapshot.rtf.flatMap {
-            $0.count <= ClipboardCapturePolicy.maxRTFBytes ? $0 : nil
+            $0.count <= ClipboardCapturePolicy.maxRTFBytes
+                && ClipboardCapturePolicy.acceptsTextPayload(
+                    textBytes: textData.count,
+                    rtfBytes: $0.count,
+                    userLimit: payloadLimit
+                ) ? $0 : nil
         }
         let title = String(trimmed.prefix(200)).replacingOccurrences(of: "\n", with: " ")
         let item = ClipItem(

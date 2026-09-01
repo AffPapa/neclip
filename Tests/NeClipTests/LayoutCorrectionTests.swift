@@ -88,6 +88,60 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertTrue(buffer.strokes.isEmpty)
     }
 
+    func testAutomaticUndoIgnoreListIsBoundedAndCaseInsensitive() {
+        var ignored = BoundedLayoutIgnoreList(capacity: 2)
+        ignored.add(" Ghbdtn ")
+        ignored.add("РУДДЩ")
+        XCTAssertTrue(ignored.contains("ghbdtn"))
+        XCTAssertTrue(ignored.contains("руддщ"))
+
+        ignored.add("third")
+        XCTAssertFalse(ignored.contains("GHBDTN"))
+        XCTAssertTrue(ignored.contains("third"))
+        XCTAssertEqual(ignored.order.count, 2)
+    }
+
+    func testApplicationLayoutMemoryRejectsHelpersSelfAndUserExclusions() {
+        XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: nil,
+            ownBundleID: "org.affpapa.neclip",
+            userExcluded: []
+        ))
+        XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: "org.affpapa.neclip",
+            ownBundleID: "org.affpapa.neclip",
+            userExcluded: []
+        ))
+        XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: "com.apple.loginwindow",
+            ownBundleID: "org.affpapa.neclip",
+            userExcluded: []
+        ))
+        XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: "com.example.editor",
+            ownBundleID: "org.affpapa.neclip",
+            userExcluded: ["com.example.editor"]
+        ))
+        XCTAssertTrue(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: "com.apple.TextEdit",
+            ownBundleID: "org.affpapa.neclip",
+            userExcluded: []
+        ))
+    }
+
+    func testPerApplicationMemoryToggleDoesNotEnableAutomaticCorrection() {
+        let previousMemory = Settings.rememberLayoutPerApplication
+        let previousAutomatic = Settings.automaticLayoutCorrection
+        defer {
+            Settings.rememberLayoutPerApplication = previousMemory
+            Settings.automaticLayoutCorrection = previousAutomatic
+        }
+        Settings.automaticLayoutCorrection = false
+        Settings.rememberLayoutPerApplication = true
+        XCTAssertTrue(Settings.rememberLayoutPerApplication)
+        XCTAssertFalse(Settings.automaticLayoutCorrection)
+    }
+
     func testWholeValueCASNeverRollsBackOverConcurrentMutation() {
         XCTAssertTrue(LayoutWholeValueCASPolicy.shouldRollback(
             currentValue: "привет ",
@@ -167,5 +221,15 @@ final class LayoutCorrectionTests: XCTestCase {
         service.invalidate()
         XCTAssertTrue(service.selectSource(id: originalID))
         XCTAssertEqual(service.currentSourceID(), originalID)
+    }
+
+    @MainActor
+    func testCurrentSelectableInputSourceCanBeReselected() throws {
+        let service = KeyboardLayoutService.shared
+        guard let originalID = service.currentSelectableSourceID() else {
+            throw XCTSkip("A selectable input source is required")
+        }
+        XCTAssertTrue(service.selectSelectableSource(id: originalID))
+        XCTAssertEqual(service.currentSelectableSourceID(), originalID)
     }
 }

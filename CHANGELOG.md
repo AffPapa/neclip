@@ -6,6 +6,25 @@ DMG checksum verification have passed.
 
 ## Unreleased
 
+- Prepared source version 1.5.0/build 9 while keeping the public update manifest
+  and signed/notarized download on 1.4.0 until a separate release gate.
+- Added a 64–2048 KB maximum for one captured text record. RTF is retained only
+  while the complete text record stays inside that user limit.
+- Added partial cleanup for the last hour and today plus full unpinned cleanup;
+  pins and snippets remain protected.
+- Added optional fail-closed clearing of unpinned history on quit. If storage
+  cannot confirm deletion, NeClip cancels termination instead of implying that
+  private data was erased.
+- Added **Paste and Delete** for the top unpinned history result. Deletion runs
+  only after a successful direct-paste dispatch; copy-only, missing
+  Accessibility, target changes and failed paste never delete it.
+- Added independent, default-off per-application input-source memory bounded to
+  200 local mappings, with visible count/reset and no keyboard-event monitoring.
+- Automatic-correction undo now keeps a bounded, memory-only ignore list for
+  the current session so the same false correction is not repeated.
+- Documented 18 clipboard products, 19 layout products, three different layout
+  architectures and a new 100-candidate add/defer/reject catalogue.
+
 - Added structured history search by base type, smart text category, source
   application, date window and pin state, plus a bounded fuzzy fallback.
 - Added a focused full-item inspector with transactional text editing,
@@ -49,8 +68,9 @@ DMG checksum verification have passed.
   import. History and usage metadata are never exported.
 - Documented the 100-function competitor catalogue and the scored top-20
   selection in `docs/FEATURE-RESEARCH-2026-08-31.md`.
-- Expanded the local suite to 111 checks (one optional external-database case is
-  skipped unless its disposable fixture is supplied); strict Swift 6 release
+- Expanded the pre-1.5 local suite to 119 checks: 111 XCTest cases plus eight
+  Swift Testing cases (one optional external-database case is skipped unless
+  its disposable fixture is supplied); strict Swift 6 release
   compilation and full-history secret scanning pass.
 
 ## 1.4.0 — 31 August 2026

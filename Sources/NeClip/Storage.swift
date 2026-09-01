@@ -710,17 +710,28 @@ final class Storage: @unchecked Sendable {
         notifyChange()
     }
 
-    func clearHistory(includePinned: Bool = false) throws { try clearAll(includePinned: includePinned) }
+    /// Deletes history in one transaction. `createdAfter` supports privacy
+    /// cleanup of recent values while ordinary cleanup still protects pins.
+    @discardableResult
+    func clearHistory(includePinned: Bool = false, createdAfter: Date? = nil) throws -> Int {
+        let removed = try dbQueue.write { db -> Int in
+            var conditions: [String] = []
+            var arguments = StatementArguments()
+            if !includePinned { conditions.append("isPinned = 0") }
+            if let createdAfter {
+                conditions.append("createdAt >= ?")
+                arguments += [createdAfter]
+            }
+            let suffix = conditions.isEmpty ? "" : " WHERE " + conditions.joined(separator: " AND ")
+            try db.execute(sql: "DELETE FROM clip" + suffix, arguments: arguments)
+            return db.changesCount
+        }
+        if removed > 0 { notifyChange() }
+        return removed
+    }
 
     func clearAll(includePinned: Bool = false) throws {
-        try dbQueue.write { db in
-            if includePinned {
-                try ClipItem.deleteAll(db)
-            } else {
-                try db.execute(sql: "DELETE FROM clip WHERE isPinned = 0")
-            }
-        }
-        notifyChange()
+        _ = try clearHistory(includePinned: includePinned)
     }
 
     /// Erases every user-created record in one transaction. Keeping this

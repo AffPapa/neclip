@@ -20,6 +20,28 @@ final class StatusBarController: NSObject {
         case snippet(RemovedSnippet)
     }
 
+    private enum HistoryCleanupWindow: Equatable {
+        case lastHour
+        case today
+        case all
+
+        var title: String {
+            switch self {
+            case .lastHour: "историю за последний час"
+            case .today: "сегодняшнюю историю"
+            case .all: "всю незакреплённую историю"
+            }
+        }
+
+        func cutoff(now: Date = Date(), calendar: Calendar = .current) -> Date? {
+            switch self {
+            case .lastHour: now.addingTimeInterval(-3_600)
+            case .today: calendar.startOfDay(for: now)
+            case .all: nil
+            }
+        }
+    }
+
     private struct MenuSnapshot {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
@@ -388,7 +410,7 @@ final class StatusBarController: NSObject {
 
         menu.addItem(.separator())
         addCaptureControls(to: menu)
-        menu.addItem(item("Очистить историю…", #selector(clearHistory), symbol: "trash"))
+        menu.addItem(historyCleanupMenuItem())
         menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
         menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
         menu.addItem(item("Проверить обновления…", #selector(checkUpdates), symbol: "arrow.triangle.2.circlepath"))
@@ -680,7 +702,7 @@ final class StatusBarController: NSObject {
             menu.addItem(layoutMenuItem())
             menu.addItem(.separator())
             addCaptureControls(to: menu)
-            menu.addItem(item("Очистить историю…", #selector(clearHistory), symbol: "trash"))
+            menu.addItem(historyCleanupMenuItem())
             menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
             menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
             menu.addItem(.separator())
@@ -771,6 +793,13 @@ final class StatusBarController: NSObject {
                         "Вставить распознанный текст",
                         #selector(pasteFirstResultOCR),
                         symbol: "text.viewfinder"
+                    ))
+                }
+                if !clip.isPinned {
+                    submenu.addItem(item(
+                        "Вставить и удалить",
+                        #selector(pasteAndDeleteFirstResult),
+                        symbol: "arrow.down.doc"
                     ))
                 }
                 submenu.addItem(.separator())
@@ -879,6 +908,52 @@ final class StatusBarController: NSObject {
                 }
             } catch {
                 DispatchQueue.main.async { self?.showFeedback("Не удалось открыть распознанный текст") }
+            }
+        }
+    }
+
+    @objc private func pasteAndDeleteFirstResult() {
+        guard case .clip(let summary) = visibleKeyboardEntries.first,
+              !summary.isPinned else { return }
+        let capturedTargetPID = targetPID
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let stored = try Storage.shared.fetchClip(id: summary.id),
+                      !stored.isPinned else {
+                    DispatchQueue.main.async { self?.showFeedback("Закреплённый элемент не удаляется") }
+                    return
+                }
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    PasteService.paste(
+                        stored,
+                        plainText: Settings.preferPlainText,
+                        targetPID: capturedTargetPID
+                    ) { [weak self] result in
+                        guard let self else { return }
+                        self.handlePasteResult(result)
+                        guard PasteService.shouldDeleteAfterPaste(result, isPinned: stored.isPinned) else { return }
+                        self.dataQueue.async { [weak self] in
+                            do {
+                                let removed = try Storage.shared.removeClip(id: summary.id)
+                                DispatchQueue.main.async {
+                                    guard let self else { return }
+                                    guard let removed else {
+                                        self.showFeedback("Вставлено · элемент уже удалён")
+                                        return
+                                    }
+                                    self.undoDeletion = .clip(removed)
+                                    self.showFeedback("Вставлено и удалено · ⌘Z вернуть")
+                                }
+                            } catch {
+                                DispatchQueue.main.async { self?.showFeedback("Вставлено · удалить не удалось") }
+                            }
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент") }
             }
         }
     }
@@ -1152,6 +1227,14 @@ final class StatusBarController: NSObject {
         let root = item("Раскладка", nil, symbol: "character.cursor.ibeam")
         let submenu = makeMenu(title: "Раскладка")
         let shortcuts = HotKeyCoordinator.shared
+        let remember = item(
+            "Запоминать раскладку приложений",
+            #selector(toggleApplicationLayoutMemory),
+            symbol: "app.badge.checkmark"
+        )
+        remember.state = Settings.rememberLayoutPerApplication ? .on : .off
+        submenu.addItem(remember)
+        submenu.addItem(.separator())
         let automatic = item(
             "Автоматически исправлять (бета)",
             #selector(toggleAutomaticLayoutCorrection),
@@ -1181,6 +1264,17 @@ final class StatusBarController: NSObject {
         let hint = NSMenuItem(title: "⌃↩ — исправить выбранную запись истории и вставить", action: nil, keyEquivalent: "")
         hint.image = symbol("info.circle", description: nil)
         submenu.addItem(hint)
+        root.submenu = submenu
+        return root
+    }
+
+    private func historyCleanupMenuItem() -> NSMenuItem {
+        let root = item("Очистить историю", nil, symbol: "trash")
+        let submenu = makeMenu(title: "Очистить историю")
+        submenu.addItem(item("За последний час…", #selector(clearHistoryLastHour), symbol: "clock"))
+        submenu.addItem(item("За сегодня…", #selector(clearHistoryToday), symbol: "calendar"))
+        submenu.addItem(.separator())
+        submenu.addItem(item("Всю незакреплённую…", #selector(clearHistory), symbol: "trash"))
         root.submenu = submenu
         return root
     }
@@ -1465,6 +1559,15 @@ final class StatusBarController: NSObject {
         showFeedback(Settings.ignoreNextCopy ? "следующее копирование не сохранится" : "пропуск отменён")
     }
 
+    @objc private func toggleApplicationLayoutMemory() {
+        Settings.rememberLayoutPerApplication.toggle()
+        showFeedback(
+            Settings.rememberLayoutPerApplication
+                ? "раскладка приложений запоминается"
+                : "запоминание раскладки выключено"
+        )
+    }
+
     @objc private func pauseForFifteenMinutes() {
         Settings.pauseFor15Minutes()
         refreshIcon()
@@ -1484,10 +1587,22 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func clearHistory() {
+        confirmHistoryCleanup(.all)
+    }
+
+    @objc private func clearHistoryLastHour() {
+        confirmHistoryCleanup(.lastHour)
+    }
+
+    @objc private func clearHistoryToday() {
+        confirmHistoryCleanup(.today)
+    }
+
+    private func confirmHistoryCleanup(_ scope: HistoryCleanupWindow) {
         let alert = NSAlert()
-        alert.messageText = "Очистить историю?"
-        alert.informativeText = "Незакреплённые элементы будут удалены. Сниппеты и закреплённые элементы останутся."
-        alert.addButton(withTitle: "Удалить незакреплённое")
+        alert.messageText = "Удалить \(scope.title)?"
+        alert.informativeText = "Закреплённые элементы и сниппеты останутся."
+        alert.addButton(withTitle: "Удалить")
         alert.addButton(withTitle: "Отмена")
         alert.alertStyle = .warning
         NSApp.activate(ignoringOtherApps: true)
@@ -1495,10 +1610,13 @@ final class StatusBarController: NSObject {
 
         dataQueue.async { [weak self] in
             do {
-                try Storage.shared.clearHistory(includePinned: false)
-                try Storage.shared.vacuum()
+                let removed = try Storage.shared.clearHistory(
+                    includePinned: false,
+                    createdAfter: scope.cutoff()
+                )
+                if scope == .all { try Storage.shared.vacuum() }
                 DispatchQueue.main.async {
-                    self?.showFeedback("история очищена")
+                    self?.showFeedback(removed == 0 ? "нечего удалять" : "удалено элементов: \(removed)")
                 }
             } catch {
                 DispatchQueue.main.async { self?.showFeedback("не удалось очистить историю") }

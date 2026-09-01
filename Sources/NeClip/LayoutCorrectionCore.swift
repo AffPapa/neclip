@@ -173,6 +173,38 @@ struct AutoTypingBuffer {
     }
 }
 
+struct BoundedLayoutIgnoreList {
+    private(set) var order: [String] = []
+    private var values: Set<String> = []
+    let capacity: Int
+
+    init(capacity: Int = 200) {
+        self.capacity = max(1, capacity)
+    }
+
+    func contains(_ token: String) -> Bool {
+        values.contains(Self.normalize(token))
+    }
+
+    mutating func add(_ token: String) {
+        let normalized = Self.normalize(token)
+        guard !normalized.isEmpty else { return }
+        if values.contains(normalized) {
+            order.removeAll { $0 == normalized }
+        } else {
+            values.insert(normalized)
+        }
+        order.append(normalized)
+        while order.count > capacity {
+            values.remove(order.removeFirst())
+        }
+    }
+
+    private static func normalize(_ token: String) -> String {
+        token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
 enum LayoutProtectedApplicationPolicy {
     static let sensitiveBundleIDs: Set<String> = [
         "com.1password.1password",

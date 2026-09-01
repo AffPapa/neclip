@@ -388,6 +388,7 @@ final class AutoLayoutController {
     private var nextContextID: UInt64 = 0
     private var undoRecord: UndoRecord?
     private var undoExpiry: DispatchWorkItem?
+    private var ignoredTokens = BoundedLayoutIgnoreList()
     private var secureTimer: Timer?
     private var focusCheckCounter = 0
     private var inputSourceObserver: NSObjectProtocol?
@@ -563,6 +564,7 @@ final class AutoLayoutController {
             refreshContext()
             return false
         }
+        ignoredTokens.add(record.original)
         completion(true)
         refreshContext()
         return true
@@ -579,6 +581,7 @@ final class AutoLayoutController {
               contextStillMatches(context),
               layouts.currentSourceID() == boundary.sourceID,
               let translation = layouts.translate(strokes: boundary.strokes, sourceID: boundary.sourceID),
+              !ignoredTokens.contains(translation.original),
               LayoutTextPolicy.isAutoCandidate(translation.original),
               LayoutTextPolicy.isAutoCandidate(translation.converted),
               let typedKnown = dictionary.isKnown(translation.original, language: translation.sourceLanguage),

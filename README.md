@@ -8,19 +8,18 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.4.0 (build 8)**. See [CHANGELOG.md](CHANGELOG.md)
-for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
-public roadmap.
+Current source version: **1.5.0 (build 9)**. The latest public, signed and
+notarized release remains **1.4.0** until a separate release gate is completed.
+See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
+for the intentionally small public roadmap.
 
 The current module ownership and invariants are in
 [docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
 audit, decisions and verification gates are in
-[docs/AUDIT-2026-09-01.md](docs/AUDIT-2026-09-01.md).
-The researched catalogue of 100 competitor functions and the implemented
-minimal top 20 are in
-[docs/FEATURE-RESEARCH-2026-08-31.md](docs/FEATURE-RESEARCH-2026-08-31.md); the
-current 20-product UX recheck is in
-[docs/COMPETITOR-UX-2026-09-01.md](docs/COMPETITOR-UX-2026-09-01.md).
+[docs/AUDIT-1.5.0-2026-09-01.md](docs/AUDIT-1.5.0-2026-09-01.md).
+The current deep comparison of 18 clipboard products, 19 layout products, 100
+candidate improvements and the 1.5.0 decisions is in
+[docs/RESEARCH-1.5.0-2026-09-01.md](docs/RESEARCH-1.5.0-2026-09-01.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 SHA-256:
@@ -77,8 +76,10 @@ The standard magnifier inside the history search field exposes the common
 filters, so their syntax does not have to be memorized.
 
 The top-item action submenu keeps advanced workflows out of the main menu:
-preview/edit/rename, safe URL or file opening, OCR-text paste and local text
-transforms. Sequential paste needs no collection mode: the first invocation
+preview/edit/rename, safe URL or file opening, OCR-text paste, paste-and-delete
+and local text transforms. Paste-and-delete is available only for unpinned
+history and removes the record only after the direct paste command is
+successfully dispatched; copy-only fallback does not delete it. Sequential paste needs no collection mode: the first invocation
 captures a stable list of the 50 latest database identifiers, each successful
 invocation advances once, and the sequence resets after 30 seconds or a new
 external copy. Clipboard content is not duplicated.
@@ -98,7 +99,15 @@ acts only after Space and only for a high-confidence dictionary decision, and
 does not intercept Enter. Password managers, secure fields, terminals, IDEs,
 remote-desktop clients, unknown focus, input methods, dead keys, and ambiguous
 tokens fail closed. Typed tokens stay in a bounded RAM buffer and are never
-logged, saved, learned, or sent over the network.
+logged, saved or sent over the network. Undoing a false automatic correction
+adds only that normalized token to a bounded memory-only ignore list until the
+app restarts.
+
+An independent, default-off setting can remember the last selected input source
+for up to 200 applications. It observes only application activation and the
+system input-source notification; it does not read text or key events and does
+not need Input Monitoring. Settings shows the local mapping count and provides
+one reset button.
 
 Automatic correction needs separate Input Monitoring and Accessibility access
 from macOS. NeClip requests them only when the user turns the feature on;
@@ -144,6 +153,10 @@ An optional age limit removes only ordinary history. Image capture can be
 disabled independently, and user-defined literal phrases can reject sensitive
 text before any database write. These checks are local and do not use regexes,
 telemetry, network services or AI.
+The maximum captured text-record size is user-adjustable from 64 to 2048 KB.
+History can be cleared for the last hour, for today, or completely while
+retaining pins and snippets. An optional privacy toggle clears unpinned history
+on quit and cancels termination if deletion cannot be confirmed.
 
 ## Build and test
 

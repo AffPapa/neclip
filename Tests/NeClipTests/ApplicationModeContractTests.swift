@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.4.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "8")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.5.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "9")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -40,6 +40,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("NSApp.terminate(nil)"))
         XCTAssertTrue(statusBar.contains("MenuAppearance.applyEffectiveAppearance"))
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format"))
+        XCTAssertTrue(statusBar.contains("Вставить и удалить"))
+        XCTAssertTrue(statusBar.contains("За последний час…"))
+        XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: repositoryRoot
@@ -108,6 +111,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
         XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
         XCTAssertTrue(preferences.contains("Storage.shared.deleteAllUserData()"))
+        XCTAssertTrue(preferences.contains("Размер текста одной записи"))
+        XCTAssertTrue(preferences.contains("Очищать незакреплённую историю при выходе"))
+        XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
         XCTAssertTrue(statusBar.contains("folderID: nil"))
     }

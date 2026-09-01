@@ -47,6 +47,14 @@ not planned.
 
 ## Done in current unreleased source
 
+- Source 1.5.0/build 9 separated from the still-public signed 1.4.0 release
+- User-bounded 64–2048 KB text records
+- Last-hour/today/all-unpinned cleanup and optional fail-closed cleanup on quit
+- Paste-and-delete only after successful direct-paste dispatch, never after
+  copy-only fallback
+- Per-application last-used input source without keyboard-event monitoring
+- Bounded session ignore after undoing a false automatic correction
+- Reset and visible count for up to 200 remembered application layouts
 - Direct recent-history sequential paste without a collection mode
 - Configurable, conflict-safe history, snippet and sequential-paste shortcuts
 - Five concise Settings sections instead of one long form
