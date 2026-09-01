@@ -78,6 +78,12 @@ final class StatusBarController: NSObject {
             name: .neClipStorageDidChange,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(sequentialQueueDidChange),
+            name: .neClipSequentialQueueDidChange,
+            object: nil
+        )
         refreshIcon()
         statusItem.isVisible = true
         refreshSnapshot()
@@ -206,7 +212,7 @@ final class StatusBarController: NSObject {
 
     private func buildHistoryMenu() -> NSMenu {
         let menu = makeMenu(title: "NeClip")
-        menu.addItem(makeSearchItem(placeholder: "Поиск в истории и сниппетах…"))
+        menu.addItem(makeSearchItem(placeholder: "Поиск · type:link · app:safari…"))
         menu.addItem(.separator())
         appendHistoryContents(to: menu)
         return menu
@@ -309,6 +315,7 @@ final class StatusBarController: NSObject {
         snippetsItem.submenu = buildSnippetsMenu(asRoot: false)
         menu.addItem(snippetsItem)
 
+        menu.addItem(sequentialPasteMenuItem())
         menu.addItem(layoutMenuItem())
 
         menu.addItem(.separator())
@@ -387,6 +394,10 @@ final class StatusBarController: NSObject {
         searchField.focusRingType = .none
         searchField.delegate = self
         searchField.setAccessibilityLabel(placeholder)
+        searchField.toolTip = """
+            Фильтры: type:text/image/file/link/email/color/code · app:имя · \
+            when:today/week/month · is:pinned/history
+            """
         searchField.onEscape = { [weak self, weak searchField] in
             guard let self, let searchField else { return }
             if !searchField.stringValue.isEmpty {
@@ -416,6 +427,12 @@ final class StatusBarController: NSObject {
         }
         searchField.onUndo = { [weak self] in
             self?.undoLastDeletion()
+        }
+        searchField.onPreviewFirst = { [weak self] in
+            self?.previewFirstResult()
+        }
+        searchField.onOpenFirst = { [weak self] in
+            self?.openFirstResult()
         }
         container.addSubview(searchField)
         let menuItem = NSMenuItem()
@@ -449,14 +466,23 @@ final class StatusBarController: NSObject {
             self.dataQueue.async { [weak self] in
                 guard let self else { return }
                 do {
+                    let parsed = ClipboardSearchQuery.parse(query)
                     let clips = kind == .history
-                        ? try Storage.shared.summaries(limit: 20, search: query, pinnedOnly: false)
+                        ? try Storage.shared.searchSummaries(query: parsed, limit: 20)
                         : []
-                    let snippets = try Storage.shared.allSnippets(search: query, pinnedOnly: false)
+                    let snippets = parsed.usesStructuredFilters
+                        ? []
+                        : try Storage.shared.allSnippets(search: parsed.terms, pinnedOnly: false)
                     DispatchQueue.main.async {
                         guard generation == self.searchGeneration,
                               let menu = self.activeMenu else { return }
-                        self.showSearchResults(clips: clips, snippets: snippets, query: query, kind: kind, in: menu)
+                        self.showSearchResults(
+                            clips: clips,
+                            snippets: snippets,
+                            query: parsed.terms,
+                            kind: kind,
+                            in: menu
+                        )
                     }
                 } catch {
                     DispatchQueue.main.async {
@@ -518,6 +544,7 @@ final class StatusBarController: NSObject {
         }
         menu.addItem(.separator())
         if kind == .history {
+            menu.addItem(sequentialPasteMenuItem())
             menu.addItem(layoutMenuItem())
             menu.addItem(.separator())
             addCaptureControls(to: menu)
@@ -591,6 +618,35 @@ final class StatusBarController: NSObject {
             switch entry {
             case .clip(let clip):
                 isPinned = clip.isPinned
+                submenu.addItem(item(
+                    clip.kind == .text ? "Просмотреть и изменить…" : "Просмотреть и переименовать…",
+                    #selector(previewFirstResult),
+                    symbol: "eye",
+                    keyEquivalent: "e",
+                    modifiers: [.command]
+                ))
+                if clip.kind == .file || SmartClipClassifier.category(for: clip) == .link {
+                    submenu.addItem(item(
+                        "Открыть",
+                        #selector(openFirstResult),
+                        symbol: "arrow.up.forward.app",
+                        keyEquivalent: "o",
+                        modifiers: [.command]
+                    ))
+                }
+                if clip.kind == .image, !(clip.text ?? "").isEmpty {
+                    submenu.addItem(item(
+                        "Вставить распознанный текст",
+                        #selector(pasteFirstResultOCR),
+                        symbol: "text.viewfinder"
+                    ))
+                }
+                submenu.addItem(item(
+                    "Добавить в очередь вставки",
+                    #selector(addFirstResultToSequentialQueue),
+                    symbol: "rectangle.stack.badge.plus"
+                ))
+                submenu.addItem(.separator())
             case .snippet(let snippet):
                 isPinned = snippet.isPinned
             }
@@ -603,6 +659,7 @@ final class StatusBarController: NSObject {
             ))
 
             if case .clip(let clip) = entry, clip.kind == .text, !(clip.text ?? "").isEmpty {
+                submenu.addItem(textTransformMenuItem())
                 submenu.addItem(item(
                     "Сохранить как сниппет",
                     #selector(saveFirstResultAsSnippet),
@@ -634,6 +691,213 @@ final class StatusBarController: NSObject {
         }
         root.submenu = submenu
         return root
+    }
+
+    @objc private func previewFirstResult() {
+        guard case .clip(let clip) = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        HistoryItemInspectorWindowController.shared.show(clipID: clip.id)
+    }
+
+    @objc private func openFirstResult() {
+        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let item = try Storage.shared.fetchClip(id: summary.id),
+                      let url = HistoryItemActionResolver.openTarget(for: item) else {
+                    DispatchQueue.main.async { self?.showFeedback("Открывать нечего") }
+                    return
+                }
+                DispatchQueue.main.async {
+                    if NSWorkspace.shared.open(url) {
+                        self?.showFeedback("Открыто")
+                    } else {
+                        self?.showFeedback("Не удалось открыть")
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент") }
+            }
+        }
+    }
+
+    @objc private func pasteFirstResultOCR() {
+        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        let capturedTargetPID = targetPID
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let stored = try Storage.shared.fetchClip(id: summary.id),
+                      stored.kind == .image,
+                      let ocrText = stored.ocrText?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !ocrText.isEmpty else {
+                    DispatchQueue.main.async { self?.showFeedback("Распознанного текста нет") }
+                    return
+                }
+                let textItem = ClipItem(
+                    kind: .text,
+                    title: stored.title,
+                    text: ocrText,
+                    createdAt: stored.createdAt
+                )
+                DispatchQueue.main.async {
+                    PasteService.paste(
+                        textItem,
+                        plainText: true,
+                        targetPID: capturedTargetPID
+                    ) { [weak self] result in
+                        self?.handlePasteResult(result)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть распознанный текст") }
+            }
+        }
+    }
+
+    @objc private func addFirstResultToSequentialQueue() {
+        guard case .clip(let clip) = visibleKeyboardEntries.first else { return }
+        let inserted = SequentialPasteQueue.shared.appendManual(id: clip.id)
+        showFeedback(inserted ? "Добавлено в очередь" : "Очередь заполнена")
+    }
+
+    private func textTransformMenuItem() -> NSMenuItem {
+        let root = item("Преобразовать и вставить", nil, symbol: "textformat")
+        let submenu = makeMenu(title: "Преобразовать и вставить")
+        for transform in TextTransform.allCases {
+            let entry = item(transform.title, #selector(applyTransformToFirstResult(_:)))
+            entry.representedObject = transform.rawValue
+            submenu.addItem(entry)
+            if transform == .titleCase || transform == .sortLines || transform == .urlDecode {
+                submenu.addItem(.separator())
+            }
+        }
+        root.submenu = submenu
+        return root
+    }
+
+    @objc private func applyTransformToFirstResult(_ sender: NSMenuItem) {
+        guard case .clip(let summary) = visibleKeyboardEntries.first,
+              let rawValue = sender.representedObject as? String,
+              let transform = TextTransform(rawValue: rawValue) else { return }
+        let capturedTargetPID = targetPID
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let stored = try Storage.shared.fetchClip(id: summary.id),
+                      stored.kind == .text,
+                      let text = stored.text else { return }
+                let transformed = try transform.apply(to: text)
+                guard !transformed.isEmpty else {
+                    DispatchQueue.main.async { self?.showFeedback("Преобразование дало пустой текст") }
+                    return
+                }
+                let item = ClipItem(kind: .text, title: stored.title, text: transformed, createdAt: stored.createdAt)
+                DispatchQueue.main.async {
+                    PasteService.paste(item, plainText: true, targetPID: capturedTargetPID) { [weak self] result in
+                        self?.handlePasteResult(result)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Этот текст нельзя преобразовать") }
+            }
+        }
+    }
+
+    private func sequentialPasteMenuItem() -> NSMenuItem {
+        let queue = SequentialPasteQueue.shared.snapshot
+        let title = queue.remaining > 0
+            ? "Очередь вставки · осталось (queue.remaining)"
+            : "Очередь вставки"
+        let root = item(title, nil, symbol: queue.isCollecting ? "rectangle.stack.badge.plus" : "rectangle.stack")
+        let submenu = makeMenu(title: "Очередь вставки")
+
+        if queue.isCollecting {
+            let status = NSMenuItem(title: "Копирования добавляются автоматически", action: nil, keyEquivalent: "")
+            status.state = .on
+            submenu.addItem(status)
+            submenu.addItem(item("Закончить сбор", #selector(stopSequentialCollection), symbol: "stop.fill"))
+        } else {
+            submenu.addItem(item("Начать новый сбор", #selector(startSequentialCollection), symbol: "record.circle"))
+        }
+        submenu.addItem(.separator())
+        submenu.addItem(item(
+            "Вставить следующий",
+            #selector(pasteNextInQueueFromMenu),
+            symbol: "arrow.right.to.line",
+            keyEquivalent: ShortcutDescriptor.sequentialPasteReserved.keyEquivalent ?? "",
+            modifiers: ShortcutDescriptor.sequentialPasteReserved.nsEventModifiers
+        ))
+        submenu.items.last?.isEnabled = queue.remaining > 0
+        submenu.addItem(item("Начать очередь сначала", #selector(resetSequentialQueue), symbol: "backward.end"))
+        submenu.items.last?.isEnabled = queue.total > 0 && queue.position > 0
+        submenu.addItem(item("Очистить очередь", #selector(clearSequentialQueue), symbol: "trash"))
+        submenu.items.last?.isEnabled = queue.total > 0
+        let privacy = NSMenuItem(title: "Очередь хранится только до выхода", action: nil, keyEquivalent: "")
+        privacy.image = symbol("lock", description: nil)
+        submenu.addItem(.separator())
+        submenu.addItem(privacy)
+        root.submenu = submenu
+        return root
+    }
+
+    @objc private func startSequentialCollection() {
+        SequentialPasteQueue.shared.startCollecting(clearExisting: true)
+        showFeedback("Сбор очереди начат")
+    }
+
+    @objc private func stopSequentialCollection() {
+        SequentialPasteQueue.shared.stopCollecting()
+        showFeedback("Сбор очереди закончен")
+    }
+
+    @objc private func pasteNextInQueueFromMenu() {
+        activeMenu?.cancelTracking()
+        pasteNextInQueue()
+    }
+
+    @objc private func resetSequentialQueue() {
+        SequentialPasteQueue.shared.reset()
+        showFeedback("Очередь начата сначала")
+    }
+
+    @objc private func clearSequentialQueue() {
+        SequentialPasteQueue.shared.clear()
+        showFeedback("Очередь очищена")
+    }
+
+    /// Global ⌃⌘V and the menu command share one deterministic queue runner.
+    func pasteNextInQueue() {
+        guard let id = SequentialPasteQueue.shared.beginNext() else {
+            showFeedback("Очередь пуста")
+            return
+        }
+        let queueTargetPID = captureTargetPID()
+        dataQueue.async { [weak self] in
+            do {
+                guard let clip = try Storage.shared.fetchClip(id: id) else {
+                    SequentialPasteQueue.shared.complete(id: id, advance: true)
+                    DispatchQueue.main.async { self?.pasteNextInQueue() }
+                    return
+                }
+                DispatchQueue.main.async {
+                    PasteService.paste(clip, plainText: false, targetPID: queueTargetPID) { [weak self] result in
+                        let succeeded: Bool
+                        if case .failed = result { succeeded = false } else { succeeded = true }
+                        SequentialPasteQueue.shared.complete(id: id, advance: succeeded)
+                        self?.handlePasteResult(result)
+                        if succeeded {
+                            let remaining = SequentialPasteQueue.shared.snapshot.remaining
+                            self?.showFeedback(remaining > 0 ? "Осталось в очереди: \(remaining)" : "Очередь завершена")
+                        }
+                    }
+                }
+            } catch {
+                SequentialPasteQueue.shared.complete(id: id, advance: false)
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент очереди") }
+            }
+        }
     }
 
     @objc private func toggleFirstResultPin() {
@@ -775,7 +1039,7 @@ final class StatusBarController: NSObject {
         let entry = item(
             prefix + cleanTitle(clip.title),
             quickKey == nil ? #selector(pasteClip(_:)) : #selector(quickPasteClip(_:)),
-            symbol: symbolName(for: clip.kind),
+            symbol: symbolName(for: clip),
             keyEquivalent: quickKey ?? "",
             modifiers: quickKey == nil ? [] : [.command]
         )
@@ -885,6 +1149,16 @@ final class StatusBarController: NSObject {
         }
     }
 
+    private func symbolName(for clip: ClipSummary) -> String {
+        switch SmartClipClassifier.category(for: clip) {
+        case .link?: "link"
+        case .email?: "envelope"
+        case .color?: "paintpalette"
+        case .code?: "chevron.left.forwardslash.chevron.right"
+        case nil: symbolName(for: clip.kind)
+        }
+    }
+
     private func quickKey(for index: Int) -> String? {
         guard (0..<9).contains(index) else { return nil }
         return String(index + 1)
@@ -914,7 +1188,9 @@ final class StatusBarController: NSObject {
         let capturedTargetPID = targetPID
         let modifiers = forcedModifiers ?? NSEvent.modifierFlags
         let correctLayout = modifiers.contains(.control)
-        let plainText = modifiers.contains(.option) || modifiers.contains(.shift) || correctLayout
+        let optionOverride = modifiers.contains(.option)
+        let plainText = correctLayout || modifiers.contains(.shift)
+            || (optionOverride ? !Settings.preferPlainText : Settings.preferPlainText)
         let copyOnly = modifiers.contains(.command)
 
         dataQueue.async { [weak self] in
@@ -1037,6 +1313,8 @@ final class StatusBarController: NSObject {
             symbolName = "pause.rectangle"
         } else if Settings.ignoreNextCopy {
             symbolName = "forward.end"
+        } else if SequentialPasteQueue.shared.snapshot.isCollecting {
+            symbolName = "rectangle.stack.badge.plus"
         } else {
             symbolName = "doc.on.clipboard"
         }
@@ -1049,13 +1327,23 @@ final class StatusBarController: NSObject {
         if ClipboardAccess.current == .denied {
             button.toolTip = "NeClip — доступ к буферу запрещён"
         } else {
-            button.toolTip = Settings.isCapturePaused
-                ? "NeClip — запись приостановлена"
-                : (Settings.ignoreNextCopy ? "NeClip — следующее копирование будет пропущено" : "NeClip — ⌘⇧V")
+            if Settings.isCapturePaused {
+                button.toolTip = "NeClip — запись приостановлена"
+            } else if Settings.ignoreNextCopy {
+                button.toolTip = "NeClip — следующее копирование будет пропущено"
+            } else if SequentialPasteQueue.shared.snapshot.isCollecting {
+                button.toolTip = "NeClip — сбор очереди · ⌃⌘V вставить следующий"
+            } else {
+                button.toolTip = "NeClip — ⌘⇧V"
+            }
         }
     }
 
     @objc private func captureControlsChanged() {
+        refreshIcon()
+    }
+
+    @objc private func sequentialQueueDidChange() {
         refreshIcon()
     }
 
@@ -1166,6 +1454,8 @@ private final class MenuSearchField: NSSearchField {
     var onSaveFirstAsSnippet: (() -> Void)?
     var onDeleteFirst: (() -> Void)?
     var onUndo: (() -> Void)?
+    var onPreviewFirst: (() -> Void)?
+    var onOpenFirst: (() -> Void)?
 
     override func cancelOperation(_ sender: Any?) {
         onEscape?()
@@ -1188,6 +1478,12 @@ private final class MenuSearchField: NSSearchField {
                 return
             case "z":
                 onUndo?()
+                return
+            case "e":
+                onPreviewFirst?()
+                return
+            case "o":
+                onOpenFirst?()
                 return
             default:
                 if event.keyCode == 51 {

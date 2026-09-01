@@ -60,6 +60,20 @@ enum StorageCapacityError: LocalizedError, Equatable {
     }
 }
 
+enum ClipStorageError: LocalizedError, Equatable {
+    case clipNotFound
+    case emptyText
+
+    var errorDescription: String? {
+        switch self {
+        case .clipNotFound:
+            "Элемент истории больше не существует"
+        case .emptyText:
+            "Текст не может быть пустым"
+        }
+    }
+}
+
 enum SnippetStorageError: LocalizedError, Equatable {
     case emptyFolderTitle
     case folderNotFound
@@ -106,6 +120,40 @@ struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
+    }
+}
+
+struct SnippetTransferDocument: Codable, Equatable, Sendable {
+    static let currentVersion = 1
+
+    let version: Int
+    let snippets: [SnippetTransferRecord]
+
+    init(version: Int = currentVersion, snippets: [SnippetTransferRecord]) {
+        self.version = version
+        self.snippets = snippets
+    }
+}
+
+struct SnippetTransferRecord: Codable, Equatable, Sendable {
+    let folder: String?
+    let title: String
+    let content: String
+    let keyword: String?
+    let isPinned: Bool
+}
+
+enum SnippetTransferError: LocalizedError, Equatable {
+    case unsupportedVersion
+    case tooManySnippets
+    case invalidSnippet
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedVersion: "Эта версия файла сниппетов не поддерживается"
+        case .tooManySnippets: "В файле слишком много сниппетов"
+        case .invalidSnippet: "В файле есть некорректный сниппет"
+        }
     }
 }
 
@@ -416,6 +464,37 @@ final class Storage: @unchecked Sendable {
         )
     }
 
+    /// Structured search keeps all database work on lightweight summary rows.
+    /// Semantic categories are filtered after SQL because SQLite deliberately
+    /// has no custom regex or application code loaded into the database.
+    func searchSummaries(
+        query: ClipboardSearchQuery,
+        limit: Int = 20
+    ) throws -> [ClipSummary] {
+        let candidateLimit = query.needsPostFiltering ? max(200, limit * 10) : limit
+        var exact = try fetchSearchSummaries(
+            query: query,
+            includeTerms: true,
+            limit: candidateLimit
+        )
+        exact = exact.filter { SmartClipClassifier.matches($0, category: query.smartCategory) }
+        if !exact.isEmpty || query.terms.isEmpty {
+            return Array(exact.prefix(limit))
+        }
+
+        // Fuzzy search is deliberately bounded and runs only after exact FTS
+        // produced no visible result. It never loads image or RTF BLOBs.
+        var candidates = try fetchSearchSummaries(
+            query: query,
+            includeTerms: false,
+            limit: 300
+        )
+        candidates = candidates.filter {
+            SmartClipClassifier.matches($0, category: query.smartCategory)
+        }
+        return ClipboardFuzzySearch.ranked(candidates, query: query.terms, limit: limit)
+    }
+
     func recentSummaries(
         limit: Int = 60,
         search: String? = nil,
@@ -451,6 +530,62 @@ final class Storage: @unchecked Sendable {
             if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
             sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC LIMIT ? OFFSET ?"
             arguments += [max(1, limit), max(0, offset)]
+            let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
+            return rows.compactMap(Self.summary(from:))
+        }
+    }
+
+    private func fetchSearchSummaries(
+        query: ClipboardSearchQuery,
+        includeTerms: Bool,
+        limit: Int
+    ) throws -> [ClipSummary] {
+        try dbQueue.read { db in
+            var sql = """
+                SELECT c.id, c.kind, c.title,
+                       substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
+                       c.thumbnail, c.appBundleID, c.createdAt, c.isPinned
+                FROM clip c
+                """
+            var conditions: [String] = []
+            var arguments = StatementArguments()
+
+            if includeTerms, !query.terms.isEmpty {
+                if let match = Self.ftsMatch(query.terms) {
+                    sql += " JOIN clipSearch ON clipSearch.rowid = c.id"
+                    conditions.append("clipSearch MATCH ?")
+                    arguments += [match]
+                } else {
+                    let pattern = Self.likePattern(query.terms)
+                    conditions.append("""
+                        (c.title LIKE ? ESCAPE '\\' OR c.text LIKE ? ESCAPE '\\'
+                         OR c.ocrText LIKE ? ESCAPE '\\' OR c.appBundleID LIKE ? ESCAPE '\\')
+                        """)
+                    arguments += [pattern, pattern, pattern, pattern]
+                }
+            }
+            if let kind = query.kind {
+                conditions.append("c.kind = ?")
+                arguments += [kind.rawValue]
+            }
+            if let app = query.appFragment {
+                conditions.append("lower(COALESCE(c.appBundleID, '')) LIKE ? ESCAPE '\\'")
+                arguments += [Self.likePattern(app.lowercased())]
+            }
+            if let since = query.since {
+                conditions.append("c.createdAt >= ?")
+                arguments += [since]
+            }
+            switch query.pinFilter {
+            case .pinned?: conditions.append("c.isPinned = 1")
+            case .history?: conditions.append("c.isPinned = 0")
+            case nil: break
+            }
+            if !conditions.isEmpty {
+                sql += " WHERE " + conditions.joined(separator: " AND ")
+            }
+            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC LIMIT ?"
+            arguments += [max(1, limit)]
             let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
             return rows.compactMap(Self.summary(from:))
         }
@@ -499,6 +634,38 @@ final class Storage: @unchecked Sendable {
             )
         }
         notifyChange()
+    }
+
+    /// Renames any clip and optionally replaces the payload of a text clip.
+    /// Editing text intentionally drops stale RTF and re-hashes the payload.
+    @discardableResult
+    func updateClip(id: Int64, title: String, text: String?) throws -> ClipItem {
+        let updated = try dbQueue.write { db -> ClipItem in
+            guard var item = try ClipItem.fetchOne(db, key: id) else {
+                throw ClipStorageError.clipNotFound
+            }
+            let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if item.kind == .text, let text {
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw ClipStorageError.emptyText
+                }
+                item.text = text
+                item.rtf = nil
+                item.contentHash = Self.hash(for: item)
+            }
+            if !normalizedTitle.isEmpty {
+                item.title = normalizedTitle
+            } else if let text = item.text {
+                item.title = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
+            }
+            item.contentBytes = Self.payloadBytes(item)
+            try ensureCapacityForItem(item, replacing: id, in: db)
+            try item.update(db)
+            try trim(db)
+            return item
+        }
+        notifyChange()
+        return updated
     }
 
     func removeClip(id: Int64) throws -> RemovedClip? { try remove(id: id) }
@@ -785,6 +952,124 @@ final class Storage: @unchecked Sendable {
         }
     }
 
+    /// Portable, versioned JSON. History and usage metadata are intentionally
+    /// excluded so sharing a snippet file cannot leak clipboard activity.
+    func exportSnippetData() throws -> Data {
+        let document = try dbQueue.read { db -> SnippetTransferDocument in
+            let folders = try SnippetFolder.order(Column("sortIndex"), Column("id")).fetchAll(db)
+            let folderTitles = Dictionary(uniqueKeysWithValues: folders.compactMap { folder in
+                folder.id.map { ($0, folder.title) }
+            })
+            let snippets = try Snippet.order(Column("folderID"), Column("sortIndex"), Column("id")).fetchAll(db)
+            return SnippetTransferDocument(snippets: snippets.map { snippet in
+                SnippetTransferRecord(
+                    folder: snippet.folderID.flatMap { folderTitles[$0] },
+                    title: snippet.title,
+                    content: snippet.content,
+                    keyword: snippet.keyword,
+                    isPinned: snippet.isPinned
+                )
+            })
+        }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        return try encoder.encode(document)
+    }
+
+    /// Merge-only import: existing folders are reused and exact duplicate
+    /// snippets are skipped. The whole file commits atomically.
+    @discardableResult
+    func importSnippetData(_ data: Data) throws -> Int {
+        let document = try JSONDecoder().decode(SnippetTransferDocument.self, from: data)
+        guard document.version == SnippetTransferDocument.currentVersion else {
+            throw SnippetTransferError.unsupportedVersion
+        }
+        guard document.snippets.count <= 5_000 else {
+            throw SnippetTransferError.tooManySnippets
+        }
+        let validated = try document.snippets.map { record -> SnippetTransferRecord in
+            let title = record.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let folder = record.folder?.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty,
+                  title.count <= 200,
+                  record.content.utf8.count <= ClipboardCapturePolicy.maxTextBytes,
+                  (folder?.count ?? 0) <= 200,
+                  (record.keyword?.count ?? 0) <= 100 else {
+                throw SnippetTransferError.invalidSnippet
+            }
+            return SnippetTransferRecord(
+                folder: folder.flatMap { $0.isEmpty ? nil : $0 },
+                title: title,
+                content: record.content,
+                keyword: Self.normalizedKeyword(record.keyword),
+                isPinned: record.isPinned
+            )
+        }
+
+        let inserted = try dbQueue.write { db -> Int in
+            var folderCache: [String: Int64] = [:]
+            var inserted = 0
+            for record in validated {
+                let folderID: Int64?
+                if let folderTitle = record.folder {
+                    let cacheKey = folderTitle.lowercased()
+                    if let cached = folderCache[cacheKey] {
+                        folderID = cached
+                    } else if let existing = try Int64.fetchOne(
+                        db,
+                        sql: "SELECT id FROM snippetFolder WHERE lower(title) = lower(?) ORDER BY id LIMIT 1",
+                        arguments: [folderTitle]
+                    ) {
+                        folderCache[cacheKey] = existing
+                        folderID = existing
+                    } else {
+                        let maxIndex = try Int.fetchOne(
+                            db,
+                            sql: "SELECT COALESCE(MAX(sortIndex), -1) FROM snippetFolder"
+                        ) ?? -1
+                        var folder = SnippetFolder(title: folderTitle, sortIndex: maxIndex + 1)
+                        try folder.insert(db)
+                        guard let createdID = folder.id else {
+                            throw SnippetTransferError.invalidSnippet
+                        }
+                        folderCache[cacheKey] = createdID
+                        folderID = createdID
+                    }
+                } else {
+                    folderID = nil
+                }
+
+                let duplicate = try Bool.fetchOne(
+                    db,
+                    sql: """
+                        SELECT EXISTS(
+                            SELECT 1 FROM snippet
+                            WHERE folderID IS ? AND title = ? AND content = ?
+                              AND COALESCE(keyword, '') = COALESCE(?, '')
+                        )
+                        """,
+                    arguments: [folderID, record.title, record.content, record.keyword]
+                ) ?? false
+                guard !duplicate else { continue }
+
+                let sortIndex = try Self.nextSnippetSortIndex(inFolder: folderID, database: db)
+                var snippet = Snippet(
+                    folderID: folderID,
+                    title: record.title,
+                    content: record.content,
+                    sortIndex: sortIndex,
+                    keyword: record.keyword,
+                    isPinned: record.isPinned
+                )
+                try snippet.insert(db)
+                inserted += 1
+            }
+            return inserted
+        }
+        if inserted > 0 { notifyChange() }
+        return inserted
+    }
+
     func installStarterSnippetsIfNeeded(force: Bool = false) throws {
         guard installStarterContent else { return }
         try dbQueue.write { db in
@@ -846,6 +1131,14 @@ final class Storage: @unchecked Sendable {
     // MARK: - Internals
 
     private func trim(_ db: Database) throws {
+        let retentionDays = Settings.retentionDays
+        if retentionDays > 0 {
+            let cutoff = Date().addingTimeInterval(-TimeInterval(retentionDays) * 86_400)
+            try db.execute(
+                sql: "DELETE FROM clip WHERE isPinned = 0 AND createdAt < ?",
+                arguments: [cutoff]
+            )
+        }
         let limit = max(10, Settings.historyLimit)
         let unpinned = try Row.fetchAll(
             db,

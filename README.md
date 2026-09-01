@@ -14,6 +14,9 @@ public roadmap.
 
 The reproducible three-track audit, decisions and release gates for this cycle
 are published in [docs/AUDIT-1.4.0.md](docs/AUDIT-1.4.0.md).
+The researched catalogue of 100 competitor functions and the implemented
+minimal top 20 are in
+[docs/FEATURE-RESEARCH-2026-08-31.md](docs/FEATURE-RESEARCH-2026-08-31.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 SHA-256:
@@ -32,6 +35,7 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Control-Return` — correct EN/RU layout and paste a text history item
 - `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo (customizable)
 - `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
+- `Control-Command-V` — paste the next value from the memory-only queue
 - `Command-1` … `Command-9` — select a visible result
 - `Command-P` — pin or unpin the first visible result
 - `Command-S` — save the first visible text result as a snippet
@@ -55,6 +59,17 @@ Menu labels use one system appearance whether opened from the status item or a
 global shortcut. Long text is collapsed to one line and shortened after a
 user-defined 16–96 character limit (64 by default) without cutting an emoji or
 combined Unicode character.
+
+Search accepts ordinary text together with compact local filters:
+`type:text/image/file/link/email/color/code`, `app:safari`,
+`when:today/week/month`, and `is:pinned/history`. When exact search has no
+result, NeClip performs a bounded typo-tolerant pass over lightweight recent
+summaries, never image or RTF payloads.
+
+The first-result action submenu keeps advanced workflows out of the main menu:
+preview/edit/rename, safe URL or file opening, OCR-text paste, local text
+transforms and adding an item to the sequential queue. Queue collection is
+explicit and is discarded when NeClip exits.
 
 ## Keyboard layout correction
 
@@ -106,6 +121,10 @@ History is bounded by both an item limit and a hard 250 MB byte quota. Pinned
 items and snippets are preserved when ordinary history is trimmed. If pinned
 items alone fill the quota, NeClip stops accepting new history until space is
 freed instead of silently deleting pins or growing without a limit.
+An optional age limit removes only ordinary history. Image capture can be
+disabled independently, and user-defined literal phrases can reject sensitive
+text before any database write. These checks are local and do not use regexes,
+telemetry, network services or AI.
 
 ## Build and test
 

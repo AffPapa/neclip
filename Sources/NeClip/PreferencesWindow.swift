@@ -1,6 +1,7 @@
 import AppKit
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class PreferencesWindowController {
@@ -29,6 +30,10 @@ private struct PreferencesView: View {
     @State private var menuTitleLengthText = String(Settings.menuTitleLength)
     @State private var clipboardAccess = ClipboardAccess.current
     @State private var showPreviews = Settings.showImagePreviews
+    @State private var captureImages = Settings.captureImages
+    @State private var retentionDays = Settings.retentionDays
+    @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
+    @State private var preferPlainText = Settings.preferPlainText
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var excludedApps = Settings.excludedApps
     @State private var axTrusted = PasteService.isAccessibilityTrusted
@@ -92,6 +97,31 @@ private struct PreferencesView: View {
                     .foregroundStyle(.secondary)
                 Toggle("Показывать превью изображений", isOn: $showPreviews)
                     .onChange(of: showPreviews) { _, value in Settings.showImagePreviews = value }
+                Toggle("Сохранять изображения", isOn: $captureImages)
+                    .onChange(of: captureImages) { _, value in Settings.captureImages = value }
+                Picker("Удалять незакреплённое", selection: $retentionDays) {
+                    Text("Только по лимиту").tag(0)
+                    Text("Через 1 день").tag(1)
+                    Text("Через 7 дней").tag(7)
+                    Text("Через 30 дней").tag(30)
+                    Text("Через 90 дней").tag(90)
+                }
+                .onChange(of: retentionDays) { _, value in
+                    Settings.retentionDays = value
+                    DispatchQueue.global(qos: .utility).async { try? Storage.shared.trimToLimits() }
+                }
+
+                DisclosureGroup("Не сохранять текст с указанными фразами") {
+                    TextEditor(text: $sensitiveRulesText)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(height: 76)
+                        .onChange(of: sensitiveRulesText) { _, value in
+                            Settings.sensitiveContentRules = value.components(separatedBy: .newlines)
+                        }
+                    Text("Одна фраза на строку. Проверка локальная, без регулярных выражений; до 50 правил.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 HStack {
                     Label(
@@ -117,6 +147,11 @@ private struct PreferencesView: View {
             }
 
             Section("Вставка") {
+                Toggle("По умолчанию вставлять без форматирования", isOn: $preferPlainText)
+                    .onChange(of: preferPlainText) { _, value in Settings.preferPlainText = value }
+                Text("Удерживайте ⌥ при выборе, чтобы временно изменить режим.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 HStack {
                     Image(systemName: axTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
                         .foregroundStyle(axTrusted ? .green : .orange)
@@ -235,6 +270,13 @@ private struct PreferencesView: View {
                 Button("Удалить всю историю и сниппеты…", role: .destructive) {
                     deleteAllConfirmation = true
                 }
+                HStack {
+                    Button("Экспортировать сниппеты…", action: exportSnippets)
+                    Button("Импортировать сниппеты…", action: importSnippets)
+                }
+                Text("Переносится только локальная библиотека сниппетов — без истории и статистики использования.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             if let feedback {
@@ -419,6 +461,32 @@ private struct PreferencesView: View {
             feedback = "Готовые сниппеты восстановлены"
         } catch {
             feedback = "Не удалось восстановить сниппеты"
+        }
+    }
+
+    private func exportSnippets() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "NeClip Snippets.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try Storage.shared.exportSnippetData().write(to: url, options: .atomic)
+            feedback = "Сниппеты экспортированы"
+        } catch {
+            feedback = "Не удалось экспортировать сниппеты"
+        }
+    }
+
+    private func importSnippets() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let count = try Storage.shared.importSnippetData(Data(contentsOf: url))
+            feedback = count == 0 ? "Новых сниппетов нет" : "Добавлено сниппетов: \(count)"
+        } catch {
+            feedback = error.localizedDescription
         }
     }
 

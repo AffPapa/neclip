@@ -41,6 +41,8 @@ enum ClipboardCaptureSkipReason: String, Equatable {
     case empty
     case tooLarge
     case invalidImage
+    case disabledContentType
+    case sensitiveContent
     case pasteboardAccessDenied
 }
 
@@ -207,6 +209,12 @@ final class ClipboardMonitor: @unchecked Sendable {
             forClasses: [NSURL.self],
             options: [.urlReadingFileURLsOnly: true]
         ) as? [URL] ?? []
+        if fileURLs.isEmpty,
+           !Settings.captureImages,
+           types.contains(.png) || types.contains(.tiff) {
+            notifySkipped(.disabledContentType)
+            return
+        }
         let imageData = fileURLs.isEmpty
             ? (pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff))
             : nil
@@ -278,6 +286,10 @@ final class ClipboardMonitor: @unchecked Sendable {
             notifySkipped(.empty)
             return
         }
+        guard !SensitiveContentPolicy.matches(text, rules: Settings.sensitiveContentRules) else {
+            notifySkipped(.sensitiveContent)
+            return
+        }
 
         let textData = Data(text.utf8)
         guard textData.count <= ClipboardCapturePolicy.maxTextBytes else {
@@ -302,6 +314,10 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     private func processImage(_ imageData: Data, snapshot: Snapshot) {
+        guard Settings.captureImages else {
+            notifySkipped(.disabledContentType)
+            return
+        }
         guard imageData.count <= ClipboardCapturePolicy.maxEncodedImageBytes,
               let source = CGImageSourceCreateWithData(imageData as CFData, nil),
               let dimensions = Self.dimensions(of: source) else {
@@ -333,6 +349,7 @@ final class ClipboardMonitor: @unchecked Sendable {
         do {
             let clipID = try Storage.shared.insert(item)
             if let clipID {
+                SequentialPasteQueue.shared.appendAcceptedClip(id: clipID)
                 OCRService.recognize(imageData: png, clipID: clipID)
             }
         } catch {
@@ -342,7 +359,9 @@ final class ClipboardMonitor: @unchecked Sendable {
 
     private func insert(_ item: ClipItem) {
         do {
-            _ = try Storage.shared.insert(item)
+            if let clipID = try Storage.shared.insert(item) {
+                SequentialPasteQueue.shared.appendAcceptedClip(id: clipID)
+            }
         } catch {
             captureFailed(error)
         }

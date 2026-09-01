@@ -24,6 +24,10 @@ enum Settings {
         static let historyLimit = "historyLimit"
         static let excludedApps = "excludedApps"
         static let showImagePreviews = "showImagePreviews"
+        static let captureImages = "captureImages"
+        static let retentionDays = "retentionDays"
+        static let sensitiveContentRules = "sensitiveContentRules"
+        static let preferPlainText = "preferPlainText"
         static let menuTitleLength = "menuTitleLength"
         static let capturePausedUntil = "capturePausedUntil"
         static let capturePausedIndefinitely = "capturePausedIndefinitely"
@@ -47,6 +51,34 @@ enum Settings {
     static var showImagePreviews: Bool {
         get { d.object(forKey: Key.showImagePreviews) as? Bool ?? true }
         set { d.set(newValue, forKey: Key.showImagePreviews) }
+    }
+
+    static var captureImages: Bool {
+        get { d.object(forKey: Key.captureImages) as? Bool ?? true }
+        set {
+            d.set(newValue, forKey: Key.captureImages)
+            notifyCaptureControlsChanged()
+        }
+    }
+
+    /// Zero keeps items until count/size limits apply. Pinned items are never
+    /// removed by age.
+    static var retentionDays: Int {
+        get { max(0, d.integer(forKey: Key.retentionDays)) }
+        set { d.set(max(0, newValue), forKey: Key.retentionDays) }
+    }
+
+    static var sensitiveContentRules: [String] {
+        get { SensitiveContentPolicy.normalizedRules(d.stringArray(forKey: Key.sensitiveContentRules) ?? []) }
+        set {
+            d.set(SensitiveContentPolicy.normalizedRules(newValue), forKey: Key.sensitiveContentRules)
+            notifyCaptureControlsChanged()
+        }
+    }
+
+    static var preferPlainText: Bool {
+        get { d.bool(forKey: Key.preferPlainText) }
+        set { d.set(newValue, forKey: Key.preferPlainText) }
     }
 
     static var menuTitleLength: Int {

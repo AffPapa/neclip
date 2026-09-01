@@ -134,6 +134,11 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
         modifiers: [.command, .shift]
     )
 
+    static let sequentialPasteReserved = ShortcutDescriptor(
+        keyCode: UInt32(kVK_ANSI_V),
+        modifiers: [.control, .command]
+    )
+
     var keyLabel: String? {
         Self.keyLabels[keyCode]
     }
@@ -209,7 +214,11 @@ enum ShortcutValidationError: Error, Equatable, Sendable {
 }
 
 enum ShortcutPolicy {
-    static let reserved: Set<ShortcutDescriptor> = [.historyReserved, .snippetsReserved]
+    static let reserved: Set<ShortcutDescriptor> = [
+        .historyReserved,
+        .snippetsReserved,
+        .sequentialPasteReserved
+    ]
 
     static func validate(_ shortcut: ShortcutDescriptor) -> Result<Void, ShortcutValidationError> {
         guard ShortcutDescriptor.isSupportedKeyCode(shortcut.keyCode) else {

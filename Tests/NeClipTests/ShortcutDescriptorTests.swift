@@ -100,6 +100,7 @@ final class ShortcutDescriptorTests: XCTestCase {
 
         assertValidationFailure(.historyReserved, equals: .reserved)
         assertValidationFailure(.snippetsReserved, equals: .reserved)
+        assertValidationFailure(.sequentialPasteReserved, equals: .reserved)
     }
 
     func testDisplayAndMenuEquivalentUsePhysicalKeyLabel() {

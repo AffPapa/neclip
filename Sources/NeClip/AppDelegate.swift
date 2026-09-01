@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = ClipboardMonitor()
     private var mainHotKey: GlobalHotKey?
     private var snippetsHotKey: GlobalHotKey?
+    private var sequentialPasteHotKey: GlobalHotKey?
     private var fixedHotKeyWarnings: [String] = []
     private var layoutHotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
@@ -33,12 +34,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.statusBar.showSnippets() }
         }
 
+        sequentialPasteHotKey = try? GlobalHotKey(
+            shortcut: .sequentialPasteReserved,
+            identifier: 3
+        ) { [weak self] in
+            MainActor.assumeIsolated { self?.statusBar.pasteNextInQueue() }
+        }
+
         var hotKeyWarnings: [String] = []
         if mainHotKey == nil {
             hotKeyWarnings.append("⌘⇧V занята — история доступна через значок NeClip")
         }
         if snippetsHotKey == nil {
             hotKeyWarnings.append("⌘⇧B занята — сниппеты доступны в меню NeClip")
+        }
+        if sequentialPasteHotKey == nil {
+            hotKeyWarnings.append("⌃⌘V занята — очередь вставки доступна в меню NeClip")
         }
         fixedHotKeyWarnings = hotKeyWarnings
 
@@ -96,7 +107,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             monitor.start()
         }
-        if let tab = qaEnvironment["NECLIP_UI_TEST_TAB"] {
+        if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" {
+            DispatchQueue.main.async {
+                PreferencesWindowController.shared.show()
+            }
+        } else if let tab = qaEnvironment["NECLIP_UI_TEST_TAB"] {
             DispatchQueue.main.async { [weak self] in
                 if tab == "snippets" {
                     self?.statusBar.showSnippets()

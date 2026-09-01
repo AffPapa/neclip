@@ -4,6 +4,26 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## Unreleased
+
+- Added structured history search by base type, smart text category, source
+  application, date window and pin state, plus a bounded fuzzy fallback.
+- Added a focused full-item inspector with transactional text editing,
+  renaming, safe HTTP(S)/file opening and direct OCR-text paste.
+- Added a memory-only sequential paste queue: collect future copies, add an
+  existing item, reset/clear progress and paste the next value with `⌃⌘V`.
+- Added age retention for ordinary history, independent image capture,
+  local sensitive-phrase exclusions and a default plain-text paste preference.
+- Added a nested, offline transform menu for whitespace, case, lines, URL and
+  JSON operations; transforms paste a temporary result without mutating history.
+- Added deterministic, versioned snippet JSON export and atomic merge-only
+  import. History and usage metadata are never exported.
+- Documented the 100-function competitor catalogue and the scored top-20
+  selection in `docs/FEATURE-RESEARCH-2026-08-31.md`.
+- Expanded the local suite to 100 tests (one optional external-database case is
+  skipped unless its disposable fixture is supplied); strict Swift 6 release
+  compilation and full-history secret scanning pass.
+
 ## 1.4.0 — 31 August 2026
 
 - Unified the complete native menu tree under the application's current system
