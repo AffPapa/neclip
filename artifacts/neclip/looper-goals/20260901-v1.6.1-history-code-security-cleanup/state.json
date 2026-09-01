@@ -1,0 +1,13 @@
+{
+  "goal": "NeClip 1.6.1 history, code and security cleanup",
+  "status": "verification_blocked",
+  "source_base": "fc02f10",
+  "public_version": "1.4.0",
+  "selected_slice": [
+    "immutable sensitive-application capture denial",
+    "quick capture exclusion for target application",
+    "proven dead-code cleanup",
+    "repository and release verification"
+  ],
+  "publish_authorized": false
+}

@@ -79,7 +79,7 @@ final class ShortcutDescriptorTests: XCTestCase {
         }
     }
 
-    func testPolicyRejectsInsufficientUnsupportedAndReservedShortcuts() {
+    func testPolicyRejectsInsufficientUnsupportedAndConflictingShortcuts() {
         let oneModifier = ShortcutDescriptor(
             keyCode: UInt32(kVK_ANSI_L),
             modifiers: [.command]
@@ -98,8 +98,13 @@ final class ShortcutDescriptorTests: XCTestCase {
         )
         assertValidationFailure(unsupported, equals: .unsupportedKey)
 
-        assertValidationFailure(.historyReserved, equals: .reserved)
-        assertValidationFailure(.snippetsReserved, equals: .reserved)
+        XCTAssertNil(ShortcutPolicy.validationError(for: .historyDefault))
+        switch ShortcutPolicy.validate(.historyDefault, conflictingWith: [.historyDefault]) {
+        case .success:
+            XCTFail("Expected conflict validation to fail")
+        case .failure(let actual):
+            XCTAssertEqual(actual, .conflict)
+        }
     }
 
     func testDisplayAndMenuEquivalentUsePhysicalKeyLabel() {

@@ -15,8 +15,9 @@ including the current `v1.4.0`, have immutable assets and tags; GitHub's policy
 cannot retroactively lock the earlier `v1.3.0` and `v1.3.1` releases. Their
 published SHA-256 files remain the verification source. GitHub also checks Swift
 and workflow source with CodeQL, allows only GitHub-owned Actions referenced by
-full SHA, monitors the exact SwiftPM dependency for vulnerabilities and blocks
-force-pushes or deletion of `main`.
+full SHA and monitors the exact SwiftPM dependency for vulnerabilities. Branch
+and repository rules are verified through an authenticated GitHub release gate;
+this document does not infer their current state from an unauthenticated API.
 
 Every push, pull request and weekly scheduled run also executes a fully
 redacted Gitleaks scan over both the publishable working tree and every fetched

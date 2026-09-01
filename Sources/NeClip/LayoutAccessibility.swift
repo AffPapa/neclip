@@ -95,15 +95,6 @@ final class LayoutAccessibility {
         return (range, token)
     }
 
-    func tail(_ expected: String, in context: FocusedContext) -> Bool {
-        guard let refreshed = refreshedContext(matching: context, scope: .automatic),
-              refreshed.selectedRange.length == 0 else { return false }
-        let length = (expected as NSString).length
-        guard refreshed.selectedRange.location >= length else { return false }
-        let range = CFRange(location: refreshed.selectedRange.location - length, length: length)
-        return string(in: range, element: refreshed.element) == expected
-    }
-
     func select(_ range: CFRange, in context: FocusedContext, scope: Scope = .manual) -> Bool {
         guard refreshedContext(matching: context, scope: scope) != nil else { return false }
         var mutableRange = range
@@ -198,8 +189,16 @@ final class LayoutAccessibility {
 
         let replacementLength = (replacement as NSString).length
         let nextCursor = CFRange(location: replacementRange.location + replacementLength, length: 0)
-        guard select(nextCursor, in: current, scope: .automatic),
-              let verified = refreshedContext(matching: current, scope: .automatic),
+        var mutableNextCursor = nextCursor
+        guard let valueBeforeSelection: String = attribute(latest.element, kAXValueAttribute),
+              valueBeforeSelection == next,
+              let rangeValue = AXValueCreate(.cfRange, &mutableNextCursor),
+              AXUIElementSetAttributeValue(
+                latest.element,
+                kAXSelectedTextRangeAttribute as CFString,
+                rangeValue
+              ) == .success,
+              let verified = refreshedContext(matching: latest, scope: .automatic),
               sameRange(verified.selectedRange, nextCursor),
               let verifiedValue: String = attribute(verified.element, kAXValueAttribute),
               verifiedValue == next else {
@@ -273,7 +272,6 @@ final class ManualLayoutCorrectionService {
         let original: String
         let converted: String
         let originalSourceID: String
-        let targetSourceID: String
         let switchedSource: Bool
         let createdAt: Date
     }
@@ -355,7 +353,6 @@ final class ManualLayoutCorrectionService {
                     original: target.text,
                     converted: conversion.converted,
                     originalSourceID: conversion.sourceID,
-                    targetSourceID: conversion.targetID,
                     switchedSource: switched,
                     createdAt: Date()
                 )

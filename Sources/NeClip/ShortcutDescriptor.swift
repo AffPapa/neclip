@@ -124,14 +124,19 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
     )
     static let defaultDisableAutomaticLayout = disableAutomaticLayoutDefault
 
-    static let historyReserved = ShortcutDescriptor(
+    static let historyDefault = ShortcutDescriptor(
         keyCode: UInt32(kVK_ANSI_V),
         modifiers: [.command, .shift]
     )
 
-    static let snippetsReserved = ShortcutDescriptor(
+    static let snippetsDefault = ShortcutDescriptor(
         keyCode: UInt32(kVK_ANSI_B),
         modifiers: [.command, .shift]
+    )
+
+    static let sequentialPasteDefault = ShortcutDescriptor(
+        keyCode: UInt32(kVK_ANSI_V),
+        modifiers: [.control, .command]
     )
 
     var keyLabel: String? {
@@ -205,13 +210,14 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
 enum ShortcutValidationError: Error, Equatable, Sendable {
     case unsupportedKey
     case insufficientModifiers
-    case reserved
+    case conflict
 }
 
 enum ShortcutPolicy {
-    static let reserved: Set<ShortcutDescriptor> = [.historyReserved, .snippetsReserved]
-
-    static func validate(_ shortcut: ShortcutDescriptor) -> Result<Void, ShortcutValidationError> {
+    static func validate(
+        _ shortcut: ShortcutDescriptor,
+        conflictingWith conflicts: Set<ShortcutDescriptor> = []
+    ) -> Result<Void, ShortcutValidationError> {
         guard ShortcutDescriptor.isSupportedKeyCode(shortcut.keyCode) else {
             return .failure(.unsupportedKey)
         }
@@ -219,21 +225,24 @@ enum ShortcutPolicy {
               !shortcut.modifiers.intersection([.command, .control, .option]).isEmpty else {
             return .failure(.insufficientModifiers)
         }
-        guard !reserved.contains(shortcut) else {
-            return .failure(.reserved)
+        guard !conflicts.contains(shortcut) else {
+            return .failure(.conflict)
         }
         return .success(())
     }
 
-    static func validationError(for shortcut: ShortcutDescriptor) -> String? {
-        switch validate(shortcut) {
+    static func validationError(
+        for shortcut: ShortcutDescriptor,
+        conflictingWith conflicts: Set<ShortcutDescriptor> = []
+    ) -> String? {
+        switch validate(shortcut, conflictingWith: conflicts) {
         case .success:
             return nil
         case .failure(.unsupportedKey):
             return "Используйте букву A–Z или цифру 0–9"
         case .failure(.insufficientModifiers):
             return "Нужно сочетание минимум с двумя модификаторами"
-        case .failure(.reserved):
+        case .failure(.conflict):
             return "Это сочетание уже используется другим действием NeClip"
         }
     }

@@ -17,9 +17,14 @@ enum OCRService {
     }()
 
     /// OCR is intentionally serialized: several large screenshots must not
-    /// compete for memory. Vision and the subsequent DB write both stay off
-    /// the main thread.
+    /// compete for memory. Only the running job and newest pending image are
+    /// retained; rapid screenshot copies still preserve every original image,
+    /// while obsolete queued OCR work cannot accumulate hundreds of megabytes.
+    /// Vision and the subsequent DB write both stay off the main thread.
     static func recognize(imageData: Data, clipID: Int64) {
+        queue.operations
+            .filter { !$0.isExecuting }
+            .forEach { $0.cancel() }
         queue.addOperation {
             autoreleasepool {
                 guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),

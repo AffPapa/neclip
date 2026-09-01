@@ -12,7 +12,7 @@ final class StatusBarController: NSObject {
 
     private enum SearchEntry {
         case clip(ClipSummary)
-        case snippet(Snippet)
+        case snippet(SnippetSummary)
     }
 
     private enum UndoDeletion: Sendable {
@@ -20,19 +20,52 @@ final class StatusBarController: NSObject {
         case snippet(RemovedSnippet)
     }
 
+    private enum HistoryCleanupWindow: Equatable {
+        case lastHour
+        case today
+        case all
+
+        var title: String {
+            switch self {
+            case .lastHour: "историю за последний час"
+            case .today: "сегодняшнюю историю"
+            case .all: "всю незакреплённую историю"
+            }
+        }
+
+        func cutoff(now: Date = Date(), calendar: Calendar = .current) -> Date? {
+            switch self {
+            case .lastHour: now.addingTimeInterval(-3_600)
+            case .today: calendar.startOfDay(for: now)
+            case .all: nil
+            }
+        }
+    }
+
     private struct MenuSnapshot {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
-        let snippets: [Snippet]
+        let snippets: [SnippetSummary]
+        let hasMorePinned: Bool
+        let hasMoreHistory: Bool
+        let hasMoreSnippets: Bool
     }
 
     private let statusItem: NSStatusItem
     private let dataQueue = DispatchQueue(label: "org.affpapa.neclip.menu-data", qos: .userInitiated)
-    private var snapshot = MenuSnapshot(clips: [], folders: [], snippets: [])
+    private var snapshot = MenuSnapshot(
+        clips: [],
+        folders: [],
+        snippets: [],
+        hasMorePinned: false,
+        hasMoreHistory: false,
+        hasMoreSnippets: false
+    )
     private var snapshotIsReady = false
     private var refreshGeneration = 0
     private var pendingPresentation: (kind: MenuKind, anchoredToStatusItem: Bool)?
     private var targetPID: pid_t?
+    private var targetBundleID: String?
     private var feedbackWorkItem: DispatchWorkItem?
     private var transientStatus: String?
     private weak var activeMenu: NSMenu?
@@ -40,6 +73,7 @@ final class StatusBarController: NSObject {
     private var activeMenuKind: MenuKind?
     private var searchGeneration = 0
     private var searchWorkItem: DispatchWorkItem?
+    private var snapshotRefreshWorkItem: DispatchWorkItem?
     private var visibleKeyboardEntries: [SearchEntry] = []
     private var undoDeletion: UndoDeletion?
     private var hotKeyWarnings: [String] = []
@@ -52,7 +86,7 @@ final class StatusBarController: NSObject {
             button.target = self
             button.action = #selector(statusItemPressed(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.toolTip = "NeClip — ⌘⇧V"
+            button.toolTip = "NeClip — \(Settings.historyShortcut.displayString)"
         }
         NotificationCenter.default.addObserver(
             self,
@@ -74,6 +108,12 @@ final class StatusBarController: NSObject {
         )
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(captureDidAppend),
+            name: .neClipCaptureDidAppend,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(storageDidChange),
             name: .neClipStorageDidChange,
             object: nil
@@ -87,17 +127,21 @@ final class StatusBarController: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    /// Global ⌘⇧V: show the native menu at the pointer, like ClipMenu/Clipy.
+    /// The history shortcut shows the native menu at the pointer, like ClipMenu/Clipy.
     func showHistory() {
         show(.history, anchoredToStatusItem: false)
     }
 
-    /// Global ⌘⇧B: open the snippet folders directly.
+    /// The snippets shortcut opens the snippet folders directly.
     func showSnippets() {
         show(.snippets, anchoredToStatusItem: false)
     }
 
     func refreshAuthorizationState() {
+        refreshIcon()
+    }
+
+    func refreshShortcutPresentation() {
         refreshIcon()
     }
 
@@ -111,7 +155,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func storageDidChange() {
-        refreshSnapshot()
+        scheduleSnapshotRefresh()
     }
 
     @objc private func statusItemPressed(_ sender: NSStatusBarButton) {
@@ -119,7 +163,9 @@ final class StatusBarController: NSObject {
     }
 
     private func show(_ kind: MenuKind, anchoredToStatusItem: Bool) {
-        targetPID = captureTargetPID()
+        let target = captureTargetApplication()
+        targetPID = target?.processIdentifier
+        targetBundleID = target?.bundleIdentifier
         guard snapshotIsReady else {
             pendingPresentation = (kind, anchoredToStatusItem)
             refreshSnapshot()
@@ -163,24 +209,32 @@ final class StatusBarController: NSObject {
     }
 
     private func refreshSnapshot() {
+        snapshotRefreshWorkItem?.cancel()
+        snapshotRefreshWorkItem = nil
         refreshGeneration += 1
         let generation = refreshGeneration
         dataQueue.async { [weak self] in
             do {
                 let pinned = try Storage.shared.summaries(
-                    limit: 20,
+                    limit: 101,
                     search: nil,
                     pinnedOnly: true
                 )
                 let recent = try Storage.shared.summaries(
-                    limit: 40,
+                    limit: 101,
                     search: nil,
                     pinnedOnly: false,
                     unpinnedOnly: true
                 )
-                let folders = try Storage.shared.snippetFolders()
-                let snippets = try Storage.shared.allSnippets(search: nil, pinnedOnly: false)
-                let loaded = MenuSnapshot(clips: pinned + recent, folders: folders, snippets: snippets)
+                let snippetSnapshot = try Storage.shared.menuSnippetSnapshot()
+                let loaded = MenuSnapshot(
+                    clips: Array(pinned.prefix(100)) + Array(recent.prefix(100)),
+                    folders: snippetSnapshot.folders,
+                    snippets: snippetSnapshot.snippets,
+                    hasMorePinned: pinned.count > 100,
+                    hasMoreHistory: recent.count > 100,
+                    hasMoreSnippets: snippetSnapshot.hasMore
+                )
                 DispatchQueue.main.async {
                     guard let self, generation == self.refreshGeneration else { return }
                     self.snapshot = loaded
@@ -204,9 +258,24 @@ final class StatusBarController: NSObject {
         }
     }
 
+    /// Insert and OCR completion often arrive as a short notification burst.
+    /// Collapse that burst into one database snapshot without delaying a menu
+    /// explicitly requested by the user.
+    private func scheduleSnapshotRefresh() {
+        snapshotRefreshWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.refreshSnapshot()
+        }
+        snapshotRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(35), execute: workItem)
+    }
+
     private func buildHistoryMenu() -> NSMenu {
         let menu = makeMenu(title: "NeClip")
-        menu.addItem(makeSearchItem(placeholder: "Поиск в истории и сниппетах…"))
+        menu.addItem(makeSearchItem(
+            placeholder: "Поиск по истории…",
+            showsHistoryFilters: true
+        ))
         menu.addItem(.separator())
         appendHistoryContents(to: menu)
         return menu
@@ -262,12 +331,37 @@ final class StatusBarController: NSObject {
             menu.addItem(.separator())
         }
 
-        let pinned = Array(snapshot.clips.filter(\.isPinned).prefix(20))
+        let pinned = Array(snapshot.clips.filter(\.isPinned).prefix(100))
         if !pinned.isEmpty {
             let pinnedItem = item("Закреплённые", nil, symbol: "pin.fill")
             let pinnedMenu = makeMenu(title: "Закреплённые")
-            for (index, clip) in pinned.enumerated() {
+            for (index, clip) in pinned.prefix(10).enumerated() {
                 pinnedMenu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: nil, showNumber: false))
+            }
+            if pinned.count > 10 {
+                for start in stride(from: 10, to: pinned.count, by: 10) {
+                    let end = min(start + 10, pinned.count)
+                    let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
+                    let submenu = makeMenu(title: "Закреплённые \(start + 1)–\(end)")
+                    for index in start..<end {
+                        submenu.addItem(clipMenuItem(
+                            pinned[index],
+                            absoluteIndex: index,
+                            quickKey: nil,
+                            showNumber: false
+                        ))
+                    }
+                    rangeItem.submenu = submenu
+                    pinnedMenu.addItem(rangeItem)
+                }
+            }
+            if snapshot.hasMorePinned {
+                pinnedMenu.addItem(.separator())
+                pinnedMenu.addItem(NSMenuItem(
+                    title: "Остальные — через поиск is:pinned",
+                    action: nil,
+                    keyEquivalent: ""
+                ))
             }
             pinnedItem.submenu = pinnedMenu
             menu.addItem(pinnedItem)
@@ -275,7 +369,7 @@ final class StatusBarController: NSObject {
         }
 
         menu.addItem(.sectionHeader(title: "История"))
-        let history = Array(snapshot.clips.filter { !$0.isPinned }.prefix(40))
+        let history = Array(snapshot.clips.filter { !$0.isPinned }.prefix(100))
         let firstPage = Array(history.prefix(10))
         visibleKeyboardEntries = firstPage.map(SearchEntry.clip)
         if firstPage.isEmpty {
@@ -289,6 +383,8 @@ final class StatusBarController: NSObject {
         }
 
         if history.count > 10 {
+            let moreItem = item("Ещё из истории", nil, symbol: "clock.arrow.circlepath")
+            let moreMenu = makeMenu(title: "Ещё из истории")
             for start in stride(from: 10, to: history.count, by: 10) {
                 let end = min(start + 10, history.count)
                 let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
@@ -297,8 +393,17 @@ final class StatusBarController: NSObject {
                     submenu.addItem(clipMenuItem(history[index], absoluteIndex: index, quickKey: nil, showNumber: true))
                 }
                 rangeItem.submenu = submenu
-                menu.addItem(rangeItem)
+                moreMenu.addItem(rangeItem)
             }
+            moreItem.submenu = moreMenu
+            menu.addItem(moreItem)
+        }
+        if snapshot.hasMoreHistory {
+            menu.addItem(NSMenuItem(
+                title: "Более старые элементы — через поиск выше",
+                action: nil,
+                keyEquivalent: ""
+            ))
         }
         if !firstPage.isEmpty || undoDeletion != nil {
             menu.addItem(firstResultActionsItem())
@@ -309,16 +414,11 @@ final class StatusBarController: NSObject {
         snippetsItem.submenu = buildSnippetsMenu(asRoot: false)
         menu.addItem(snippetsItem)
 
-        menu.addItem(layoutMenuItem())
-
-        menu.addItem(.separator())
-        addCaptureControls(to: menu)
-        menu.addItem(item("Очистить историю…", #selector(clearHistory), symbol: "trash"))
+        menu.addItem(utilityMenuItem())
         menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
         menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
-        menu.addItem(item("Проверить обновления…", #selector(checkUpdates), symbol: "arrow.triangle.2.circlepath"))
         menu.addItem(.separator())
-        menu.addItem(item("Выйти из NeClip", #selector(NSApplication.terminate(_:)), keyEquivalent: "q", modifiers: [.command]))
+        menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
     }
 
     private func buildSnippetsMenu(asRoot: Bool) -> NSMenu {
@@ -328,6 +428,11 @@ final class StatusBarController: NSObject {
             menu.addItem(.separator())
         }
         appendSnippetContents(to: menu, showHeader: asRoot)
+        if asRoot {
+            menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
+            menu.addItem(.separator())
+            menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
+        }
         return menu
     }
 
@@ -375,11 +480,21 @@ final class StatusBarController: NSObject {
         if !addedSnippetGroup {
             menu.addItem(NSMenuItem(title: "Сниппетов пока нет", action: nil, keyEquivalent: ""))
         }
+        if snapshot.hasMoreSnippets {
+            menu.addItem(NSMenuItem(
+                title: "Остальные сниппеты — через поиск",
+                action: nil,
+                keyEquivalent: ""
+            ))
+        }
         menu.addItem(.separator())
         menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
     }
 
-    private func makeSearchItem(placeholder: String) -> NSMenuItem {
+    private func makeSearchItem(
+        placeholder: String,
+        showsHistoryFilters: Bool = false
+    ) -> NSMenuItem {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 38))
         let searchField = MenuSearchField(frame: NSRect(x: 10, y: 5, width: 340, height: 28))
         searchField.placeholderString = placeholder
@@ -387,6 +502,13 @@ final class StatusBarController: NSObject {
         searchField.focusRingType = .none
         searchField.delegate = self
         searchField.setAccessibilityLabel(placeholder)
+        if showsHistoryFilters {
+            searchField.searchMenuTemplate = historySearchMenu()
+        }
+        searchField.toolTip = """
+            Фильтры: type:text/image/file/link/email/color/code · app:bundle.id · \
+            when:today/week/month · is:pinned/history
+            """
         searchField.onEscape = { [weak self, weak searchField] in
             guard let self, let searchField else { return }
             if !searchField.stringValue.isEmpty {
@@ -417,11 +539,85 @@ final class StatusBarController: NSObject {
         searchField.onUndo = { [weak self] in
             self?.undoLastDeletion()
         }
+        searchField.onPreviewFirst = { [weak self] in
+            self?.previewFirstResult()
+        }
+        searchField.onOpenFirst = { [weak self] in
+            self?.openFirstResult()
+        }
         container.addSubview(searchField)
         let menuItem = NSMenuItem()
         menuItem.view = container
         activeSearchField = searchField
         return menuItem
+    }
+
+    /// Native magnifier menu: discoverable structured filters without adding
+    /// permanent controls to the compact clipboard menu.
+    private func historySearchMenu() -> NSMenu {
+        let menu = makeMenu(title: "Фильтры поиска")
+        let filters: [(title: String, token: String)] = [
+            ("Текст", "type:text"),
+            ("Изображения", "type:image"),
+            ("Файлы", "type:file"),
+            ("Ссылки", "type:link"),
+            ("Почта", "type:email"),
+            ("Цвета", "type:color"),
+            ("Код", "type:code"),
+            ("Сегодня", "when:today"),
+            ("За неделю", "when:week"),
+            ("Закреплённые", "is:pinned"),
+            ("Только история", "is:history")
+        ]
+        for filter in filters {
+            let item = NSMenuItem(
+                title: filter.title,
+                action: #selector(insertSearchFilter(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = filter.token
+            item.toolTip = filter.token
+            menu.addItem(item)
+        }
+        var seenBundleIDs = Set<String>()
+        let recentBundleIDs = snapshot.clips.compactMap(\.appBundleID).filter { bundleID in
+            seenBundleIDs.insert(bundleID.lowercased()).inserted
+        }
+        if !recentBundleIDs.isEmpty {
+            menu.addItem(.separator())
+            let applications = item("Приложение", nil, symbol: "app")
+            let applicationMenu = makeMenu(title: "Приложение")
+            for bundleID in recentBundleIDs.prefix(12) {
+                let metadata = AppMetadataStore.shared.metadata(for: bundleID)
+                let application = NSMenuItem(
+                    title: MenuTitleFormatter.format(metadata.name, limit: 48),
+                    action: #selector(insertSearchFilter(_:)),
+                    keyEquivalent: ""
+                )
+                application.target = self
+                application.representedObject = "app:\(bundleID)"
+                application.toolTip = bundleID
+                applicationMenu.addItem(application)
+            }
+            applications.submenu = applicationMenu
+            menu.addItem(applications)
+        }
+        return menu
+    }
+
+    @objc private func insertSearchFilter(_ sender: NSMenuItem) {
+        guard activeMenuKind == .history,
+              let searchField = activeSearchField,
+              let token = sender.representedObject as? String else { return }
+        let current = searchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let components = current.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        guard !components.contains(token) else { return }
+        let query = current.isEmpty ? token : "\(current) \(token)"
+        searchField.stringValue = query
+        searchChanged(query)
+        searchField.window?.makeFirstResponder(searchField)
+        searchField.currentEditor()?.moveToEndOfDocument(nil)
     }
 
     private func searchChanged(_ rawQuery: String) {
@@ -449,14 +645,27 @@ final class StatusBarController: NSObject {
             self.dataQueue.async { [weak self] in
                 guard let self else { return }
                 do {
+                    let parsed = ClipboardSearchQuery.parse(query)
                     let clips = kind == .history
-                        ? try Storage.shared.summaries(limit: 20, search: query, pinnedOnly: false)
+                        ? try Storage.shared.searchSummaries(query: parsed, limit: 20)
                         : []
-                    let snippets = try Storage.shared.allSnippets(search: query, pinnedOnly: false)
+                    let snippets = parsed.usesStructuredFilters
+                        ? []
+                        : try Storage.shared.snippetSummaries(
+                            search: parsed.terms,
+                            pinnedOnly: false,
+                            limit: 20
+                        )
                     DispatchQueue.main.async {
                         guard generation == self.searchGeneration,
                               let menu = self.activeMenu else { return }
-                        self.showSearchResults(clips: clips, snippets: snippets, query: query, kind: kind, in: menu)
+                        self.showSearchResults(
+                            clips: clips,
+                            snippets: snippets,
+                            query: parsed.terms,
+                            kind: kind,
+                            in: menu
+                        )
                     }
                 } catch {
                     DispatchQueue.main.async {
@@ -475,7 +684,7 @@ final class StatusBarController: NSObject {
 
     private func showSearchResults(
         clips: [ClipSummary],
-        snippets: [Snippet],
+        snippets: [SnippetSummary],
         query: String,
         kind: MenuKind,
         in menu: NSMenu
@@ -485,8 +694,10 @@ final class StatusBarController: NSObject {
 
         let normalizedQuery = normalizeSearchToken(query)
         let exactSnippets = snippets.filter { normalizeSearchToken($0.keyword ?? "") == normalizedQuery }
+        let exactSnippetIDs = Set(exactSnippets.compactMap(\.id))
         let remainingSnippets = snippets.filter { snippet in
-            !exactSnippets.contains(where: { $0.id == snippet.id })
+            guard let id = snippet.id else { return true }
+            return !exactSnippetIDs.contains(id)
         }
         var results: [SearchEntry]
         if kind == .history {
@@ -518,14 +729,11 @@ final class StatusBarController: NSObject {
         }
         menu.addItem(.separator())
         if kind == .history {
-            menu.addItem(layoutMenuItem())
-            menu.addItem(.separator())
-            addCaptureControls(to: menu)
-            menu.addItem(item("Очистить историю…", #selector(clearHistory), symbol: "trash"))
+            menu.addItem(utilityMenuItem())
             menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
             menu.addItem(item("Настройки…", #selector(openPreferences), symbol: "gearshape", keyEquivalent: ",", modifiers: [.command]))
             menu.addItem(.separator())
-            menu.addItem(item("Выйти из NeClip", #selector(NSApplication.terminate(_:)), keyEquivalent: "q", modifiers: [.command]))
+            menu.addItem(item("Выйти из NeClip", #selector(quitApplication), keyEquivalent: "q", modifiers: [.command]))
         } else {
             menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
         }
@@ -579,8 +787,8 @@ final class StatusBarController: NSObject {
     private func firstResultActionsItem() -> NSMenuItem {
         let hasEntry = visibleKeyboardEntries.first != nil
         let rootTitle = hasEntry
-            ? "Действия с первым результатом"
-            : (undoDeletion == nil ? "Действия с первым результатом" : "Вернуть удалённое")
+            ? "Действия с верхним элементом"
+            : (undoDeletion == nil ? "Действия с верхним элементом" : "Вернуть удалённое")
         let root = item(rootTitle, nil, symbol: hasEntry ? "ellipsis.circle" : "arrow.uturn.backward")
         root.toolTip = hasEntry
             ? "Команды применяются к первому видимому элементу списка"
@@ -591,6 +799,30 @@ final class StatusBarController: NSObject {
             switch entry {
             case .clip(let clip):
                 isPinned = clip.isPinned
+                submenu.addItem(item(
+                    clip.kind == .text ? "Просмотреть и изменить…" : "Просмотреть и переименовать…",
+                    #selector(previewFirstResult),
+                    symbol: "eye",
+                    keyEquivalent: "e",
+                    modifiers: [.command]
+                ))
+                if clip.kind == .file || SmartClipClassifier.category(for: clip) == .link {
+                    submenu.addItem(item(
+                        "Открыть",
+                        #selector(openFirstResult),
+                        symbol: "arrow.up.forward.app",
+                        keyEquivalent: "o",
+                        modifiers: [.command]
+                    ))
+                }
+                if clip.kind == .image, !(clip.text ?? "").isEmpty {
+                    submenu.addItem(item(
+                        "Вставить распознанный текст",
+                        #selector(pasteFirstResultOCR),
+                        symbol: "text.viewfinder"
+                    ))
+                }
+                submenu.addItem(.separator())
             case .snippet(let snippet):
                 isPinned = snippet.isPinned
             }
@@ -603,6 +835,7 @@ final class StatusBarController: NSObject {
             ))
 
             if case .clip(let clip) = entry, clip.kind == .text, !(clip.text ?? "").isEmpty {
+                submenu.addItem(textTransformMenuItem())
                 submenu.addItem(item(
                     "Сохранить как сниппет",
                     #selector(saveFirstResultAsSnippet),
@@ -634,6 +867,205 @@ final class StatusBarController: NSObject {
         }
         root.submenu = submenu
         return root
+    }
+
+    @objc private func previewFirstResult() {
+        guard case .clip(let clip) = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        HistoryItemInspectorWindowController.shared.show(clipID: clip.id)
+    }
+
+    @objc private func openFirstResult() {
+        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let item = try Storage.shared.fetchClip(id: summary.id),
+                      let url = HistoryItemActionResolver.openTarget(for: item) else {
+                    DispatchQueue.main.async { self?.showFeedback("Открывать нечего") }
+                    return
+                }
+                DispatchQueue.main.async {
+                    if NSWorkspace.shared.open(url) {
+                        self?.showFeedback("Открыто")
+                    } else {
+                        self?.showFeedback("Не удалось открыть")
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент") }
+            }
+        }
+    }
+
+    @objc private func pasteFirstResultOCR() {
+        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        let capturedTargetPID = targetPID
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let stored = try Storage.shared.fetchClip(id: summary.id),
+                      stored.kind == .image,
+                      let ocrText = stored.ocrText?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !ocrText.isEmpty else {
+                    DispatchQueue.main.async { self?.showFeedback("Распознанного текста нет") }
+                    return
+                }
+                let textItem = ClipItem(
+                    kind: .text,
+                    title: stored.title,
+                    text: ocrText,
+                    createdAt: stored.createdAt
+                )
+                DispatchQueue.main.async {
+                    PasteService.paste(
+                        textItem,
+                        plainText: true,
+                        targetPID: capturedTargetPID
+                    ) { [weak self] result in
+                        self?.handlePasteResult(result)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть распознанный текст") }
+            }
+        }
+    }
+
+    private func textTransformMenuItem() -> NSMenuItem {
+        let root = item("Преобразовать и вставить", nil, symbol: "textformat")
+        let submenu = makeMenu(title: "Преобразовать и вставить")
+        for transform in TextTransform.allCases {
+            let entry = item(transform.title, #selector(applyTransformToFirstResult(_:)))
+            entry.representedObject = transform.rawValue
+            submenu.addItem(entry)
+            if transform == .titleCase || transform == .sortLines || transform == .urlDecode {
+                submenu.addItem(.separator())
+            }
+        }
+        root.submenu = submenu
+        return root
+    }
+
+    @objc private func applyTransformToFirstResult(_ sender: NSMenuItem) {
+        guard case .clip(let summary) = visibleKeyboardEntries.first,
+              let rawValue = sender.representedObject as? String,
+              let transform = TextTransform(rawValue: rawValue) else { return }
+        let capturedTargetPID = targetPID
+        activeMenu?.cancelTracking()
+        dataQueue.async { [weak self] in
+            do {
+                guard let stored = try Storage.shared.fetchClip(id: summary.id),
+                      stored.kind == .text,
+                      let text = stored.text else { return }
+                let transformed = try transform.apply(to: text)
+                guard !transformed.isEmpty else {
+                    DispatchQueue.main.async { self?.showFeedback("Преобразование дало пустой текст") }
+                    return
+                }
+                let item = ClipItem(kind: .text, title: stored.title, text: transformed, createdAt: stored.createdAt)
+                DispatchQueue.main.async {
+                    PasteService.paste(item, plainText: true, targetPID: capturedTargetPID) { [weak self] result in
+                        self?.handlePasteResult(result)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Этот текст нельзя преобразовать") }
+            }
+        }
+    }
+
+    private func appendSequentialPasteControls(to menu: NSMenu) {
+        let sequence = SequentialPasteSequence.shared.snapshot()
+        let title = sequence.isActive
+            ? "Вставить следующее · \(sequence.position + 1) из \(sequence.total)"
+            : "Последовательная вставка"
+        menu.addItem(item(
+            title,
+            #selector(pasteNextSequentiallyFromMenu),
+            symbol: "arrow.right.to.line",
+            keyEquivalent: HotKeyCoordinator.shared.shortcut(for: .sequentialPaste).keyEquivalent ?? "",
+            modifiers: HotKeyCoordinator.shared.shortcut(for: .sequentialPaste).nsEventModifiers
+        ))
+        if sequence.isActive {
+            menu.addItem(item(
+                "Сбросить последовательность",
+                #selector(resetSequentialPaste),
+                symbol: "arrow.counterclockwise"
+            ))
+        }
+    }
+
+    /// Keeps low-frequency controls one level below the history itself. The
+    /// root stays short and ClipMenu-like while every action remains reachable
+    /// from one clearly named native submenu.
+    private func utilityMenuItem() -> NSMenuItem {
+        let root = item("Управление", nil, symbol: "slider.horizontal.3")
+        let submenu = makeMenu(title: "Управление")
+        appendSequentialPasteControls(to: submenu)
+        submenu.addItem(layoutMenuItem())
+        submenu.addItem(.separator())
+        addCaptureControls(to: submenu)
+        submenu.addItem(historyCleanupMenuItem())
+        submenu.addItem(.separator())
+        submenu.addItem(item(
+            "Проверить обновления…",
+            #selector(checkUpdates),
+            symbol: "arrow.triangle.2.circlepath"
+        ))
+        root.submenu = submenu
+        return root
+    }
+
+    @objc private func pasteNextSequentiallyFromMenu() {
+        activeMenu?.cancelTracking()
+        pasteNextSequentially()
+    }
+
+    @objc private func resetSequentialPaste() {
+        SequentialPasteSequence.shared.reset()
+        showFeedback("Последовательность сброшена")
+    }
+
+    /// The sequential shortcut walks recent history without a collection mode.
+    func pasteNextSequentially() {
+        let sequenceTargetPID = captureTargetApplication()?.processIdentifier
+        dataQueue.async { [weak self] in
+            do {
+                let recentIDs = try Storage.shared.recentClipIDs()
+                guard let id = SequentialPasteSequence.shared.beginNext(recentIDs: recentIDs) else {
+                    DispatchQueue.main.async { self?.showFeedback("История пуста") }
+                    return
+                }
+                guard let clip = try Storage.shared.fetchClip(id: id) else {
+                    SequentialPasteSequence.shared.complete(id: id, advance: true)
+                    DispatchQueue.main.async { self?.pasteNextSequentially() }
+                    return
+                }
+                DispatchQueue.main.async {
+                    guard SequentialPasteSequence.shared.isCurrent(id: id) else {
+                        self?.showFeedback("Новая копия — последовательность обновлена")
+                        return
+                    }
+                    PasteService.paste(clip, plainText: false, targetPID: sequenceTargetPID) { [weak self] result in
+                        let succeeded: Bool
+                        if case .failed = result { succeeded = false } else { succeeded = true }
+                        SequentialPasteSequence.shared.complete(id: id, advance: succeeded)
+                        self?.handlePasteResult(result)
+                        if succeeded {
+                            let remaining = SequentialPasteSequence.shared.snapshot().remaining
+                            self?.showFeedback(
+                                remaining > 0
+                                    ? "Следующий элемент · осталось \(remaining)"
+                                    : "Последовательность завершена"
+                            )
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть историю") }
+            }
+        }
     }
 
     @objc private func toggleFirstResultPin() {
@@ -735,7 +1167,7 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func snippetFolderItem(title: String, snippets: [Snippet]) -> NSMenuItem {
+    private func snippetFolderItem(title: String, snippets: [SnippetSummary]) -> NSMenuItem {
         let displayTitle = cleanTitle(title)
         let folderItem = item(displayTitle, nil, symbol: "folder")
         let submenu = makeMenu(title: displayTitle)
@@ -746,7 +1178,7 @@ final class StatusBarController: NSObject {
         return folderItem
     }
 
-    private func snippetMenuItem(_ snippet: Snippet, resultIndex: Int?, quickKey: String?) -> NSMenuItem {
+    private func snippetMenuItem(_ snippet: SnippetSummary, resultIndex: Int?, quickKey: String?) -> NSMenuItem {
         let keyword = snippet.keyword.map { "  —  \($0)" } ?? ""
         let prefix = resultIndex.map { "\($0 + 1). " } ?? ""
         let entry = item(
@@ -761,7 +1193,7 @@ final class StatusBarController: NSObject {
         } else {
             entry.isEnabled = false
         }
-        entry.toolTip = snippet.content
+        entry.toolTip = snippet.contentPreview + (snippet.contentIsTruncated ? "…" : "")
         return entry
     }
 
@@ -775,7 +1207,7 @@ final class StatusBarController: NSObject {
         let entry = item(
             prefix + cleanTitle(clip.title),
             quickKey == nil ? #selector(pasteClip(_:)) : #selector(quickPasteClip(_:)),
-            symbol: symbolName(for: clip.kind),
+            symbol: symbolName(for: clip),
             keyEquivalent: quickKey ?? "",
             modifiers: quickKey == nil ? [] : [.command]
         )
@@ -789,7 +1221,30 @@ final class StatusBarController: NSObject {
     private func layoutMenuItem() -> NSMenuItem {
         let root = item("Раскладка", nil, symbol: "character.cursor.ibeam")
         let submenu = makeMenu(title: "Раскладка")
-        let shortcuts = LayoutHotKeyCoordinator.shared
+        let shortcuts = HotKeyCoordinator.shared
+        let remember = item(
+            "Запоминать раскладку приложений",
+            #selector(toggleApplicationLayoutMemory),
+            symbol: "app.badge.checkmark"
+        )
+        remember.state = Settings.rememberLayoutPerApplication ? .on : .off
+        submenu.addItem(remember)
+        if let bundleID = targetBundleID,
+           ApplicationLayoutMemoryPolicy.isEligible(
+               bundleID: bundleID,
+               ownBundleID: Bundle.main.bundleIdentifier,
+               userExcluded: Set(Settings.layoutExcludedApps)
+           ), KeyboardLayoutService.shared.currentSelectableSourceID() != nil {
+            let appName = AppMetadataStore.shared.metadata(for: bundleID).name
+            let fixed = item(
+                "Закрепить текущую для \(MenuTitleFormatter.format(appName, limit: 32))",
+                #selector(toggleFixedLayoutForTargetApplication),
+                symbol: "pin"
+            )
+            fixed.state = Settings.fixedLayoutSource(for: bundleID) == nil ? .off : .on
+            submenu.addItem(fixed)
+        }
+        submenu.addItem(.separator())
         let automatic = item(
             "Автоматически исправлять (бета)",
             #selector(toggleAutomaticLayoutCorrection),
@@ -797,7 +1252,7 @@ final class StatusBarController: NSObject {
         )
         automatic.state = Settings.automaticLayoutCorrection ? .on : .off
         submenu.addItem(automatic)
-        let disableShortcut = shortcuts.disableAutomaticShortcut
+        let disableShortcut = shortcuts.shortcut(for: .disableAutomaticCorrection)
         let disable = item(
             "Быстро выключить автоисправление",
             #selector(disableAutomaticLayoutCorrection),
@@ -807,7 +1262,7 @@ final class StatusBarController: NSObject {
         )
         disable.isEnabled = Settings.automaticLayoutCorrection
         submenu.addItem(disable)
-        let manualShortcut = shortcuts.manualShortcut
+        let manualShortcut = shortcuts.shortcut(for: .manualCorrection)
         submenu.addItem(item(
             "Исправить выделение или последнее слово",
             #selector(correctFocusedLayout),
@@ -819,6 +1274,17 @@ final class StatusBarController: NSObject {
         let hint = NSMenuItem(title: "⌃↩ — исправить выбранную запись истории и вставить", action: nil, keyEquivalent: "")
         hint.image = symbol("info.circle", description: nil)
         submenu.addItem(hint)
+        root.submenu = submenu
+        return root
+    }
+
+    private func historyCleanupMenuItem() -> NSMenuItem {
+        let root = item("Очистить историю", nil, symbol: "trash")
+        let submenu = makeMenu(title: "Очистить историю")
+        submenu.addItem(item("За последний час…", #selector(clearHistoryLastHour), symbol: "clock"))
+        submenu.addItem(item("За сегодня…", #selector(clearHistoryToday), symbol: "calendar"))
+        submenu.addItem(.separator())
+        submenu.addItem(item("Всю незакреплённую…", #selector(clearHistory), symbol: "trash"))
         root.submenu = submenu
         return root
     }
@@ -840,6 +1306,12 @@ final class StatusBarController: NSObject {
             let ignore = item(ignoreTitle, #selector(ignoreNextCopy), symbol: "forward.end")
             ignore.state = Settings.ignoreNextCopy ? .on : .off
             menu.addItem(ignore)
+            let appendTitle = Settings.appendNextCopy
+                ? "Следующий текст объединится с предыдущим"
+                : "Объединить следующий текст с предыдущим"
+            let append = item(appendTitle, #selector(appendNextCopy), symbol: "doc.on.doc")
+            append.state = Settings.appendNextCopy ? .on : .off
+            menu.addItem(append)
             let pause = item("Приостановить запись", nil, symbol: "pause.fill")
             let pauseMenu = makeMenu(title: "Приостановить запись")
             pauseMenu.addItem(item("На 15 минут", #selector(pauseForFifteenMinutes), symbol: "timer"))
@@ -847,6 +1319,31 @@ final class StatusBarController: NSObject {
             pause.submenu = pauseMenu
             menu.addItem(pause)
         }
+        guard let bundleID = targetBundleID else { return }
+        let appName = MenuTitleFormatter.format(
+            AppMetadataStore.shared.metadata(for: bundleID).name,
+            limit: 32
+        )
+        let isProtected = SensitiveApplicationPolicy.protects(bundleID)
+        let isExcluded = Settings.excludedApps.contains {
+            $0.caseInsensitiveCompare(bundleID) == .orderedSame
+        }
+        let title: String
+        if isProtected {
+            title = "Не сохранять из \(appName) — всегда"
+        } else if isExcluded {
+            title = "Снова сохранять из \(appName)"
+        } else {
+            title = "Не сохранять из \(appName)"
+        }
+        let applicationRule = item(
+            title,
+            isProtected ? nil : #selector(toggleCaptureForTargetApplication(_:)),
+            symbol: isProtected ? "lock.shield" : "app.badge"
+        )
+        applicationRule.state = isExcluded ? .on : .off
+        applicationRule.representedObject = bundleID
+        menu.addItem(applicationRule)
     }
 
     private func item(
@@ -885,6 +1382,16 @@ final class StatusBarController: NSObject {
         }
     }
 
+    private func symbolName(for clip: ClipSummary) -> String {
+        switch SmartClipClassifier.category(for: clip) {
+        case .link?: "link"
+        case .email?: "envelope"
+        case .color?: "paintpalette"
+        case .code?: "chevron.left.forwardslash.chevron.right"
+        case nil: symbolName(for: clip.kind)
+        }
+    }
+
     private func quickKey(for index: Int) -> String? {
         guard (0..<9).contains(index) else { return nil }
         return String(index + 1)
@@ -894,11 +1401,12 @@ final class StatusBarController: NSObject {
         MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)
     }
 
-    private func captureTargetPID() -> pid_t? {
+    private func captureTargetApplication() -> (processIdentifier: pid_t, bundleIdentifier: String)? {
         guard let application = NSWorkspace.shared.frontmostApplication,
-              application.bundleIdentifier != Bundle.main.bundleIdentifier,
+              let bundleIdentifier = application.bundleIdentifier,
+              bundleIdentifier != Bundle.main.bundleIdentifier,
               !application.isTerminated else { return nil }
-        return application.processIdentifier
+        return (application.processIdentifier, bundleIdentifier)
     }
 
     @objc private func pasteClip(_ sender: NSMenuItem) {
@@ -914,7 +1422,9 @@ final class StatusBarController: NSObject {
         let capturedTargetPID = targetPID
         let modifiers = forcedModifiers ?? NSEvent.modifierFlags
         let correctLayout = modifiers.contains(.control)
-        let plainText = modifiers.contains(.option) || modifiers.contains(.shift) || correctLayout
+        let optionOverride = modifiers.contains(.option)
+        let plainText = correctLayout || modifiers.contains(.shift)
+            || (optionOverride ? !Settings.preferPlainText : Settings.preferPlainText)
         let copyOnly = modifiers.contains(.command)
 
         dataQueue.async { [weak self] in
@@ -983,20 +1493,30 @@ final class StatusBarController: NSObject {
     }
 
     private func pasteSnippet(_ sender: NSMenuItem, forcedModifiers: NSEvent.ModifierFlags?) {
-        guard let id = (sender.representedObject as? NSNumber)?.int64Value,
-              var snippet = snapshot.snippets.first(where: { $0.id == id }) else { return }
+        guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = targetPID
         let copyOnly = (forcedModifiers ?? NSEvent.modifierFlags).contains(.command)
-        snippet.content = SnippetRenderer.render(
-            snippet.content,
-            clipboard: NSPasteboard.general.string(forType: .string)
-        )
-
-        dataQueue.async {
-            try? Storage.shared.markSnippetUsed(id: id)
-        }
-        PasteService.paste(snippet: snippet, targetPID: capturedTargetPID, copyOnly: copyOnly) { [weak self] result in
-            DispatchQueue.main.async { self?.handlePasteResult(result) }
+        let clipboard = NSPasteboard.general.string(forType: .string)
+        dataQueue.async { [weak self] in
+            do {
+                guard var snippet = try Storage.shared.fetchSnippet(id: id) else {
+                    DispatchQueue.main.async { self?.showFeedback("Сниппет уже удалён") }
+                    return
+                }
+                snippet.content = SnippetRenderer.render(snippet.content, clipboard: clipboard)
+                try? Storage.shared.markSnippetUsed(id: id)
+                DispatchQueue.main.async {
+                    PasteService.paste(
+                        snippet: snippet,
+                        targetPID: capturedTargetPID,
+                        copyOnly: copyOnly
+                    ) { [weak self] result in
+                        self?.handlePasteResult(result)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть сниппет") }
+            }
         }
     }
 
@@ -1037,6 +1557,8 @@ final class StatusBarController: NSObject {
             symbolName = "pause.rectangle"
         } else if Settings.ignoreNextCopy {
             symbolName = "forward.end"
+        } else if Settings.appendNextCopy {
+            symbolName = "doc.on.doc"
         } else {
             symbolName = "doc.on.clipboard"
         }
@@ -1044,14 +1566,22 @@ final class StatusBarController: NSObject {
             button.image = image
             button.title = ""
         } else {
-            button.title = Settings.isCapturePaused ? "Ⅱ" : (Settings.ignoreNextCopy ? "→" : "⧉")
+            button.title = Settings.isCapturePaused
+                ? "Ⅱ"
+                : (Settings.ignoreNextCopy ? "→" : (Settings.appendNextCopy ? "+" : "⧉"))
         }
         if ClipboardAccess.current == .denied {
             button.toolTip = "NeClip — доступ к буферу запрещён"
         } else {
-            button.toolTip = Settings.isCapturePaused
-                ? "NeClip — запись приостановлена"
-                : (Settings.ignoreNextCopy ? "NeClip — следующее копирование будет пропущено" : "NeClip — ⌘⇧V")
+            if Settings.isCapturePaused {
+                button.toolTip = "NeClip — запись приостановлена"
+            } else if Settings.ignoreNextCopy {
+                button.toolTip = "NeClip — следующее копирование будет пропущено"
+            } else if Settings.appendNextCopy {
+                button.toolTip = "NeClip — следующий текст объединится с предыдущим"
+            } else {
+                button.toolTip = "NeClip — \(HotKeyCoordinator.shared.shortcut(for: .history).displayString)"
+            }
         }
     }
 
@@ -1081,10 +1611,56 @@ final class StatusBarController: NSObject {
         }
     }
 
+    @objc private func captureDidAppend() {
+        showFeedback("текст объединён с предыдущим")
+    }
+
+    @objc private func toggleCaptureForTargetApplication(_ sender: NSMenuItem) {
+        guard let bundleID = sender.representedObject as? String,
+              !SensitiveApplicationPolicy.protects(bundleID) else { return }
+        var excluded = Settings.excludedApps
+        if excluded.contains(where: { $0.caseInsensitiveCompare(bundleID) == .orderedSame }) {
+            excluded.removeAll { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
+            Settings.excludedApps = excluded
+            showFeedback("копии из приложения снова сохраняются")
+        } else {
+            excluded.append(bundleID)
+            Settings.excludedApps = excluded
+            showFeedback("приложение исключено из истории")
+        }
+    }
+
     @objc private func ignoreNextCopy() {
         Settings.ignoreNextCopy.toggle()
         refreshIcon()
         showFeedback(Settings.ignoreNextCopy ? "следующее копирование не сохранится" : "пропуск отменён")
+    }
+
+    @objc private func appendNextCopy() {
+        Settings.appendNextCopy.toggle()
+        refreshIcon()
+        showFeedback(Settings.appendNextCopy ? "следующий текст объединится с предыдущим" : "объединение отменено")
+    }
+
+    @objc private func toggleApplicationLayoutMemory() {
+        Settings.rememberLayoutPerApplication.toggle()
+        showFeedback(
+            Settings.rememberLayoutPerApplication
+                ? "раскладка приложений запоминается"
+                : "запоминание раскладки выключено"
+        )
+    }
+
+    @objc private func toggleFixedLayoutForTargetApplication() {
+        guard let bundleID = targetBundleID else { return }
+        let appName = AppMetadataStore.shared.metadata(for: bundleID).name
+        if Settings.fixedLayoutSource(for: bundleID) != nil {
+            Settings.setFixedLayoutSource(nil, for: bundleID)
+            showFeedback("закрепление для \(appName) снято")
+        } else if let sourceID = KeyboardLayoutService.shared.currentSelectableSourceID() {
+            Settings.setFixedLayoutSource(sourceID, for: bundleID)
+            showFeedback("текущая раскладка закреплена для \(appName)")
+        }
     }
 
     @objc private func pauseForFifteenMinutes() {
@@ -1106,10 +1682,22 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func clearHistory() {
+        confirmHistoryCleanup(.all)
+    }
+
+    @objc private func clearHistoryLastHour() {
+        confirmHistoryCleanup(.lastHour)
+    }
+
+    @objc private func clearHistoryToday() {
+        confirmHistoryCleanup(.today)
+    }
+
+    private func confirmHistoryCleanup(_ scope: HistoryCleanupWindow) {
         let alert = NSAlert()
-        alert.messageText = "Очистить историю?"
-        alert.informativeText = "Незакреплённые элементы будут удалены. Сниппеты и закреплённые элементы останутся."
-        alert.addButton(withTitle: "Удалить незакреплённое")
+        alert.messageText = "Удалить \(scope.title)?"
+        alert.informativeText = "Закреплённые элементы и сниппеты останутся."
+        alert.addButton(withTitle: "Удалить")
         alert.addButton(withTitle: "Отмена")
         alert.alertStyle = .warning
         NSApp.activate(ignoringOtherApps: true)
@@ -1117,10 +1705,13 @@ final class StatusBarController: NSObject {
 
         dataQueue.async { [weak self] in
             do {
-                try Storage.shared.clearHistory(includePinned: false)
-                try Storage.shared.vacuum()
+                let removed = try Storage.shared.clearHistory(
+                    includePinned: false,
+                    createdAfter: scope.cutoff()
+                )
+                if scope == .all { try Storage.shared.vacuum() }
                 DispatchQueue.main.async {
-                    self?.showFeedback("история очищена")
+                    self?.showFeedback(removed == 0 ? "нечего удалять" : "удалено элементов: \(removed)")
                 }
             } catch {
                 DispatchQueue.main.async { self?.showFeedback("не удалось очистить историю") }
@@ -1145,7 +1736,15 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func checkUpdates() {
+        showFeedback("проверяем обновления…")
         UpdateChecker.check()
+    }
+
+    /// NSMenu actions are explicitly targeted at this controller. Forwarding
+    /// `NSApplication.terminate(_:)` with that target leaves AppKit without a
+    /// responder and disables the item, so quit uses a real local action.
+    @objc private func quitApplication() {
+        NSApp.terminate(nil)
     }
 }
 
@@ -1166,6 +1765,8 @@ private final class MenuSearchField: NSSearchField {
     var onSaveFirstAsSnippet: (() -> Void)?
     var onDeleteFirst: (() -> Void)?
     var onUndo: (() -> Void)?
+    var onPreviewFirst: (() -> Void)?
+    var onOpenFirst: (() -> Void)?
 
     override func cancelOperation(_ sender: Any?) {
         onEscape?()
@@ -1174,6 +1775,15 @@ private final class MenuSearchField: NSSearchField {
     override func keyDown(with event: NSEvent) {
         let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
         let character = event.charactersIgnoringModifiers ?? ""
+        if MenuSearchKeyPolicy.shouldPreviewOnSpace(
+            keyCode: event.keyCode,
+            modifiers: modifiers,
+            searchText: stringValue,
+            isRepeat: event.isARepeat
+        ) {
+            onPreviewFirst?()
+            return
+        }
         if modifiers.contains(.command), let number = Int(character), (1...9).contains(number) {
             onQuickSelect?(number - 1, modifiers)
             return
@@ -1188,6 +1798,12 @@ private final class MenuSearchField: NSSearchField {
                 return
             case "z":
                 onUndo?()
+                return
+            case "e":
+                onPreviewFirst?()
+                return
+            case "o":
+                onOpenFirst?()
                 return
             default:
                 if event.keyCode == 51 {
@@ -1205,5 +1821,16 @@ private final class MenuSearchField: NSSearchField {
             return
         }
         super.keyDown(with: event)
+    }
+}
+
+enum MenuSearchKeyPolicy {
+    static func shouldPreviewOnSpace(
+        keyCode: UInt16,
+        modifiers: NSEvent.ModifierFlags,
+        searchText: String,
+        isRepeat: Bool
+    ) -> Bool {
+        keyCode == 49 && modifiers.isEmpty && searchText.isEmpty && !isRepeat
     }
 }

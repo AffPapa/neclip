@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 enum PasteFailure: Equatable {
+    case clipboardSnapshot
     case clipboardWrite
     case eventCreation
 }
@@ -41,12 +42,6 @@ enum PasteService {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
-    }
-
-    /// Capture this before presenting an activating window. A non-activating
-    /// panel may also call it immediately before selection.
-    static func captureTargetPID() -> pid_t? {
-        NSWorkspace.shared.frontmostApplication?.processIdentifier
     }
 
     /// Pure policy used by both production paste and unit tests.
@@ -91,16 +86,6 @@ enum PasteService {
         completePaste(copyOnly: copyOnly, targetPID: targetPID, completion: completion)
     }
 
-    // Compatibility for the legacy NSMenu while the keyboard panel migrates
-    // to the explicit target-PID API above.
-    static func paste(_ item: ClipItem, plainText: Bool) {
-        paste(item, plainText: plainText, targetPID: captureTargetPID())
-    }
-
-    static func paste(snippet: Snippet) {
-        paste(snippet: snippet, targetPID: captureTargetPID())
-    }
-
     /// Replaces an already selected range for an explicit user command, then
     /// restores the previous pasteboard only if no other process has changed
     /// it in the meantime. Auto layout correction never uses this path.
@@ -119,7 +104,10 @@ enum PasteService {
 
         let pasteboard = NSPasteboard.general
         let snapshotGeneration = pasteboard.changeCount
-        let savedItems = snapshotPasteboard(pasteboard)
+        guard let savedItems = snapshotPasteboard(pasteboard) else {
+            finish(.failed(.clipboardSnapshot), completion: completion)
+            return
+        }
         guard pasteboard.changeCount == snapshotGeneration,
               validateTarget(),
               NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID else {
@@ -254,16 +242,35 @@ enum PasteService {
         return success
     }
 
-    private static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
-        (pasteboard.pasteboardItems ?? []).map { source in
+    /// Captures every advertised representation or fails before the pasteboard
+    /// is cleared. Returning a partial snapshot would silently destroy lazy or
+    /// promised data after manual layout correction.
+    static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem]? {
+        let sources = pasteboard.pasteboardItems ?? []
+        return snapshotPasteboardItems(sources, advertisedTypes: pasteboard.types)
+    }
+
+    /// Kept separate from the pasteboard service so representation copying can
+    /// be tested in headless environments where named pasteboards reject writes.
+    static func snapshotPasteboardItems(
+        _ sources: [NSPasteboardItem],
+        advertisedTypes: [NSPasteboard.PasteboardType]?
+    ) -> [NSPasteboardItem]? {
+        if sources.isEmpty {
+            return advertisedTypes?.isEmpty == false ? nil : []
+        }
+        var snapshot: [NSPasteboardItem] = []
+        snapshot.reserveCapacity(sources.count)
+        for source in sources {
+            guard !source.types.isEmpty else { return nil }
             let copy = NSPasteboardItem()
             for type in source.types {
-                if let data = source.data(forType: type) {
-                    copy.setData(data, forType: type)
-                }
+                guard let data = source.data(forType: type) else { return nil }
+                guard copy.setData(data, forType: type) else { return nil }
             }
-            return copy
+            snapshot.append(copy)
         }
+        return snapshot
     }
 
     private static func restorePasteboard(_ items: [NSPasteboardItem], ifGenerationIs expected: Int) {

@@ -15,6 +15,12 @@
     "interface": "menu-bar-only",
     "dockIcon": false
   },
+  "sourceCandidate": {
+    "version": "1.7.0",
+    "build": 13,
+    "status": "verified-source-candidate",
+    "publicVersion": "1.4.0"
+  },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
     "website": "https://affpapa.github.io/neclip/",
@@ -23,23 +29,46 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.4.0.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.7.0-2026-09-01.md",
+    "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
+    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/COMPETITOR-UX-2026-09-01.md",
+    "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
   "features": [
     "clipboard history for text, images and files",
     "local search, pins, individual delete with undo and OCR",
-    "editable snippet folders, starter snippets and local placeholders",
+    "discoverable editable snippet folders, starter snippets and local placeholders",
     "manual EN/RU layout correction with a configurable shortcut",
     "optional conservative automatic EN/RU correction",
+    "per-application input-source memory without keyboard monitoring",
+    "fixed per-application input source without keyboard monitoring",
+    "Space preview while search is empty",
+    "one-shot append of the next accepted text",
+    "session ignore after undoing a false automatic correction",
     "off-only automatic-correction safety shortcut",
+    "direct recent-history sequential paste",
+    "five configurable conflict-safe global shortcuts",
+    "sectioned local settings",
     "configurable grapheme-safe menu label length",
-    "bounded local storage and privacy exclusions"
+    "discoverable native structured-search filters",
+    "bounded menu browsing with complete on-demand search",
+    "atomic local history and snippet erasure",
+    "partial or on-quit history cleanup and bounded text capture",
+    "race-free clear-on-quit after queued capture drain",
+    "bounded local storage and privacy exclusions",
+    "immutable password-manager capture protection and quick per-app capture rules",
+    "bounded snippet summaries with one-body-at-a-time loading",
+    "lossless fail-closed pasteboard restoration",
+    "self-verifying complete-ref and pull-request-ref secret scanning",
+    "native snippet-list selection with visible-order keyboard navigation",
+    "atomic provenance-bound local release staging"
   ],
   "shortcuts": [
-    {"action": "open-history", "keys": "Command-Shift-V"},
-    {"action": "open-snippets", "keys": "Command-Shift-B"},
+    {"action": "open-history", "keys": "Command-Shift-V", "customizable": true},
+    {"action": "open-snippets", "keys": "Command-Shift-B", "customizable": true},
+    {"action": "sequential-paste", "keys": "Control-Command-V", "customizable": true},
     {"action": "correct-layout", "keys": "Option-Shift-L", "customizable": true},
     {"action": "disable-automatic-layout-correction", "keys": "Control-Option-A", "customizable": true, "offOnly": true},
     {"action": "pin-first-result", "keys": "Command-P"},
@@ -52,7 +81,7 @@
   "permissions": {
     "pasteboard": "Explained before monitoring; denied access fails closed on macOS 15.4+",
     "accessibility": "Optional; used for one-click paste and manual selected-text replacement",
-    "inputMonitoring": "Requested only when automatic layout correction is explicitly enabled"
+    "inputMonitoring": "Requested only when automatic layout correction is explicitly enabled; per-application layout memory does not need it"
   },
   "notPlanned": [
     "accounts",

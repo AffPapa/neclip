@@ -1,6 +1,7 @@
 import AppKit
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class PreferencesWindowController {
@@ -13,8 +14,8 @@ final class PreferencesWindowController {
             let window = NSWindow(contentViewController: hosting)
             window.title = "NeClip — Настройки"
             window.styleMask = [.titled, .closable, .resizable]
-            window.minSize = NSSize(width: 500, height: 620)
-            window.setContentSize(NSSize(width: 520, height: 720))
+            window.minSize = NSSize(width: 600, height: 500)
+            window.setContentSize(NSSize(width: 640, height: 600))
             window.isReleasedWhenClosed = false
             window.center()
             self.window = window
@@ -24,33 +25,321 @@ final class PreferencesWindowController {
     }
 }
 
+private struct NumericPreferenceRow: View {
+    let title: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    let unit: String
+    let accessibilityLabel: String
+
+    @State private var text: String
+    @FocusState private var isEditing: Bool
+
+    init(
+        _ title: String,
+        value: Binding<Int>,
+        range: ClosedRange<Int>,
+        step: Int,
+        unit: String,
+        accessibilityLabel: String
+    ) {
+        self.title = title
+        _value = value
+        self.range = range
+        self.step = step
+        self.unit = unit
+        self.accessibilityLabel = accessibilityLabel
+        _text = State(initialValue: String(value.wrappedValue))
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+            Spacer()
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 72)
+                .multilineTextAlignment(.trailing)
+                .font(.body.monospacedDigit())
+                .accessibilityLabel(accessibilityLabel)
+                .focused($isEditing)
+                .onSubmit(commitText)
+            Text(unit)
+                .foregroundStyle(.secondary)
+                .frame(width: 84, alignment: .leading)
+            Stepper("", value: $value, in: range, step: step)
+                .labelsHidden()
+                .accessibilityLabel("Изменить: \(accessibilityLabel.lowercased())")
+        }
+        .onChange(of: value) { _, newValue in
+            text = String(newValue)
+        }
+        .onChange(of: isEditing) { _, editing in
+            if !editing { commitText() }
+        }
+    }
+
+    private func commitText() {
+        let requested = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? value
+        let normalized = min(range.upperBound, max(range.lowerBound, requested))
+        value = normalized
+        text = String(normalized)
+    }
+}
+
 private struct PreferencesView: View {
+    private enum PreferencesTab: Hashable {
+        case general
+        case shortcuts
+        case privacy
+        case layout
+        case data
+    }
+
+    @State private var selectedTab = PreferencesTab.general
     @State private var historyLimit = Settings.historyLimit
-    @State private var menuTitleLengthText = String(Settings.menuTitleLength)
+    @State private var menuTitleLength = Settings.menuTitleLength
+    @State private var maximumTextCaptureKilobytes = Settings.maximumTextCaptureKilobytes
     @State private var clipboardAccess = ClipboardAccess.current
-    @State private var showPreviews = Settings.showImagePreviews
+    @State private var captureImages = Settings.captureImages
+    @State private var retentionDays = Settings.retentionDays
+    @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
+    @State private var preferPlainText = Settings.preferPlainText
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var excludedApps = Settings.excludedApps
     @State private var axTrusted = PasteService.isAccessibilityTrusted
     @State private var capturePaused = Settings.isCapturePaused
     @State private var automaticLayoutCorrection = Settings.automaticLayoutCorrection
+    @State private var rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
+    @State private var rememberedApplicationCount = Settings.rememberedApplicationCount
+    @State private var fixedApplicationCount = Settings.fixedApplicationCount
+    @State private var historyShortcut = Settings.historyShortcut
+    @State private var snippetsShortcut = Settings.snippetsShortcut
+    @State private var sequentialPasteShortcut = Settings.sequentialPasteShortcut
     @State private var manualLayoutShortcut = Settings.manualLayoutShortcut
     @State private var disableAutomaticLayoutShortcut = Settings.disableAutomaticLayoutShortcut
     @State private var layoutExcludedApps = Settings.layoutExcludedApps
     @State private var canListenToInput = LayoutPermissions.canListen
     @State private var deleteAllConfirmation = false
     @State private var clearHistoryConfirmation = false
+    @State private var clearHistoryOnQuit = Settings.clearHistoryOnQuit
     @State private var feedback: String?
-    @FocusState private var menuTitleLengthFocused: Bool
+    @State private var dataOperationRunning = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            Picker("Раздел настроек", selection: $selectedTab) {
+                Text("Основные").tag(PreferencesTab.general)
+                Text("Клавиши").tag(PreferencesTab.shortcuts)
+                Text("Приватность").tag(PreferencesTab.privacy)
+                Text("Раскладка").tag(PreferencesTab.layout)
+                Text("Данные").tag(PreferencesTab.data)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(14)
+            Divider()
+            selectedTabContent
+            if let feedback {
+                Divider()
+                HStack {
+                    if dataOperationRunning {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Операция с локальными данными выполняется")
+                    }
+                    Image(systemName: "info.circle")
+                    Text(feedback)
+                    Spacer()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
+        }
+        .frame(minWidth: 600, minHeight: 500)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            axTrusted = PasteService.isAccessibilityTrusted
+            clipboardAccess = ClipboardAccess.current
+            capturePaused = Settings.isCapturePaused
+            canListenToInput = LayoutPermissions.canListen
+            automaticLayoutCorrection = Settings.automaticLayoutCorrection
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .neClipHotKeysDidChange)) { _ in
+            historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
+            snippetsShortcut = HotKeyCoordinator.shared.shortcut(for: .snippets)
+            sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)
+            manualLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .manualCorrection)
+            disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .neClipApplicationLayoutMemoryDidChange)) { _ in
+            rememberedApplicationCount = Settings.rememberedApplicationCount
+            fixedApplicationCount = Settings.fixedApplicationCount
+        }
+        .onChange(of: feedback) { _, message in
+            guard let message else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                if feedback == message { feedback = nil }
+            }
+        }
+        .alert("Очистить историю?", isPresented: $clearHistoryConfirmation) {
+            Button("Удалить незакреплённое", role: .destructive) { clearHistory(includePinned: false) }
+            Button("Удалить всё, включая закреплённое", role: .destructive) { clearHistory(includePinned: true) }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Сниппеты останутся на месте.")
+        }
+        .alert("Удалить историю и сниппеты?", isPresented: $deleteAllConfirmation) {
+            Button("Удалить историю и сниппеты", role: .destructive, action: deleteAllData)
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Это действие нельзя отменить.")
+        }
+    }
+
+    @ViewBuilder
+    private var selectedTabContent: some View {
+        switch selectedTab {
+        case .general: generalTab
+        case .shortcuts: shortcutsTab
+        case .privacy: privacyTab
+        case .layout: layoutTab
+        case .data: dataTab
+        }
+    }
+
+    private var generalTab: some View {
         Form {
-            Section("Доступ к буферу") {
+            Section("История") {
+                NumericPreferenceRow(
+                    "Размер истории",
+                    value: $historyLimit,
+                    range: 10...1_000,
+                    step: 10,
+                    unit: "элементов",
+                    accessibilityLabel: "Количество элементов истории"
+                )
+                    .onChange(of: historyLimit) { _, value in applyHistoryLimit(value) }
+                NumericPreferenceRow(
+                    "Длина строки в меню",
+                    value: $menuTitleLength,
+                    range: MenuTitleFormatter.validLengthRange,
+                    step: 1,
+                    unit: "символов",
+                    accessibilityLabel: "Количество символов в строке меню"
+                )
+                    .onChange(of: menuTitleLength) { _, value in applyMenuTitleLength(value) }
+                NumericPreferenceRow(
+                    "Размер текста одной записи",
+                    value: $maximumTextCaptureKilobytes,
+                    range: Settings.maximumTextCaptureKilobytesRange,
+                    step: 64,
+                    unit: "КБ",
+                    accessibilityLabel: "Максимальный размер текста одной записи"
+                )
+                    .onChange(of: maximumTextCaptureKilobytes) { _, value in
+                        Settings.maximumTextCaptureKilobytes = value
+                    }
+                Text("Число можно ввести или изменить стрелками. Полный текст записи не сокращается: слишком большой новый текст просто не попадёт в историю.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Сохранять изображения", isOn: $captureImages)
+                    .onChange(of: captureImages) { _, value in Settings.captureImages = value }
+                Picker("Удалять незакреплённое", selection: $retentionDays) {
+                    Text("Только по лимиту").tag(0)
+                    Text("Через 1 день").tag(1)
+                    Text("Через 7 дней").tag(7)
+                    Text("Через 30 дней").tag(30)
+                    Text("Через 90 дней").tag(90)
+                }
+                .onChange(of: retentionDays) { _, value in
+                    Settings.retentionDays = value
+                    DispatchQueue.global(qos: .utility).async { try? Storage.shared.trimToLimits() }
+                }
+                Toggle("Очищать незакреплённую историю при выходе", isOn: $clearHistoryOnQuit)
+                    .onChange(of: clearHistoryOnQuit) { _, value in Settings.clearHistoryOnQuit = value }
+
+            }
+
+            Section("Вставка") {
+                Toggle("По умолчанию вставлять без форматирования", isOn: $preferPlainText)
+                    .onChange(of: preferPlainText) { _, value in Settings.preferPlainText = value }
+                Text("Удерживайте ⌥ при выборе, чтобы временно изменить режим.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Система") {
+                Toggle("Запускать при входе в систему", isOn: $launchAtLogin)
+                    .onChange(of: launchAtLogin) { _, enabled in updateLaunchAtLogin(enabled) }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var shortcutsTab: some View {
+        Form {
+            Section("Открытие и вставка") {
+                shortcutRow(
+                    "Открыть историю",
+                    shortcut: historyShortcut,
+                    accessibilityLabel: "Сочетание для открытия истории",
+                    onCandidate: { applyShortcut(.history, candidate: $0) }
+                )
+                shortcutRow(
+                    "Открыть сниппеты",
+                    shortcut: snippetsShortcut,
+                    accessibilityLabel: "Сочетание для открытия сниппетов",
+                    onCandidate: { applyShortcut(.snippets, candidate: $0) }
+                )
+                shortcutRow(
+                    "Вставить следующий элемент",
+                    shortcut: sequentialPasteShortcut,
+                    accessibilityLabel: "Сочетание для последовательной вставки",
+                    onCandidate: { applyShortcut(.sequentialPaste, candidate: $0) }
+                )
+            }
+
+            Section("Исправление раскладки") {
+                LabeledContent("Исправить выделение или последнее слово") {
+                    ShortcutRecorder(
+                        shortcut: manualLayoutShortcut,
+                        accessibilityLabel: "Сочетание для ручного исправления раскладки",
+                        onCandidate: { applyShortcut(.manualCorrection, candidate: $0) }
+                    )
+                    .frame(width: 126, height: 28)
+                }
+                LabeledContent("Быстро выключить автоисправление") {
+                    ShortcutRecorder(
+                        shortcut: disableAutomaticLayoutShortcut,
+                        accessibilityLabel: "Сочетание для выключения автоматического исправления",
+                        onCandidate: { applyShortcut(.disableAutomaticCorrection, candidate: $0) }
+                    )
+                    .frame(width: 126, height: 28)
+                }
+            }
+
+            Section {
+                Button("Вернуть стандартные сочетания") { resetAllShortcuts() }
+                Text("Нажмите сочетание в рамке и введите новое. Escape отменяет. NeClip не применит занятое сочетание и сохранит предыдущее.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var privacyTab: some View {
+        Form {
+            Section("Доступ") {
                 HStack(alignment: .top) {
-                    Image(systemName: clipboardAccess == .denied
-                        ? "exclamationmark.shield.fill"
-                        : "checkmark.shield.fill")
-                        .foregroundStyle(clipboardAccess == .denied ? .orange : .green)
+                    Image(systemName: clipboardPermissionSymbol)
+                        .foregroundStyle(clipboardPermissionColor)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(clipboardAccessTitle)
                         Text(clipboardAccessDetail)
@@ -63,107 +352,124 @@ private struct PreferencesView: View {
                         Button("Открыть…") { ClipboardAccess.openPrivacySettings() }
                     }
                 }
-            }
-
-            Section("История") {
-                Stepper("Хранить до \(historyLimit) элементов", value: $historyLimit, in: 10...1000, step: 10)
-                    .onChange(of: historyLimit) { _, value in applyHistoryLimit(value) }
-                HStack {
-                    Text("Показывать в меню до")
-                    Spacer()
-                    TextField("64", text: $menuTitleLengthText)
-                        .frame(width: 52)
-                        .multilineTextAlignment(.trailing)
-                        .focused($menuTitleLengthFocused)
-                        .onSubmit(commitMenuTitleLength)
-                        .onChange(of: menuTitleLengthText) { _, value in
-                            if let parsed = Int(value), MenuTitleFormatter.validLengthRange.contains(parsed) {
-                                Settings.menuTitleLength = parsed
-                            }
-                        }
-                    Text("символов")
-                        .foregroundStyle(.secondary)
-                }
-                .onChange(of: menuTitleLengthFocused) { _, focused in
-                    if !focused { commitMenuTitleLength() }
-                }
-                Text("Допустимо 16–96. Длинные строки заканчиваются многоточием, полный текст сохраняется.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Toggle("Показывать превью изображений", isOn: $showPreviews)
-                    .onChange(of: showPreviews) { _, value in Settings.showImagePreviews = value }
-
-                HStack {
-                    Label(
-                        capturePaused ? "Запись истории приостановлена" : "История записывается",
-                        systemImage: capturePaused ? "pause.circle.fill" : "checkmark.circle.fill"
-                    )
-                    .foregroundStyle(capturePaused ? .orange : .green)
-                    Spacer()
-                    Button(capturePaused ? "Возобновить" : "Пауза на 15 минут") {
-                        if capturePaused {
-                            Settings.resumeCapture()
-                        } else {
-                            Settings.pauseFor15Minutes()
-                        }
-                        capturePaused = Settings.isCapturePaused
-                    }
-                }
-
-                Button("Не сохранять следующее копирование") {
-                    Settings.ignoreNextCopy = true
-                    feedback = "Следующее копирование будет пропущено"
-                }
-            }
-
-            Section("Вставка") {
                 HStack {
                     Image(systemName: axTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
                         .foregroundStyle(axTrusted ? .green : .orange)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(axTrusted ? "Автовставка разрешена" : "Без разрешения NeClip только копирует")
-                        if !axTrusted {
-                            Text("Можно вставить вручную клавишами ⌘V.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Text(axTrusted ? "Автовставка разрешена" : "Без Универсального доступа NeClip только копирует")
                     Spacer()
                     if !axTrusted {
                         Button("Разрешить…") { PasteService.requestAccessibility() }
                     }
                 }
+                if !axTrusted {
+                    Text("Если NeClip уже есть в списке macOS, просто включите переключатель. Кнопка + не нужна.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            Section("Раскладка") {
+            Section("Запись истории") {
+                HStack {
+                    Label(
+                        capturePaused ? "Запись приостановлена" : "История записывается",
+                        systemImage: capturePaused ? "pause.circle.fill" : "checkmark.circle.fill"
+                    )
+                    .foregroundStyle(capturePaused ? .orange : .green)
+                    Spacer()
+                    Button(capturePaused ? "Возобновить" : "Пауза на 15 минут") {
+                        if capturePaused { Settings.resumeCapture() } else { Settings.pauseFor15Minutes() }
+                        capturePaused = Settings.isCapturePaused
+                    }
+                }
+                Button("Не сохранять следующее копирование") {
+                    Settings.ignoreNextCopy = true
+                    feedback = "Следующее копирование будет пропущено"
+                }
+                Button("Объединить следующий текст с предыдущим") {
+                    Settings.appendNextCopy = true
+                    feedback = "Следующий допустимый текст будет добавлен к предыдущему"
+                }
+                DisclosureGroup("Не сохранять текст с указанными фразами") {
+                    TextEditor(text: $sensitiveRulesText)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(height: 76)
+                        .onChange(of: sensitiveRulesText) { _, value in
+                            Settings.sensitiveContentRules = value.components(separatedBy: .newlines)
+                        }
+                    Text("Одна фраза на строку; до 50 локальных правил.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Не записывать из приложений") {
+                Text("Парольные менеджеры защищены всегда; остальные приложения можно добавить или быстро исключить из меню NeClip.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                List {
+                    ForEach(excludedApps, id: \.self) { bundleID in
+                        ExcludedApplicationRow(
+                            bundleIdentifier: bundleID,
+                            isProtected: SensitiveApplicationPolicy.protects(bundleID)
+                        ) {
+                            excludedApps.removeAll { $0 == bundleID }
+                            Settings.excludedApps = excludedApps
+                        }
+                    }
+                }
+                .frame(height: 145)
+                Button("Добавить приложение…", action: addApp)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var layoutTab: some View {
+        Form {
+            Section("Раскладка приложений") {
+                Toggle("Запоминать последнюю раскладку для каждого приложения", isOn: $rememberLayoutPerApplication)
+                    .onChange(of: rememberLayoutPerApplication) { _, value in
+                        Settings.rememberLayoutPerApplication = value
+                    }
+                HStack {
+                    Text("Запомнено автоматически: \(rememberedApplicationCount)")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Очистить память") {
+                        Settings.clearRememberedApplicationLayouts()
+                        feedback = "Запомненные раскладки сброшены"
+                    }
+                    .disabled(rememberedApplicationCount == 0)
+                }
+                HStack {
+                    Text("Закреплено вручную: \(fixedApplicationCount)")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Снять все") {
+                        Settings.clearFixedApplicationLayouts()
+                        feedback = "Закреплённые раскладки сброшены"
+                    }
+                    .disabled(fixedApplicationCount == 0)
+                }
+                Text("Закрепить текущую раскладку можно в меню NeClip → «Раскладка». Она будет выбрана при следующем открытии этого приложения.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Следит только за активным приложением и выбранной системной раскладкой. Текст и нажатия клавиш не читаются; «Мониторинг ввода» не нужен.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Автоматическое исправление") {
                 Toggle("Автоматически исправлять (бета)", isOn: Binding(
                     get: { automaticLayoutCorrection },
                     set: { updateAutomaticLayoutCorrection($0) }
                 ))
-                Text("Только по пробелу и только когда NeClip уверен. Набираемый текст обрабатывается локально, не сохраняется и не отправляется в сеть.")
+                Text("Срабатывает только по пробелу и только при высокой уверенности. Текст обрабатывается локально, не сохраняется и не отправляется в сеть.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
 
-                LabeledContent("Исправить выделение или последнее слово") {
-                    ShortcutRecorder(
-                        shortcut: manualLayoutShortcut,
-                        accessibilityLabel: "Сочетание для ручного исправления раскладки",
-                        onCandidate: applyManualLayoutShortcut
-                    )
-                    .frame(width: 126, height: 28)
-                }
-                LabeledContent("Быстро выключить автоисправление") {
-                    ShortcutRecorder(
-                        shortcut: disableAutomaticLayoutShortcut,
-                        accessibilityLabel: "Сочетание для выключения автоматического исправления",
-                        onCandidate: applyDisableAutomaticLayoutShortcut
-                    )
-                    .frame(width: 126, height: 28)
-                }
-                Button("Сбросить сочетания") { resetLayoutShortcuts() }
-                Text("Нажмите сочетание в рамке, затем введите новое. Escape отменяет. Клавиша выключения никогда не включает мониторинг ввода.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Section("Разрешения автоматического режима") {
                 permissionRow(
                     title: "Мониторинг ввода",
                     granted: canListenToInput,
@@ -183,11 +489,13 @@ private struct PreferencesView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
 
-                DisclosureGroup("Не исправлять автоматически в приложениях") {
+            Section("Исключения приложений") {
+                DisclosureGroup("Не менять раскладку автоматически в приложениях") {
                     List {
                         ForEach(layoutExcludedApps, id: \.self) { bundleID in
-                            ExcludedApplicationRow(bundleIdentifier: bundleID) {
+                            ExcludedApplicationRow(bundleIdentifier: bundleID, isProtected: false) {
                                 layoutExcludedApps.removeAll { $0 == bundleID }
                                 Settings.layoutExcludedApps = layoutExcludedApps
                             }
@@ -195,35 +503,17 @@ private struct PreferencesView: View {
                     }
                     .frame(height: 95)
                     Button("Добавить приложение…", action: addLayoutExcludedApp)
-                    Text("Пароли, терминалы, IDE и удалённые рабочие столы заблокированы всегда.")
+                    Text("Список применяется к автоисправлению и запоминанию раскладки. Пароли, терминалы, IDE и удалённые рабочие столы дополнительно защищены от автоисправления всегда.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
 
-            Section("Система") {
-                Toggle("Запускать при входе в систему", isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, enabled in updateLaunchAtLogin(enabled) }
-            }
-
-            Section("Исключённые приложения") {
-                Text("Скопированное в этих приложениях не попадает в историю.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                List {
-                    ForEach(excludedApps, id: \.self) { bundleID in
-                        ExcludedApplicationRow(bundleIdentifier: bundleID) {
-                            excludedApps.removeAll { $0 == bundleID }
-                            Settings.excludedApps = excludedApps
-                        }
-                    }
-                }
-                .frame(height: 125)
-
-                Button("Добавить приложение…", action: addApp)
-            }
-
+    private var dataTab: some View {
+        Form {
             Section("Локальные данные") {
                 HStack {
                     Button("Восстановить готовые сниппеты") { restoreStarterSnippets() }
@@ -235,39 +525,33 @@ private struct PreferencesView: View {
                 Button("Удалить всю историю и сниппеты…", role: .destructive) {
                     deleteAllConfirmation = true
                 }
-            }
-
-            if let feedback {
-                Text(feedback)
+                HStack {
+                    Button("Экспортировать сниппеты…", action: exportSnippets)
+                    Button("Импортировать сниппеты…", action: importSnippets)
+                }
+                Text("Переносится только локальная библиотека сниппетов — без истории и статистики использования.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 500, minHeight: 580)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            axTrusted = PasteService.isAccessibilityTrusted
-            clipboardAccess = ClipboardAccess.current
-            capturePaused = Settings.isCapturePaused
-            canListenToInput = LayoutPermissions.canListen
-            automaticLayoutCorrection = Settings.automaticLayoutCorrection
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .neClipLayoutHotKeysDidChange)) { _ in
-            manualLayoutShortcut = LayoutHotKeyCoordinator.shared.manualShortcut
-            disableAutomaticLayoutShortcut = LayoutHotKeyCoordinator.shared.disableAutomaticShortcut
-        }
-        .alert("Очистить историю?", isPresented: $clearHistoryConfirmation) {
-            Button("Удалить незакреплённое", role: .destructive) { clearHistory(includePinned: false) }
-            Button("Удалить всё, включая закреплённое", role: .destructive) { clearHistory(includePinned: true) }
-            Button("Отмена", role: .cancel) {}
-        } message: {
-            Text("Сниппеты останутся на месте.")
-        }
-        .alert("Удалить историю и сниппеты?", isPresented: $deleteAllConfirmation) {
-            Button("Удалить историю и сниппеты", role: .destructive, action: deleteAllData)
-            Button("Отмена", role: .cancel) {}
-        } message: {
-            Text("Это действие нельзя отменить.")
+        .disabled(dataOperationRunning)
+    }
+
+    @ViewBuilder
+    private func shortcutRow(
+        _ title: String,
+        shortcut: ShortcutDescriptor,
+        accessibilityLabel: String,
+        onCandidate: @escaping @MainActor (ShortcutDescriptor) -> Void
+    ) -> some View {
+        LabeledContent(title) {
+            ShortcutRecorder(
+                shortcut: shortcut,
+                accessibilityLabel: accessibilityLabel,
+                onCandidate: onCandidate
+            )
+            .frame(width: 126, height: 28)
         }
     }
 
@@ -276,6 +560,21 @@ private struct PreferencesView: View {
         case .unrestricted, .allowed: "История буфера разрешена"
         case .needsChoice: "macOS может спрашивать доступ"
         case .denied: "История буфера заблокирована"
+        }
+    }
+
+    private var clipboardPermissionSymbol: String {
+        switch clipboardAccess {
+        case .unrestricted, .allowed: "checkmark.shield.fill"
+        case .needsChoice: "questionmark.diamond.fill"
+        case .denied: "exclamationmark.shield.fill"
+        }
+    }
+
+    private var clipboardPermissionColor: Color {
+        switch clipboardAccess {
+        case .unrestricted, .allowed: .green
+        case .needsChoice, .denied: .orange
         }
     }
 
@@ -349,27 +648,33 @@ private struct PreferencesView: View {
         feedback = enabled ? "Автоисправление включено: только по пробелу" : "Автоисправление выключено"
     }
 
-    private func applyManualLayoutShortcut(_ candidate: ShortcutDescriptor) {
-        let result = LayoutHotKeyCoordinator.shared.update(.manualCorrection, to: candidate)
-        manualLayoutShortcut = LayoutHotKeyCoordinator.shared.manualShortcut
-        feedback = result.message ?? "Сочетание ручного исправления: \(manualLayoutShortcut.displayString)"
+    private func applyShortcut(_ action: NeClipShortcutAction, candidate: ShortcutDescriptor) {
+        let result = HotKeyCoordinator.shared.update(action, to: candidate)
+        refreshShortcutState()
+        feedback = result.message ?? "Сочетание изменено: \(candidate.displayString)"
     }
 
-    private func applyDisableAutomaticLayoutShortcut(_ candidate: ShortcutDescriptor) {
-        let result = LayoutHotKeyCoordinator.shared.update(.disableAutomaticCorrection, to: candidate)
-        disableAutomaticLayoutShortcut = LayoutHotKeyCoordinator.shared.disableAutomaticShortcut
-        feedback = result.message ?? "Сочетание выключения: \(disableAutomaticLayoutShortcut.displayString)"
+    private func resetAllShortcuts() {
+        let result = HotKeyCoordinator.shared.resetToDefaults()
+        refreshShortcutState()
+        feedback = result.message ?? "Стандартные сочетания восстановлены"
     }
 
-    private func resetLayoutShortcuts() {
-        let result = LayoutHotKeyCoordinator.shared.resetToDefaults()
-        manualLayoutShortcut = LayoutHotKeyCoordinator.shared.manualShortcut
-        disableAutomaticLayoutShortcut = LayoutHotKeyCoordinator.shared.disableAutomaticShortcut
-        feedback = result.message ?? "Сочетания восстановлены"
+    private func refreshShortcutState() {
+        historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
+        snippetsShortcut = HotKeyCoordinator.shared.shortcut(for: .snippets)
+        sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)
+        manualLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .manualCorrection)
+        disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
     }
 
-    private func applyHistoryLimit(_ value: Int) {
-        Settings.historyLimit = value
+    private func applyHistoryLimit(_ requested: Int) {
+        let normalized = min(1_000, max(10, requested))
+        if historyLimit != normalized {
+            historyLimit = normalized
+            return
+        }
+        Settings.historyLimit = normalized
         DispatchQueue.global(qos: .utility).async {
             do {
                 try Storage.shared.trimToLimits()
@@ -379,52 +684,96 @@ private struct PreferencesView: View {
         }
     }
 
-    private func commitMenuTitleLength() {
-        let requested = Int(menuTitleLengthText) ?? MenuTitleFormatter.defaultLimit
+    private func applyMenuTitleLength(_ requested: Int) {
         let normalized = MenuTitleFormatter.normalizedLimit(requested)
+        if menuTitleLength != normalized {
+            menuTitleLength = normalized
+            return
+        }
         Settings.menuTitleLength = normalized
-        menuTitleLengthText = String(normalized)
         feedback = "В меню будет показано до \(normalized) символов"
     }
 
     private func clearHistory(includePinned: Bool) {
-        do {
-            try Storage.shared.clearHistory(includePinned: includePinned)
-            feedback = "История очищена"
-            vacuumInBackground()
-        } catch {
-            feedback = "Не удалось очистить историю"
+        runDataOperation {
+            do {
+                try Storage.shared.clearHistory(includePinned: includePinned)
+                try Storage.shared.vacuum()
+                return "История очищена"
+            } catch {
+                return "Не удалось очистить историю"
+            }
         }
     }
 
     private func deleteAllData() {
-        do {
-            try Storage.shared.clearHistory(includePinned: true)
-            let snippets = try Storage.shared.allSnippets(search: nil, pinnedOnly: false)
-            for snippet in snippets {
-                if let id = snippet.id {
-                    try Storage.shared.deleteSnippet(id: id)
-                }
+        runDataOperation {
+            do {
+                try Storage.shared.deleteAllUserData()
+                try Storage.shared.vacuum()
+                return "История, сниппеты и их папки удалены"
+            } catch {
+                return "Не удалось удалить все данные"
             }
-            feedback = "История и сниппеты удалены"
-            vacuumInBackground()
-        } catch {
-            feedback = "Не удалось удалить все данные"
         }
     }
 
     private func restoreStarterSnippets() {
-        do {
-            try Storage.shared.installStarterSnippetsIfNeeded(force: true)
-            feedback = "Готовые сниппеты восстановлены"
-        } catch {
-            feedback = "Не удалось восстановить сниппеты"
+        runDataOperation {
+            do {
+                try Storage.shared.installStarterSnippetsIfNeeded(force: true)
+                return "Готовые сниппеты восстановлены"
+            } catch {
+                return "Не удалось восстановить сниппеты"
+            }
         }
     }
 
-    private func vacuumInBackground() {
-        DispatchQueue.global(qos: .utility).async {
-            try? Storage.shared.vacuum()
+    private func exportSnippets() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "NeClip Snippets.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        runDataOperation {
+            do {
+                try Storage.shared.exportSnippetData().write(to: url, options: .atomic)
+                return "Сниппеты экспортированы"
+            } catch {
+                return "Не удалось экспортировать сниппеты"
+            }
+        }
+    }
+
+    private func importSnippets() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        runDataOperation {
+            do {
+                let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
+                guard let fileSize = resourceValues.fileSize,
+                      fileSize > 0,
+                      fileSize <= Storage.maximumSnippetImportBytes else {
+                    throw SnippetTransferError.fileTooLarge
+                }
+                let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                let count = try Storage.shared.importSnippetData(data)
+                return count == 0 ? "Новых сниппетов нет" : "Добавлено сниппетов: \(count)"
+            } catch {
+                return error.localizedDescription
+            }
+        }
+    }
+
+    private func runDataOperation(_ operation: @escaping @Sendable () -> String) {
+        guard !dataOperationRunning else { return }
+        dataOperationRunning = true
+        feedback = "Выполняется…"
+        Task {
+            let message = await Task.detached(priority: .utility, operation: operation).value
+            feedback = message
+            dataOperationRunning = false
         }
     }
 
@@ -462,28 +811,43 @@ private struct PreferencesView: View {
 
 private struct ExcludedApplicationRow: View {
     let bundleIdentifier: String
+    let isProtected: Bool
     let remove: () -> Void
 
+    private var metadata: AppMetadata {
+        AppMetadataStore.shared.metadata(for: bundleIdentifier)
+    }
+
+    private var displayName: String {
+        SensitiveApplicationPolicy.displayName(for: bundleIdentifier) ?? metadata.name
+    }
+
     var body: some View {
-        let metadata = AppMetadataStore.shared.metadata(for: bundleIdentifier)
         HStack(spacing: 10) {
             Image(nsImage: metadata.icon)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(metadata.name)
+                Text(displayName)
                 Text(bundleIdentifier)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer()
-            Button(action: remove) {
-                Image(systemName: "minus.circle")
+            if isProtected {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("\(displayName) защищено от записи всегда")
+            } else {
+                Button(action: remove) {
+                    Image(systemName: "minus.circle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Удалить \(displayName) из исключений")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Удалить \(metadata.name) из исключений")
         }
     }
 }

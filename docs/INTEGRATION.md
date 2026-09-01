@@ -11,8 +11,10 @@ an unrelated host.
 - `changelog.json` — machine-readable release history.
 - `CHANGELOG.md` — detailed human-readable changes and verification status.
 - `BACKLOG.md` — public completed, next and explicitly rejected work.
-- `docs/AUDIT-2026-08-31.md` — current engineering evidence, decisions and
+- `docs/PROJECT-MAP.md` — current runtime ownership, data flows and invariants.
+- `docs/AUDIT-1.7.0-2026-09-01.md` — current engineering evidence, decisions and
   quality/release gates.
+- `docs/COMPETITOR-UX-2026-09-01.md` — current 20-product UX decision matrix.
 - GitHub Releases — binary files and checksum assets.
 
 ## Release rule

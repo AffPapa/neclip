@@ -1,5 +1,14 @@
+import AppKit
 import XCTest
 @testable import NeClip
+
+private final class SilentPasteboardProvider: NSObject, NSPasteboardItemDataProvider {
+    func pasteboard(
+        _ pasteboard: NSPasteboard?,
+        item: NSPasteboardItem,
+        provideDataForType type: NSPasteboard.PasteboardType
+    ) {}
+}
 
 final class PrivacyLogicTests: XCTestCase {
     func testPasteboardAccessPolicyFailsClosedForUnknownAndDeniedStates() {
@@ -32,6 +41,7 @@ final class PrivacyLogicTests: XCTestCase {
     }
     override func tearDown() {
         Settings.ignoreNextCopy = false
+        Settings.appendNextCopy = false
         Settings.resumeCapture()
         super.tearDown()
     }
@@ -79,6 +89,40 @@ final class PrivacyLogicTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testPasteboardSnapshotPreservesEveryRepresentationAndEmptyState() throws {
+        XCTAssertEqual(
+            PasteService.snapshotPasteboardItems([], advertisedTypes: nil)?.count,
+            0
+        )
+        XCTAssertNil(
+            PasteService.snapshotPasteboardItems([], advertisedTypes: [.string])
+        )
+
+        let item = NSPasteboardItem()
+        item.setString("plain", forType: .string)
+        item.setData(Data([1, 2, 3]), forType: .rtf)
+
+        let snapshot = try XCTUnwrap(
+            PasteService.snapshotPasteboardItems([item], advertisedTypes: item.types)
+        )
+        XCTAssertEqual(snapshot.count, 1)
+        let copiedItem = try XCTUnwrap(snapshot.first)
+        XCTAssertEqual(copiedItem.string(forType: .string), "plain")
+        XCTAssertEqual(copiedItem.data(forType: .rtf), Data([1, 2, 3]))
+    }
+
+    @MainActor
+    func testPasteboardSnapshotRejectsUnreadablePromisedData() {
+        let provider = SilentPasteboardProvider()
+        let item = NSPasteboardItem()
+        item.setDataProvider(provider, forTypes: [.init("org.affpapa.neclip.tests.promised")])
+
+        XCTAssertNil(
+            PasteService.snapshotPasteboardItems([item], advertisedTypes: item.types)
+        )
+    }
+
     func testPauseAndResumeArePersistedThroughSettingsAPI() {
         Settings.pause(until: nil)
         XCTAssertTrue(Settings.isCapturePaused)
@@ -97,6 +141,27 @@ final class PrivacyLogicTests: XCTestCase {
         XCTAssertEqual(Settings.capturePauseState, .active)
     }
 
+    @MainActor
+    func testClipboardMonitorDrainWaitsForQueuedProcessing() {
+        let queue = DispatchQueue(label: "org.affpapa.neclip.tests.clipboard-drain")
+        let started = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let completed = DispatchSemaphore(value: 0)
+        queue.async {
+            started.signal()
+            release.wait()
+        }
+        queue.async { completed.signal() }
+        XCTAssertEqual(started.wait(timeout: .now() + 1), .success)
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.05) {
+            release.signal()
+        }
+        ClipboardMonitor(processingQueue: queue).stopAndDrain()
+
+        XCTAssertEqual(completed.wait(timeout: .now()), .success)
+    }
+
     func testExpiredPauseResumesCapture() {
         Settings.pause(until: Date().addingTimeInterval(-1))
         XCTAssertFalse(Settings.isCapturePaused)
@@ -108,6 +173,59 @@ final class PrivacyLogicTests: XCTestCase {
         XCTAssertTrue(Settings.consumeIgnoreNextCopy())
         XCTAssertFalse(Settings.consumeIgnoreNextCopy())
         XCTAssertFalse(Settings.ignoreNextCopy)
+    }
+
+    func testOneShotIgnoreAndAppendAreMutuallyExclusiveAndConsumedOnce() {
+        Settings.ignoreNextCopy = true
+        Settings.appendNextCopy = true
+        XCTAssertFalse(Settings.ignoreNextCopy)
+        XCTAssertTrue(Settings.appendNextCopy)
+        XCTAssertTrue(Settings.consumeAppendNextCopy())
+        XCTAssertFalse(Settings.consumeAppendNextCopy())
+
+        Settings.appendNextCopy = true
+        Settings.ignoreNextCopy = true
+        XCTAssertFalse(Settings.appendNextCopy)
+        XCTAssertTrue(Settings.ignoreNextCopy)
+    }
+
+    func testApplicationExclusionsAreTrimmedDeduplicatedAndSorted() {
+        let previous = Settings.excludedApps
+        defer { Settings.excludedApps = previous }
+
+        Settings.excludedApps = [
+            " com.example.z ", "", "com.example.a", "COM.EXAMPLE.Z"
+        ]
+        let result = Settings.excludedApps
+        XCTAssertTrue(result.contains("com.example.a"))
+        XCTAssertTrue(result.contains("com.example.z"))
+        XCTAssertEqual(
+            result.filter { $0.caseInsensitiveCompare("com.example.z") == .orderedSame }.count,
+            1
+        )
+        XCTAssertTrue(SensitiveApplicationPolicy.bundleIDs.isSubset(of: Set(result)))
+    }
+
+    func testSensitiveApplicationsCannotBeRemovedFromCaptureExclusions() {
+        let previous = Settings.excludedApps
+        defer { Settings.excludedApps = previous }
+
+        Settings.excludedApps = []
+        XCTAssertTrue(SensitiveApplicationPolicy.protects("COM.BITWARDEN.DESKTOP"))
+        XCTAssertEqual(
+            SensitiveApplicationPolicy.displayName(for: "COM.BITWARDEN.DESKTOP"),
+            "Bitwarden"
+        )
+        XCTAssertTrue(Settings.excludedApps.contains("com.bitwarden.desktop"))
+        XCTAssertTrue(ClipboardCapturePolicy.shouldRejectSource(
+            bundleID: "COM.BITWARDEN.DESKTOP",
+            excludedTransitionActive: false,
+            excludedApps: []
+        ))
+        XCTAssertTrue(ClipboardCapturePolicy.isExcludedApplication(
+            bundleID: "COM.EXAMPLE.PRIVATE",
+            excludedApps: ["com.example.private"]
+        ))
     }
 
     func testExcludedSourcePolicyFailsClosed() {

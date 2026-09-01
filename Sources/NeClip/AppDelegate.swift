@@ -4,56 +4,42 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController!
     private let monitor = ClipboardMonitor()
-    private var mainHotKey: GlobalHotKey?
-    private var snippetsHotKey: GlobalHotKey?
-    private var fixedHotKeyWarnings: [String] = []
-    private var layoutHotKeyWarnings: [String] = []
+    private var hotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
     private let automaticLayoutCorrection = AutoLayoutController()
+    private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        configureApplicationMenu()
         statusBar = StatusBarController()
         DispatchQueue.global(qos: .utility).async {
             try? Storage.shared.installStarterSnippetsIfNeeded(force: false)
         }
 
-        // Native global shortcuts keep the app dependency-light. Handlers are
-        // delivered by the application event target on the main run loop.
-        mainHotKey = try? GlobalHotKey(
-            shortcut: .historyReserved,
-            identifier: 1
-        ) { [weak self] in
-            MainActor.assumeIsolated { self?.statusBar.showHistory() }
-        }
-
-        snippetsHotKey = try? GlobalHotKey(
-            shortcut: .snippetsReserved,
-            identifier: 2
-        ) { [weak self] in
-            MainActor.assumeIsolated { self?.statusBar.showSnippets() }
-        }
-
-        var hotKeyWarnings: [String] = []
-        if mainHotKey == nil {
-            hotKeyWarnings.append("⌘⇧V занята — история доступна через значок NeClip")
-        }
-        if snippetsHotKey == nil {
-            hotKeyWarnings.append("⌘⇧B занята — сниппеты доступны в меню NeClip")
-        }
-        fixedHotKeyWarnings = hotKeyWarnings
-
-        LayoutHotKeyCoordinator.shared.onWarningsChanged = { [weak self] warnings in
-            self?.layoutHotKeyWarnings = warnings
+        HotKeyCoordinator.shared.onWarningsChanged = { [weak self] warnings in
+            self?.hotKeyWarnings = warnings
             self?.refreshHotKeyWarnings()
         }
-        LayoutHotKeyCoordinator.shared.onManualShortcutChanged = { [weak self] shortcut in
-            self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
+        HotKeyCoordinator.shared.onShortcutChanged = { [weak self] action, shortcut in
+            self?.statusBar.refreshShortcutPresentation()
+            if action == .manualCorrection {
+                self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
+            }
         }
-        LayoutHotKeyCoordinator.shared.start(
-            manualAction: { [weak self] in
+        HotKeyCoordinator.shared.start(
+            historyAction: { [weak self] in
+                MainActor.assumeIsolated { self?.statusBar.showHistory() }
+            },
+            snippetsAction: { [weak self] in
+                MainActor.assumeIsolated { self?.statusBar.showSnippets() }
+            },
+            sequentialPasteAction: { [weak self] in
+                MainActor.assumeIsolated { self?.statusBar.pasteNextSequentially() }
+            },
+            manualCorrectionAction: { [weak self] in
                 MainActor.assumeIsolated { self?.correctLayoutOrUndo() }
             },
-            disableAction: { [weak self] in
+            disableAutomaticCorrectionAction: { [weak self] in
                 MainActor.assumeIsolated { self?.disableAutomaticLayoutCorrection() }
             }
         )
@@ -81,12 +67,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         automaticLayoutCorrection.applySetting()
+        applicationLayoutMemory.applySetting()
 
         // Accessibility is requested only after the onboarding explanation and
         // an explicit user action.
 #if DEBUG
         let qaEnvironment = ProcessInfo.processInfo.environment
-        if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1" || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil {
+        if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1"
+            || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil
+            || qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             // QA builds temporarily behave like a regular app so automated
             // accessibility inspection can address the panel by bundle ID.
             NSApp.setActivationPolicy(.regular)
@@ -96,7 +85,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             monitor.start()
         }
-        if let tab = qaEnvironment["NECLIP_UI_TEST_TAB"] {
+        if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
+            DispatchQueue.main.async {
+                SnippetsEditorWindowController.shared.show()
+            }
+        } else if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" {
+            DispatchQueue.main.async {
+                PreferencesWindowController.shared.show()
+            }
+        } else if let tab = qaEnvironment["NECLIP_UI_TEST_TAB"] {
             DispatchQueue.main.async { [weak self] in
                 if tab == "snippets" {
                     self?.statusBar.showSnippets()
@@ -113,13 +110,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         monitor.stop()
         automaticLayoutCorrection.disable()
+        applicationLayoutMemory.stop()
         NotificationCenter.default.removeObserver(self)
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard SnippetsEditorWindowController.shared.prepareForTermination() else {
+            return .terminateCancel
+        }
+        guard Settings.clearHistoryOnQuit else { return .terminateNow }
+        monitor.stopAndDrain()
+        do {
+            try Storage.shared.clearHistory(includePinned: false)
+            return .terminateNow
+        } catch {
+            monitor.start()
+            let alert = NSAlert()
+            alert.messageText = "Не удалось очистить историю"
+            alert.informativeText = "NeClip не завершит работу, чтобы настройка приватности не создала ложного ощущения удаления. Попробуйте ещё раз."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return .terminateCancel
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
         automaticLayoutCorrection.refreshContext()
         monitor.refreshAuthorization()
         statusBar.refreshAuthorizationState()
+    }
+
+    private func configureApplicationMenu() {
+        let mainMenu = NSMenu(title: "Main")
+        let applicationItem = NSMenuItem()
+        let applicationMenu = NSMenu(title: "NeClip")
+        let quitItem = NSMenuItem(
+            title: "Выйти из NeClip",
+            action: #selector(quitFromApplicationMenu),
+            keyEquivalent: "q"
+        )
+        quitItem.keyEquivalentModifierMask = [.command]
+        quitItem.target = self
+        applicationMenu.addItem(quitItem)
+        applicationItem.submenu = applicationMenu
+        mainMenu.addItem(applicationItem)
+        NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func quitFromApplicationMenu() {
+        NSApp.terminate(nil)
     }
 
     private func startMonitorAroundOnboarding() {
@@ -132,6 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func layoutSettingsChanged() {
         automaticLayoutCorrection.applySetting()
+        applicationLayoutMemory.applySetting()
     }
 
     @objc private func manualLayoutCorrectionRequested() {
@@ -143,7 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshHotKeyWarnings() {
-        statusBar.setHotKeyWarnings(fixedHotKeyWarnings + layoutHotKeyWarnings)
+        statusBar.setHotKeyWarnings(hotKeyWarnings)
     }
 
     private func disableAutomaticLayoutCorrection() {
@@ -160,7 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func correctLayoutOrUndo() {
         if automaticLayoutCorrection.undoLastCorrectionIfPossible(completion: { [weak self] undone in
-            self?.statusBar.showLayoutFeedback(undone ? "Исправление отменено" : "Отмена уже недоступна")
+            self?.statusBar.showLayoutFeedback(
+                undone ? "Отменено · слово игнорируется до перезапуска" : "Отмена уже недоступна"
+            )
         }) {
             return
         }
@@ -170,7 +212,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let message: String
             switch result {
             case .corrected:
-                message = "Раскладка исправлена · \(LayoutHotKeyCoordinator.shared.manualShortcut.displayString) — отменить"
+                message = "Раскладка исправлена · \(HotKeyCoordinator.shared.shortcut(for: .manualCorrection).displayString) — отменить"
             case .undone:
                 message = "Исправление отменено"
             case .nothingToCorrect:

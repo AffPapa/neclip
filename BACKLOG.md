@@ -30,7 +30,7 @@ not planned.
 - Visible explanation when a global shortcut is already occupied
 - Single storage-driven menu refresh path and removal of the unused large window
 - Weekly dependency updates plus immutable releases, CodeQL, vulnerability
-  alerts, action SHA enforcement and protected `main`
+  alerts and action SHA enforcement
 - Private vulnerability reporting and a public bug form that forbids real
   clipboard contents
 
@@ -45,10 +45,67 @@ not planned.
 - Draft-safe autosave that flushes before navigation and window close and keeps
   failed edits available for retry
 
+## Done in current unreleased source
+
+- Source 1.7.0/build 13 separated from the still-public signed 1.4.0 release
+- Native snippet-list selection and visible-order arrow navigation, debounced
+  search and a query-aware empty state
+- A shorter root menu with low-frequency actions under **Management**, plus
+  exact recent-application filters with readable names
+- Distinct pending/denied pasteboard permission states and recovery actions
+- Off-main Data operations, bounded image previews, newest-pending OCR and
+  coalesced layout-context refreshes
+- FTS triggers that ignore metadata-only writes and semantic search that pages
+  beyond the newest 200 rows
+- Race-free clear-on-quit, a native application-menu Quit command and removal
+  of the unsafe paste-and-delete workflow
+- Build-number-aware updates and a provenance-bound, atomic local release
+  pipeline with pull-request ref secret scanning
+- Self-verifying secret scanning with generated canaries plus explicit HEAD and
+  side-ref-only history scans
+- Lightweight 280-character snippet projections in menus, search and editor;
+  complete bodies load only for the chosen snippet
+- Local snippet field limits matching portable import, without loading JSON or
+  complete libraries into presentation state
+- Latest-copy RTF semantics: a newer plain-text copy cannot paste old styling
+- Lossless fail-closed pasteboard snapshots for manual selection replacement
+- Fewer redundant Accessibility reads in automatic correction while retaining
+  sequence locks, whole-value CAS, verification and rollback
+- Immutable case-insensitive password-manager capture protection with readable names
+- One-click capture exclusion/restoration for the application that opened the menu
+- Pre-decode size limit for snippet JSON imports
+- Removal of five proven unreachable source members
+- Space preview when search is empty without stealing spaces from real queries
+- One-shot append of the next accepted text to recent unpinned text
+- Fixed per-application input source with priority over last-used memory
+- Set-based SQLite byte-quota trim instead of loading and deleting rows one by one
+- Normalized and deduplicated clipboard/layout application exclusions
+- User-bounded 64–2048 KB text records
+- Last-hour/today/all-unpinned cleanup and optional fail-closed cleanup on quit
+- Per-application last-used input source without keyboard-event monitoring
+- Bounded session ignore after undoing a false automatic correction
+- Reset and visible count for up to 200 remembered application layouts
+- Direct recent-history sequential paste without a collection mode
+- Configurable, conflict-safe history, snippet and sequential-paste shortcuts
+- Five concise Settings sections instead of one long form
+- Matching editable numeric controls for history size and menu-label length
+- Immediately discoverable snippet editing with automatic initial selection,
+  full-row edit actions and explicit autosave status
+- Always-enabled native Quit command with draft-safe snippet termination
+- Bounded browsing for 100 recent and 100 pinned values, with full search for
+  older local history
+- Native magnifier menu for common structured-search filters
+- A bounded 200-snippet menu projection with complete on-demand search/editing
+- One-transaction erasure of history, snippets and their folders
+- Human-readable source application names in the item inspector
+- Simpler search/action labels and removal of obsolete paste compatibility code
+
 ## Next
 
 - Verify first-run pasteboard wording across currently supported macOS releases
 - Expand local layout pairs only when system-layout tests can keep false fixes low
+- Repeat measured menu latency before changing the bounded 100-history and
+  200-snippet browse windows
 - Consider manual drag ordering only if folder counts grow beyond the current
   compact section model
 

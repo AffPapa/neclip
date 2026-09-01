@@ -19,6 +19,7 @@ final class SecretScanningContractTests: XCTestCase {
         XCTAssertTrue(workflow.contains("GITLEAKS_VERSION: 8.30.1"))
         XCTAssertTrue(workflow.contains("shasum -a 256 -c -"))
         XCTAssertTrue(workflow.contains("run: scripts/secret-scan.sh"))
+        XCTAssertTrue(workflow.contains("+refs/pull/*/head:refs/remotes/origin/pr/*"))
         XCTAssertFalse(workflow.contains("pull_request_target"))
         XCTAssertFalse(workflow.contains("secrets."))
     }
@@ -27,17 +28,22 @@ final class SecretScanningContractTests: XCTestCase {
         let script = try text("scripts/secret-scan.sh")
 
         XCTAssertTrue(script.contains("git ls-files -co --exclude-standard -z"))
+        XCTAssertTrue(script.contains("[[ -e \"$source_path\" || -L \"$source_path\" ]] || continue"))
         XCTAssertTrue(script.contains("--redact=100"))
         XCTAssertTrue(script.contains("--max-archive-depth=5"))
         XCTAssertTrue(script.contains("--max-decode-depth=8"))
-        XCTAssertTrue(script.contains("--all --full-history"))
+        XCTAssertTrue(script.contains("verify_detector \"GitHub PAT\""))
+        XCTAssertTrue(script.contains("verify_detector \"AWS access key\""))
+        XCTAssertTrue(script.contains("verify_detector \"Slack bot token\""))
+        XCTAssertTrue(script.contains("--full-history HEAD"))
+        XCTAssertTrue(script.contains("--all --not HEAD"))
         XCTAssertFalse(script.contains("--no-redact"))
     }
 
     func testSensitiveLocalArtifactsAreIgnored() throws {
         let gitignore = try text(".gitignore")
         for pattern in [
-            ".env.*", "AuthKey_*.p8", "*.pem", "*.p12", "*.key",
+            ".env.*", "*.p8", "*.pem", "*.p12", "*.key",
             "*.mobileprovision", "*.keychain-db", "*.sqlite", "*.db-wal",
             "*.log", "*.xcarchive", "*.dmg", "*.zip"
         ] {
@@ -47,9 +53,15 @@ final class SecretScanningContractTests: XCTestCase {
     }
 
     func testPublicAuditDocumentsDoNotPublishSubmissionIdentifiers() throws {
-        let previousAudit = try text("docs/AUDIT-2026-08-31.md")
-        let currentAudit = try text("docs/AUDIT-1.4.0.md")
-        let audit = previousAudit + currentAudit
+        let docsURL = repositoryRoot.appendingPathComponent("docs", isDirectory: true)
+        let audit = try FileManager.default.contentsOfDirectory(
+            at: docsURL,
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.lastPathComponent.hasPrefix("AUDIT") && $0.pathExtension == "md" }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        .map { try String(contentsOf: $0, encoding: .utf8) }
+        .joined(separator: "\n")
         let regex = try NSRegularExpression(
             pattern: #"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b"#
         )
@@ -63,6 +75,8 @@ final class SecretScanningContractTests: XCTestCase {
         XCTAssertTrue(policy.contains("Releases `v1.3.2` and later"))
         XCTAssertTrue(policy.contains("cannot retroactively lock"))
         XCTAssertFalse(policy.contains("Published releases and their assets are immutable"))
+        XCTAssertFalse(policy.contains("blocks force-pushes"))
+        XCTAssertTrue(policy.contains("authenticated GitHub release gate"))
     }
 
     private func text(_ relativePath: String) throws -> String {

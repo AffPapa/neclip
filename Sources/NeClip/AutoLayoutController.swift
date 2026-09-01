@@ -388,6 +388,8 @@ final class AutoLayoutController {
     private var nextContextID: UInt64 = 0
     private var undoRecord: UndoRecord?
     private var undoExpiry: DispatchWorkItem?
+    private var contextRefreshWorkItem: DispatchWorkItem?
+    private var ignoredTokens = BoundedLayoutIgnoreList()
     private var secureTimer: Timer?
     private var focusCheckCounter = 0
     private var inputSourceObserver: NSObjectProtocol?
@@ -433,9 +435,7 @@ final class AutoLayoutController {
                 DispatchQueue.main.async { self?.handle(boundary) }
             },
             onContextInvalidated: { [weak self] in
-                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(40)) {
-                    self?.refreshContext()
-                }
+                DispatchQueue.main.async { self?.scheduleContextRefresh() }
             }
         )
         guard created.start() else {
@@ -485,6 +485,8 @@ final class AutoLayoutController {
     }
 
     func disable() {
+        contextRefreshWorkItem?.cancel()
+        contextRefreshWorkItem = nil
         secureTimer?.invalidate()
         secureTimer = nil
         if let inputSourceObserver {
@@ -505,6 +507,8 @@ final class AutoLayoutController {
     }
 
     func refreshContext() {
+        contextRefreshWorkItem?.cancel()
+        contextRefreshWorkItem = nil
         guard state == .running, let monitor else { return }
         guard case .success(let focused) = accessibility.focusedContext(
             scope: .automatic,
@@ -531,6 +535,15 @@ final class AutoLayoutController {
         )
     }
 
+    private func scheduleContextRefresh() {
+        contextRefreshWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.refreshContext()
+        }
+        contextRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(40), execute: workItem)
+    }
+
     func undoLastCorrectionIfPossible(completion: @escaping (Bool) -> Void) -> Bool {
         guard let record = undoRecord, let monitor else { return false }
         undoRecord = nil
@@ -542,8 +555,7 @@ final class AutoLayoutController {
             record.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
-            guard contextStillMatches(record.context),
-                  layouts.currentSourceID() == record.targetSourceID,
+            guard layouts.currentSourceID() == record.targetSourceID,
                   accessibility.replaceTailAtomically(
                     expected: record.converted + " ",
                     replacement: record.original + " ",
@@ -563,6 +575,7 @@ final class AutoLayoutController {
             refreshContext()
             return false
         }
+        ignoredTokens.add(record.original)
         completion(true)
         refreshContext()
         return true
@@ -579,6 +592,7 @@ final class AutoLayoutController {
               contextStillMatches(context),
               layouts.currentSourceID() == boundary.sourceID,
               let translation = layouts.translate(strokes: boundary.strokes, sourceID: boundary.sourceID),
+              !ignoredTokens.contains(translation.original),
               LayoutTextPolicy.isAutoCandidate(translation.original),
               LayoutTextPolicy.isAutoCandidate(translation.converted),
               let typedKnown = dictionary.isKnown(translation.original, language: translation.sourceLanguage),
@@ -595,8 +609,7 @@ final class AutoLayoutController {
             boundary.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
-            guard contextStillMatches(context),
-                  layouts.currentSourceID() == boundary.sourceID,
+            guard layouts.currentSourceID() == boundary.sourceID,
                   accessibility.replaceTailAtomically(
                     expected: translation.original + " ",
                     replacement: translation.converted + " ",

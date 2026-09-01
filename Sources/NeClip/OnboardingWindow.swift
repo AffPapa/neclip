@@ -87,9 +87,9 @@ private struct OnboardingView: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                shortcut("⌘⇧V", "Открыть историю")
+                shortcut(Settings.historyShortcut.displayString, "Открыть историю")
                 shortcut("Поиск → ↩", "Найти и вставить")
-                shortcut("⌘⇧B", "Открыть готовые сниппеты")
+                shortcut(Settings.snippetsShortcut.displayString, "Открыть готовые сниппеты")
                 shortcut(Settings.manualLayoutShortcut.displayString, "Исправить неверную раскладку")
                 shortcut(Settings.disableAutomaticLayoutShortcut.displayString, "Быстро выключить автоисправление")
             }
@@ -99,8 +99,8 @@ private struct OnboardingView: View {
             permissionBlock(
                 title: clipboardTitle,
                 detail: clipboardDetail,
-                symbol: clipboardAccess == .denied ? "exclamationmark.shield.fill" : "checkmark.shield.fill",
-                color: clipboardAccess == .denied ? .orange : .green
+                symbol: clipboardPermissionSymbol,
+                color: clipboardPermissionColor
             )
 
             permissionBlock(
@@ -113,7 +113,7 @@ private struct OnboardingView: View {
             )
 
             HStack(spacing: 10) {
-                if clipboardAccess == .denied {
+                if clipboardAccess == .denied || clipboardAccess == .needsChoice {
                     Button("Открыть конфиденциальность…", action: openClipboardPrivacy)
                 } else if !accessibilityTrusted {
                     Button("Разрешить автовставку…", action: requestAutoPaste)
@@ -136,6 +136,21 @@ private struct OnboardingView: View {
         case .unrestricted, .allowed: "История буфера разрешена"
         case .needsChoice: "Разрешите чтение буфера для истории"
         case .denied: "История заблокирована в macOS"
+        }
+    }
+
+    private var clipboardPermissionSymbol: String {
+        switch clipboardAccess {
+        case .unrestricted, .allowed: "checkmark.shield.fill"
+        case .needsChoice: "questionmark.diamond.fill"
+        case .denied: "exclamationmark.shield.fill"
+        }
+    }
+
+    private var clipboardPermissionColor: Color {
+        switch clipboardAccess {
+        case .unrestricted, .allowed: .green
+        case .needsChoice, .denied: .orange
         }
     }
 

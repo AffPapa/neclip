@@ -8,12 +8,18 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.4.0 (build 8)**. See [CHANGELOG.md](CHANGELOG.md)
-for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
-public roadmap.
+Current source version: **1.7.0 (build 13)**. The latest public, signed and
+notarized release remains **1.4.0** until a separate release gate is completed.
+See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
+for the intentionally small public roadmap.
 
-The reproducible three-track audit, decisions and release gates for this cycle
-are published in [docs/AUDIT-1.4.0.md](docs/AUDIT-1.4.0.md).
+The current module ownership and invariants are in
+[docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
+audit, decisions and verification gates are in
+[docs/AUDIT-1.7.0-2026-09-01.md](docs/AUDIT-1.7.0-2026-09-01.md).
+The current from-scratch comparison of 20 clipboard products, 20 layout tools,
+100 candidate improvements and the 1.6.0 decisions is in
+[docs/RESEARCH-1.6.0-ZERO-2026-09-01.md](docs/RESEARCH-1.6.0-ZERO-2026-09-01.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 SHA-256:
@@ -22,8 +28,8 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 
 ## Keyboard workflow
 
-- `Command-Shift-V` — open the native history menu at the pointer
-- `Command-Shift-B` — open snippet folders directly
+- `Command-Shift-V` — open the native history menu at the pointer (customizable)
+- `Command-Shift-B` — open snippet folders directly (customizable)
 - type immediately — search inside the menu (digits and punctuation work)
 - `Up` / `Down` — leave search; continue with arrows through native menu items
 - `Return` — use the first visible result, or copy when Accessibility is unavailable
@@ -32,29 +38,56 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Control-Return` — correct EN/RU layout and paste a text history item
 - `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo (customizable)
 - `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
+- `Control-Command-V` — paste the next recent value in sequence (customizable)
 - `Command-1` … `Command-9` — select a visible result
 - `Command-P` — pin or unpin the first visible result
 - `Command-S` — save the first visible text result as a snippet
 - `Command-Delete` — delete the first visible result
 - `Command-Z` — restore the last individually deleted item
+- `Space` — preview the first result when search is empty
 - `Escape` — clear search, then close
 
-The first ten recent items are inline; items 11–40 are grouped by tens. Up to
-20 pinned items have their own submenu. The snippet hotkey shows nine quick
-items first and then the full folder hierarchy. The history menu also contains
-an explicit **Actions for First Result** submenu, pause, ignore-next-copy,
-clear, preferences, snippet
-editing, the manual update check, and quit.
+The first ten recent items are inline; up to 100 are browsable in one compact
+**More from History** hierarchy, grouped by tens. Up to 100 pinned items use the
+same bounded hierarchy; older values remain available through database search.
+The snippet hotkey shows nine quick items first and then a bounded folder
+hierarchy; larger imported libraries remain fully searchable and editable. The
+history menu also contains an explicit **Actions for Top Item** submenu.
+Lower-frequency capture, cleanup, sequential-paste, layout and update controls
+are grouped under **Management**, followed by snippet editing, Settings and Quit.
 
 If macOS or another application already owns a NeClip global shortcut, the menu
 explains which combination is unavailable and keeps the equivalent command
-accessible from the menu bar. The two layout shortcuts can be recorded locally
-in Settings; a conflicting candidate never replaces the previous working one.
+accessible from the menu bar. All five global shortcuts can be recorded locally
+in the **Keys** Settings tab; a conflicting candidate never replaces the
+previous working one.
 
 Menu labels use one system appearance whether opened from the status item or a
 global shortcut. Long text is collapsed to one line and shortened after a
 user-defined 16–96 character limit (64 by default) without cutting an emoji or
 combined Unicode character.
+
+Search accepts ordinary text together with compact local filters:
+`type:text/image/file/link/email/color/code`, `app:com.apple.Safari`,
+`when:today/week/month`, and `is:pinned/history`. When exact search has no
+result, NeClip performs a bounded typo-tolerant pass over lightweight recent
+summaries, never image or RTF payloads.
+The standard magnifier inside the history search field exposes the common
+filters and recent source applications, so their syntax and bundle identifiers
+do not have to be memorized.
+
+The top-item action submenu keeps advanced workflows out of the main menu:
+preview/edit/rename, safe URL or file opening, OCR-text paste and local text
+transforms. Deletion remains a separate explicit action with exact local undo;
+NeClip never infers that a receiving application accepted an injected paste.
+Sequential paste needs no collection mode: the first invocation
+captures a stable list of the 50 latest database identifiers, each successful
+invocation advances once, and the sequence resets after 30 seconds or a new
+external copy. Clipboard content is not duplicated.
+
+Settings are split into five compact sections: **General**, **Keys**, **Privacy**,
+**Layout**, and **Data**. Permission recovery, capture exclusions, and local
+data controls no longer compete with everyday history options in one long form.
 
 ## Keyboard layout correction
 
@@ -67,7 +100,19 @@ acts only after Space and only for a high-confidence dictionary decision, and
 does not intercept Enter. Password managers, secure fields, terminals, IDEs,
 remote-desktop clients, unknown focus, input methods, dead keys, and ambiguous
 tokens fail closed. Typed tokens stay in a bounded RAM buffer and are never
-logged, saved, learned, or sent over the network.
+logged, saved or sent over the network. Undoing a false automatic correction
+adds only that normalized token to a bounded memory-only ignore list until the
+app restarts.
+
+An independent, default-off setting can remember the last selected input source
+for up to 200 applications. It observes only application activation and the
+system input-source notification; it does not read text or key events and does
+not need Input Monitoring. Settings shows the local mapping count and provides
+one reset button.
+The menu can also pin the current system input source to the application that
+was active before NeClip opened. A fixed rule wins over last-used memory on the
+next application activation, still reads no text or key events, and can be
+removed from the same menu or reset in Settings.
 
 Automatic correction needs separate Input Monitoring and Accessibility access
 from macOS. NeClip requests them only when the user turns the feature on;
@@ -75,10 +120,14 @@ disabling it removes the event tap. The dedicated safety shortcut only turns
 this mode off; it can never enable monitoring or open a permission prompt.
 
 The focused snippet editor shows every folder, empty folders and **Unfiled** in
-one compact sidebar. Snippets can be edited, moved, pinned and searched; folders
-can be created, renamed and removed. Removing a folder keeps its snippets in
-**Unfiled**. Pending edits are flushed before navigation or close, and a failed
-save remains visible instead of discarding the draft.
+one compact sidebar. It selects the top visible snippet on open; every complete
+native list row selects the clearly labelled fields on the right and arrow keys
+follow the same visible order. Snippets can be edited, moved, pinned and searched; folders can be
+created, renamed and removed. Removing a folder keeps its snippets in
+**Unfiled**. Changes save automatically, pending edits are flushed before
+navigation or close, and a failed save remains visible instead of discarding
+the draft. Menus, searches and the sidebar retain only bounded previews; the
+complete text is loaded from SQLite only when one snippet is opened or pasted.
 
 ## Local data and privacy
 
@@ -97,15 +146,28 @@ password-manager bundle identifiers by default, and fails closed while source
 application attribution is uncertain. Because not every app marks sensitive
 clipboard content correctly, pause capture or use **Ignore Next Copy** when
 handling data that must not enter history.
+The explicit **Append Next Text** action joins the next accepted text value to
+the latest unpinned text record with one newline. Images, files and rejected
+sensitive or oversized text do not consume the one-shot action; incompatible
+RTF is discarded and an over-limit combined value is safely stored separately.
 
 Manual selection replacement uses a compare-and-swap pasteboard transaction:
-the previous multi-item pasteboard is restored only if no other app copied
+NeClip proceeds only after every advertised representation has been captured,
+then restores the previous multi-item pasteboard only if no other app copied
 something in the meantime. Automatic correction never uses the pasteboard.
 
 History is bounded by both an item limit and a hard 250 MB byte quota. Pinned
 items and snippets are preserved when ordinary history is trimmed. If pinned
 items alone fill the quota, NeClip stops accepting new history until space is
 freed instead of silently deleting pins or growing without a limit.
+An optional age limit removes only ordinary history. Image capture can be
+disabled independently, and user-defined literal phrases can reject sensitive
+text before any database write. These checks are local and do not use regexes,
+telemetry, network services or AI.
+The maximum captured text-record size is user-adjustable from 64 to 2048 KB.
+History can be cleared for the last hour, for today, or completely while
+retaining pins and snippets. An optional privacy toggle clears unpinned history
+on quit and cancels termination if deletion cannot be confirmed.
 
 ## Build and test
 

@@ -10,6 +10,7 @@ dist/
 .env.*
 !.env.example
 AuthKey_*.p8
+*.p8
 *.pem
 *.p12
 *.pfx

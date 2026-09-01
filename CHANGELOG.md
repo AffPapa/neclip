@@ -4,6 +4,144 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## Unreleased
+
+- Prepared source version 1.7.0/build 13 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until the exact release
+  artifact passes the external notarization and publication gates.
+- Replaced the snippet sidebar's nested row buttons with native List selection,
+  visible-order arrow navigation, debounced search, cached grouping and a clear
+  no-results recovery state.
+- Shortened the history root menu by grouping capture, cleanup, sequential
+  paste, layout and update controls under **Management**. Recent source apps are
+  now offered by readable name while inserting their exact bundle identifiers.
+- Removed paste-and-delete. A clipboard utility cannot prove that the receiving
+  application accepted an injected paste, so deletion is now always a separate,
+  undoable user action.
+- Fixed the clear-on-quit queue race, added a native Command-Q application menu,
+  distinguished pending pasteboard permission from granted access and moved
+  destructive/import/export Data work off the main actor with visible progress.
+- Reduced hot-path work with content-only FTS update triggers, paged semantic
+  filtering, bounded off-main image previews, newest-pending OCR, cached layout
+  key maps and coalesced Accessibility context refreshes.
+- Made update comparison include the build number. Hardened release provenance,
+  exact architecture checks, atomic local dist publication, CI credential
+  persistence and secret scanning of fetched pull-request refs.
+- Re-ran 143 normal checks, AddressSanitizer, ThreadSanitizer, a disposable copy
+  of the live database and a strict Swift 6.4 release build with complete
+  concurrency and warnings as errors.
+
+- Prepared source version 1.6.2/build 12 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until a separate release gate.
+- Reworked snippet presentation around lightweight 280-character summaries.
+  Menus, search and the editor sidebar no longer retain every full body; the
+  selected snippet alone is fetched for editing or paste.
+- Applied the import field bounds to local snippet writes, fixed stale RTF after
+  a newer plain-text copy and made manual selection replacement abort before
+  clearing when any advertised pasteboard representation is unreadable.
+- Removed redundant automatic-layout Accessibility refreshes without weakening
+  the event-sequence lock, whole-value compare-and-swap, verification or
+  rollback.
+- Made secret scanning self-test GitHub, AWS and Slack detectors before use and
+  scan HEAD plus side-ref-only history explicitly. The audit contract now checks
+  every public `AUDIT*.md` document, and version assertions match the source.
+
+- Prepared source version 1.6.1/build 11 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until a separate release gate.
+- Made password-manager capture protection immutable and case-insensitive in
+  both ordinary capture and the delayed application-transition guard. Protected
+  applications stay visible, locked and human-readable in Privacy Settings.
+- Added a one-click, target-aware **Do Not Save from This App** rule to the
+  native menu, with an equally direct restore action for ordinary applications.
+- Rejected empty or over-16 MB snippet-import files before JSON decoding and
+  memory-mapped accepted imports where the system can do so safely.
+- Removed five proven unreachable fields/wrappers/helpers without touching
+  database migrations, compatibility tests or research evidence.
+
+- Prepared source version 1.6.0/build 10 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until a separate release gate.
+- Added Space preview for the first result only while search is empty, so a
+  normal multiword query never loses its spaces.
+- Added an explicit one-shot append action for the next accepted text. It
+  merges transactionally into the latest unpinned text, preserves a valid new
+  copy as a separate record when the combined value exceeds the user's limit,
+  and never consumes the action for files, images or rejected text.
+- Added a fixed input source per application. It has priority over optional
+  last-used layout memory, acts only on application activation, requires no
+  Input Monitoring and has visible menu toggle, count and reset controls.
+- Replaced row-by-row byte-quota trimming with one SQLite window query and
+  normalized/deduplicated all application exclusion lists.
+- Repeated the product study from a blank decision set: 20 clipboard managers,
+  20 layout tools, five distinct layout architectures, exactly 100 candidates
+  and a newly scored top 20.
+
+- Prepared source version 1.5.0/build 9 while keeping the public update manifest
+  and signed/notarized download on 1.4.0 until a separate release gate.
+- Added a 64–2048 KB maximum for one captured text record. RTF is retained only
+  while the complete text record stays inside that user limit.
+- Added partial cleanup for the last hour and today plus full unpinned cleanup;
+  pins and snippets remain protected.
+- Added optional fail-closed clearing of unpinned history on quit. If storage
+  cannot confirm deletion, NeClip cancels termination instead of implying that
+  private data was erased.
+- Added **Paste and Delete** for the top unpinned history result. Deletion runs
+  only after a successful direct-paste dispatch; copy-only, missing
+  Accessibility, target changes and failed paste never delete it.
+- Added independent, default-off per-application input-source memory bounded to
+  200 local mappings, with visible count/reset and no keyboard-event monitoring.
+- Automatic-correction undo now keeps a bounded, memory-only ignore list for
+  the current session so the same false correction is not repeated.
+- Documented 18 clipboard products, 19 layout products, three different layout
+  architectures and a new 100-candidate add/defer/reject catalogue.
+
+- Added structured history search by base type, smart text category, source
+  application, date window and pin state, plus a bounded fuzzy fallback.
+- Added a focused full-item inspector with transactional text editing,
+  renaming, safe HTTP(S)/file opening and direct OCR-text paste.
+- Added memory-only sequential paste, then simplified it after product review:
+  `⌃⌘V` now walks a stable snapshot of recent history without start/stop
+  collection, resets after 30 seconds or a new copy, and stores identifiers only.
+- Made the history, snippets and sequential-paste shortcuts locally
+  configurable. All five NeClip shortcuts share conflict validation;
+  registration failure preserves the previous working shortcut.
+- Reorganized Settings into General, Keys, Privacy, Layout and Data sections.
+- Unified the history-size and menu-label-length settings into matching numeric
+  rows with a visible editable value, identical steppers, clear units and safe
+  range normalization.
+- Made snippet editing self-explanatory: the top visible snippet opens
+  automatically, every full-width row has an edit affordance and accessible
+  action, and the editor explicitly labels editing and automatic saving.
+- Fixed the disabled **Quit NeClip** command by targeting a real controller
+  action; application termination now flushes snippet edits and cancels quit if
+  a draft cannot be saved.
+- Expanded bounded menu browsing from 40 to 100 ordinary and pinned entries,
+  while keeping older values searchable without constructing 1,000 menu rows.
+- Simplified search wording and renamed first-result actions to explicitly say
+  they operate on the top visible item.
+- Added a native magnifier menu for the common structured history filters, so
+  type, date, pin and application search no longer depend on memorized syntax.
+- Bounded the menu snapshot to 200 snippets and only their referenced folders;
+  the full imported library remains available through on-demand search/editor
+  queries.
+- Replaced per-snippet full-data deletion with one atomic transaction that
+  removes clips, snippets and snippet folders together.
+- Replaced technical bundle identifiers in the item inspector with the local
+  source application's display name.
+- Removed obsolete paste compatibility wrappers left behind by the deleted
+  legacy history panel.
+- Added age retention for ordinary history, independent image capture,
+  local sensitive-phrase exclusions and a default plain-text paste preference.
+- Added a nested, offline transform menu for whitespace, case, lines, URL and
+  JSON operations; transforms paste a temporary result without mutating history.
+- Added deterministic, versioned snippet JSON export and atomic merge-only
+  import. History and usage metadata are never exported.
+- Documented the 100-function competitor catalogue and the scored top-20
+  selection in `docs/FEATURE-RESEARCH-2026-08-31.md`.
+- Expanded the pre-1.5 local suite to 119 checks: 111 XCTest cases plus eight
+  Swift Testing cases (one optional external-database case is skipped unless
+  its disposable fixture is supplied); strict Swift 6 release
+  compilation and full-history secret scanning pass.
+
 ## 1.4.0 — 31 August 2026
 
 - Unified the complete native menu tree under the application's current system
