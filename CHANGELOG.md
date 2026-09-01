@@ -17,6 +17,9 @@ DMG checksum verification have passed.
   configurable. All five NeClip shortcuts share conflict validation;
   registration failure preserves the previous working shortcut.
 - Reorganized Settings into General, Keys, Privacy, Layout and Data sections.
+- Made snippet editing self-explanatory: the top visible snippet opens
+  automatically, every full-width row has an edit affordance and accessible
+  action, and the editor explicitly labels editing and automatic saving.
 - Expanded bounded menu browsing from 40 to 100 ordinary and pinned entries,
   while keeping older values searchable without constructing 1,000 menu rows.
 - Simplified search wording and renamed first-result actions to explicitly say
@@ -31,7 +34,7 @@ DMG checksum verification have passed.
   import. History and usage metadata are never exported.
 - Documented the 100-function competitor catalogue and the scored top-20
   selection in `docs/FEATURE-RESEARCH-2026-08-31.md`.
-- Expanded the local suite to 108 checks (one optional external-database case is
+- Expanded the local suite to 109 checks (one optional external-database case is
   skipped unless its disposable fixture is supplied); strict Swift 6 release
   compilation and full-history secret scanning pass.
 

@@ -99,10 +99,13 @@ disabling it removes the event tap. The dedicated safety shortcut only turns
 this mode off; it can never enable monitoring or open a permission prompt.
 
 The focused snippet editor shows every folder, empty folders and **Unfiled** in
-one compact sidebar. Snippets can be edited, moved, pinned and searched; folders
-can be created, renamed and removed. Removing a folder keeps its snippets in
-**Unfiled**. Pending edits are flushed before navigation or close, and a failed
-save remains visible instead of discarding the draft.
+one compact sidebar. It selects the top visible snippet on open; every snippet
+row is a full-width edit button with a pencil and opens clearly labelled fields
+on the right. Snippets can be edited, moved, pinned and searched; folders can be
+created, renamed and removed. Removing a folder keeps its snippets in
+**Unfiled**. Changes save automatically, pending edits are flushed before
+navigation or close, and a failed save remains visible instead of discarding
+the draft.
 
 ## Local data and privacy
 

@@ -67,6 +67,10 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("guard flushPendingSave() else { return }"))
         XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
         XCTAssertTrue(editor.contains("windowShouldClose"))
+        XCTAssertTrue(editor.contains("Нажмите сниппет, чтобы изменить его справа"))
+        XCTAssertTrue(editor.contains("Редактирование сниппета"))
+        XCTAssertTrue(editor.contains("Сохраняется автоматически"))
+        XCTAssertTrue(editor.contains("model.selectSnippet(snippet.id)"))
     }
 
     func testMenuPresentationIsWiredThroughEveryProductionPath() throws {

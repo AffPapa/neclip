@@ -405,6 +405,29 @@ final class StorageTests: XCTestCase {
     }
 
     @MainActor
+    func testSnippetEditorSelectsTheFirstAvailableSnippetOnReload() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let folder = try XCTUnwrap(storage.addFolder(title: "First folder"))
+        let folderID = try XCTUnwrap(folder.id)
+        let first = try XCTUnwrap(storage.addSnippet(
+            folderID: folderID,
+            title: "Ready to edit",
+            content: "Visible immediately",
+            keyword: "edit"
+        ))
+        _ = try storage.addSnippet(folderID: nil, title: "Second", content: "Later")
+        let model = SnippetsEditorModel(storage: storage)
+
+        model.reload()
+
+        XCTAssertEqual(model.selectedSnippetID, first.id)
+        XCTAssertEqual(model.editorTitle, "Ready to edit")
+        XCTAssertEqual(model.editorKeyword, ";edit")
+        XCTAssertEqual(model.editorContent, "Visible immediately")
+        XCTAssertEqual(model.saveState, .saved)
+    }
+
+    @MainActor
     func testSnippetEditorFlushesOldDraftBeforeSelectionChanges() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let first = try XCTUnwrap(storage.addSnippet(

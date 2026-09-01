@@ -105,8 +105,15 @@ final class SnippetsEditorModel: ObservableObject {
             if let id {
                 selectedSnippetID = id
                 loadEditor(id: id)
-            } else if reloadEditor, let selectedSnippetID {
-                loadEditor(id: selectedSnippetID)
+            } else if let selectedSnippetID,
+                      snippets.contains(where: { $0.id == selectedSnippetID }) {
+                if reloadEditor { loadEditor(id: selectedSnippetID) }
+            } else if pendingDraft == nil, let firstID = firstVisibleSnippetID() {
+                selectedSnippetID = firstID
+                loadEditor(id: firstID)
+            } else if pendingDraft == nil {
+                selectedSnippetID = nil
+                clearEditor()
             }
         } catch {
             folders = []
@@ -133,6 +140,20 @@ final class SnippetsEditorModel: ObservableObject {
                 if $0.sortIndex != $1.sortIndex { return $0.sortIndex < $1.sortIndex }
                 return ($0.id ?? 0) < ($1.id ?? 0)
             }
+    }
+
+    /// Matches the visual order of the sidebar instead of the storage query's
+    /// recency order, so the row highlighted on open is the row users see first.
+    private func firstVisibleSnippetID() -> Int64? {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return snippets.first?.id
+        }
+        for folder in folders {
+            if let folderID = folder.id, let id = snippets(in: folderID).first?.id {
+                return id
+            }
+        }
+        return snippets(in: nil).first?.id
     }
 
     func folderTitle(for folderID: Int64?) -> String {
@@ -399,6 +420,11 @@ private struct SnippetsEditorView: View {
             TextField("Поиск сниппетов", text: $model.query)
                 .textFieldStyle(.roundedBorder)
 
+            Text("Нажмите сниппет, чтобы изменить его справа")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             List(selection: Binding(
                 get: { model.selectedSnippetID },
                 set: { model.selectSnippet($0) }
@@ -537,34 +563,66 @@ private struct SnippetsEditorView: View {
     }
 
     private func snippetRow(_ snippet: Snippet, folderSubtitle: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 5) {
-                if snippet.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.tint)
+        Button {
+            model.selectSnippet(snippet.id)
+        } label: {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        if snippet.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.tint)
+                        }
+                        Text(snippet.title.isEmpty ? "Без названия" : snippet.title)
+                            .lineLimit(1)
+                    }
+                    HStack(spacing: 5) {
+                        if let keyword = snippet.keyword, !keyword.isEmpty {
+                            Text(keyword)
+                                .font(.caption.monospaced())
+                        }
+                        if let folderSubtitle {
+                            Text(folderSubtitle)
+                                .font(.caption)
+                        }
+                    }
+                    .foregroundStyle(.secondary)
                 }
-                Text(snippet.title.isEmpty ? "Без названия" : snippet.title)
-                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: model.selectedSnippetID == snippet.id ? "pencil.circle.fill" : "pencil")
+                    .foregroundStyle(model.selectedSnippetID == snippet.id ? Color.accentColor : Color.secondary)
+                    .accessibilityHidden(true)
             }
-            HStack(spacing: 5) {
-                if let keyword = snippet.keyword, !keyword.isEmpty {
-                    Text(keyword)
-                        .font(.caption.monospaced())
-                }
-                if let folderSubtitle {
-                    Text(folderSubtitle)
-                        .font(.caption)
-                }
-            }
-            .foregroundStyle(.secondary)
+            .contentShape(Rectangle())
+            .padding(.vertical, 2)
         }
+        .buttonStyle(.plain)
+        .help("Редактировать сниппет справа")
+        .accessibilityLabel("Редактировать сниппет \(snippet.title.isEmpty ? "Без названия" : snippet.title)")
+        .accessibilityHint("Открывает название, папку, ключ и текст справа")
+        .listRowBackground(
+            model.selectedSnippetID == snippet.id
+                ? Color.accentColor.opacity(0.14)
+                : Color.clear
+        )
     }
 
     @ViewBuilder
     private var editor: some View {
         if model.selectedSnippetID != nil {
             VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label("Редактирование сниппета", systemImage: "pencil")
+                        .font(.headline)
+                    Spacer()
+                    Text("Сохраняется автоматически")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
                 LabeledContent("Название") {
                     TextField("Название сниппета", text: $model.editorTitle)
                         .textFieldStyle(.roundedBorder)
@@ -617,9 +675,9 @@ private struct SnippetsEditorView: View {
             .padding(14)
         } else {
             ContentUnavailableView {
-                Label("Выберите или создайте сниппет", systemImage: "scissors")
+                Label("Сниппетов пока нет", systemImage: "scissors")
             } description: {
-                Text("Папки и сниппеты находятся слева.")
+                Text("Создайте первый сниппет — поля редактирования сразу появятся здесь.")
             } actions: {
                 Button("Создать сниппет без папки") { model.createSnippet(in: nil) }
                 Button("Создать папку", action: model.requestNewFolder)

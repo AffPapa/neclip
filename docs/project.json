@@ -30,7 +30,7 @@
   "features": [
     "clipboard history for text, images and files",
     "local search, pins, individual delete with undo and OCR",
-    "editable snippet folders, starter snippets and local placeholders",
+    "discoverable editable snippet folders, starter snippets and local placeholders",
     "manual EN/RU layout correction with a configurable shortcut",
     "optional conservative automatic EN/RU correction",
     "off-only automatic-correction safety shortcut",

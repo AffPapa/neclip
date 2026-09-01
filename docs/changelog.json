@@ -7,8 +7,9 @@
         "Sequential paste directly from recent history without collection mode",
         "Configurable conflict-safe primary and layout shortcuts",
         "General, Keys, Privacy, Layout and Data Settings sections",
+        "Immediately discoverable snippet editing with automatic selection and full-row edit actions",
         "Bounded browsing for 100 recent and 100 pinned entries",
-        "108 local checks with one opt-in external-database case"
+        "109 local checks with one opt-in external-database case"
       ]
     },
     {

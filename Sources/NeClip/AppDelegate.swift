@@ -70,7 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // an explicit user action.
 #if DEBUG
         let qaEnvironment = ProcessInfo.processInfo.environment
-        if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1" || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil {
+        if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1"
+            || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil
+            || qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             // QA builds temporarily behave like a regular app so automated
             // accessibility inspection can address the panel by bundle ID.
             NSApp.setActivationPolicy(.regular)
@@ -80,7 +82,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             monitor.start()
         }
-        if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" {
+        if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
+            DispatchQueue.main.async {
+                SnippetsEditorWindowController.shared.show()
+            }
+        } else if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" {
             DispatchQueue.main.async {
                 PreferencesWindowController.shared.show()
             }

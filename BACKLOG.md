@@ -50,6 +50,8 @@ not planned.
 - Direct recent-history sequential paste without a collection mode
 - Configurable, conflict-safe history, snippet and sequential-paste shortcuts
 - Five concise Settings sections instead of one long form
+- Immediately discoverable snippet editing with automatic initial selection,
+  full-row edit actions and explicit autosave status
 - Bounded browsing for 100 recent and 100 pinned values, with full search for
   older local history
 - Simpler search/action labels and removal of obsolete paste compatibility code
