@@ -10,8 +10,19 @@ DMG checksum verification have passed.
   application, date window and pin state, plus a bounded fuzzy fallback.
 - Added a focused full-item inspector with transactional text editing,
   renaming, safe HTTP(S)/file opening and direct OCR-text paste.
-- Added a memory-only sequential paste queue: collect future copies, add an
-  existing item, reset/clear progress and paste the next value with `⌃⌘V`.
+- Added memory-only sequential paste, then simplified it after product review:
+  `⌃⌘V` now walks a stable snapshot of recent history without start/stop
+  collection, resets after 30 seconds or a new copy, and stores identifiers only.
+- Made the history, snippets and sequential-paste shortcuts locally
+  configurable. All five NeClip shortcuts share conflict validation;
+  registration failure preserves the previous working shortcut.
+- Reorganized Settings into General, Keys, Privacy, Layout and Data sections.
+- Expanded bounded menu browsing from 40 to 100 ordinary and pinned entries,
+  while keeping older values searchable without constructing 1,000 menu rows.
+- Simplified search wording and renamed first-result actions to explicitly say
+  they operate on the top visible item.
+- Removed obsolete paste compatibility wrappers left behind by the deleted
+  legacy history panel.
 - Added age retention for ordinary history, independent image capture,
   local sensitive-phrase exclusions and a default plain-text paste preference.
 - Added a nested, offline transform menu for whitespace, case, lines, URL and
@@ -20,7 +31,7 @@ DMG checksum verification have passed.
   import. History and usage metadata are never exported.
 - Documented the 100-function competitor catalogue and the scored top-20
   selection in `docs/FEATURE-RESEARCH-2026-08-31.md`.
-- Expanded the local suite to 100 tests (one optional external-database case is
+- Expanded the local suite to 108 checks (one optional external-database case is
   skipped unless its disposable fixture is supplied); strict Swift 6 release
   compilation and full-history secret scanning pass.
 

@@ -363,7 +363,7 @@ final class ClipboardMonitor: @unchecked Sendable {
         do {
             let clipID = try Storage.shared.insert(item)
             if let clipID {
-                SequentialPasteQueue.shared.appendAcceptedClip(id: clipID)
+                SequentialPasteSequence.shared.noteExternalCapture()
                 OCRService.recognize(imageData: png, clipID: clipID)
             }
         } catch {
@@ -373,8 +373,8 @@ final class ClipboardMonitor: @unchecked Sendable {
 
     private func insert(_ item: ClipItem) {
         do {
-            if let clipID = try Storage.shared.insert(item) {
-                SequentialPasteQueue.shared.appendAcceptedClip(id: clipID)
+            if try Storage.shared.insert(item) != nil {
+                SequentialPasteSequence.shared.noteExternalCapture()
             }
         } catch {
             captureFailed(error)

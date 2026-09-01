@@ -45,10 +45,21 @@ not planned.
 - Draft-safe autosave that flushes before navigation and window close and keeps
   failed edits available for retry
 
+## Done in current unreleased source
+
+- Direct recent-history sequential paste without a collection mode
+- Configurable, conflict-safe history, snippet and sequential-paste shortcuts
+- Five concise Settings sections instead of one long form
+- Bounded browsing for 100 recent and 100 pinned values, with full search for
+  older local history
+- Simpler search/action labels and removal of obsolete paste compatibility code
+
 ## Next
 
 - Verify first-run pasteboard wording across currently supported macOS releases
 - Expand local layout pairs only when system-layout tests can keep false fixes low
+- Measure menu-open latency with real 1,000-item and 250 MB databases before
+  changing the current 100-item browse window
 - Consider manual drag ordering only if folder counts grow beyond the current
   compact section model
 

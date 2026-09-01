@@ -30,7 +30,7 @@ final class ApplicationModeContractTests: XCTestCase {
         )
         XCTAssertTrue(statusBar.contains("NSStatusBar.system.statusItem"))
         XCTAssertTrue(statusBar.contains("statusItem.isVisible = true"))
-        XCTAssertTrue(statusBar.contains("Действия с первым результатом"))
+        XCTAssertTrue(statusBar.contains("Действия с верхним элементом"))
         XCTAssertTrue(statusBar.contains("#selector(toggleFirstResultPin)"))
         XCTAssertTrue(statusBar.contains("#selector(saveFirstResultAsSnippet)"))
         XCTAssertTrue(statusBar.contains("#selector(deleteFirstResult)"))
@@ -51,7 +51,7 @@ final class ApplicationModeContractTests: XCTestCase {
             encoding: .utf8
         )
         let coordinator = try String(
-            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/LayoutHotKeyCoordinator.swift"),
+            contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/HotKeyCoordinator.swift"),
             encoding: .utf8
         )
         let editor = try String(
@@ -62,8 +62,8 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(settings.contains("MenuTitleFormatter.normalizedLimit"))
         XCTAssertTrue(settings.contains("manualLayoutShortcut.v1"))
         XCTAssertTrue(settings.contains("disableAutomaticLayoutShortcut.v1"))
-        XCTAssertTrue(coordinator.contains("manualRegistration = replacement"))
-        XCTAssertTrue(coordinator.contains("disableRegistration = replacement"))
+        XCTAssertTrue(coordinator.contains("registrations[action] = replacement"))
+        XCTAssertTrue(coordinator.contains("func resetToDefaults()"))
         XCTAssertTrue(editor.contains("guard flushPendingSave() else { return }"))
         XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
         XCTAssertTrue(editor.contains("windowShouldClose"))

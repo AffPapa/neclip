@@ -43,12 +43,6 @@ enum PasteService {
         }
     }
 
-    /// Capture this before presenting an activating window. A non-activating
-    /// panel may also call it immediately before selection.
-    static func captureTargetPID() -> pid_t? {
-        NSWorkspace.shared.frontmostApplication?.processIdentifier
-    }
-
     /// Pure policy used by both production paste and unit tests.
     nonisolated static func decision(
         copyOnly: Bool,
@@ -89,16 +83,6 @@ enum PasteService {
             return
         }
         completePaste(copyOnly: copyOnly, targetPID: targetPID, completion: completion)
-    }
-
-    // Compatibility for the legacy NSMenu while the keyboard panel migrates
-    // to the explicit target-PID API above.
-    static func paste(_ item: ClipItem, plainText: Bool) {
-        paste(item, plainText: plainText, targetPID: captureTargetPID())
-    }
-
-    static func paste(snippet: Snippet) {
-        paste(snippet: snippet, targetPID: captureTargetPID())
     }
 
     /// Replaces an already selected range for an explicit user command, then

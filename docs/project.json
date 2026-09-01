@@ -34,12 +34,16 @@
     "manual EN/RU layout correction with a configurable shortcut",
     "optional conservative automatic EN/RU correction",
     "off-only automatic-correction safety shortcut",
+    "direct recent-history sequential paste",
+    "five configurable conflict-safe global shortcuts",
+    "sectioned local settings",
     "configurable grapheme-safe menu label length",
     "bounded local storage and privacy exclusions"
   ],
   "shortcuts": [
-    {"action": "open-history", "keys": "Command-Shift-V"},
-    {"action": "open-snippets", "keys": "Command-Shift-B"},
+    {"action": "open-history", "keys": "Command-Shift-V", "customizable": true},
+    {"action": "open-snippets", "keys": "Command-Shift-B", "customizable": true},
+    {"action": "sequential-paste", "keys": "Control-Command-V", "customizable": true},
     {"action": "correct-layout", "keys": "Option-Shift-L", "customizable": true},
     {"action": "disable-automatic-layout-correction", "keys": "Control-Option-A", "customizable": true, "offOnly": true},
     {"action": "pin-first-result", "keys": "Command-P"},

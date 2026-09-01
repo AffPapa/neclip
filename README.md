@@ -25,8 +25,8 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 
 ## Keyboard workflow
 
-- `Command-Shift-V` — open the native history menu at the pointer
-- `Command-Shift-B` — open snippet folders directly
+- `Command-Shift-V` — open the native history menu at the pointer (customizable)
+- `Command-Shift-B` — open snippet folders directly (customizable)
 - type immediately — search inside the menu (digits and punctuation work)
 - `Up` / `Down` — leave search; continue with arrows through native menu items
 - `Return` — use the first visible result, or copy when Accessibility is unavailable
@@ -35,7 +35,7 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Control-Return` — correct EN/RU layout and paste a text history item
 - `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo (customizable)
 - `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
-- `Control-Command-V` — paste the next value from the memory-only queue
+- `Control-Command-V` — paste the next recent value in sequence (customizable)
 - `Command-1` … `Command-9` — select a visible result
 - `Command-P` — pin or unpin the first visible result
 - `Command-S` — save the first visible text result as a snippet
@@ -43,17 +43,20 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Command-Z` — restore the last individually deleted item
 - `Escape` — clear search, then close
 
-The first ten recent items are inline; items 11–40 are grouped by tens. Up to
-20 pinned items have their own submenu. The snippet hotkey shows nine quick
+The first ten recent items are inline; up to 100 are browsable in one compact
+**More from History** hierarchy, grouped by tens. Up to 100 pinned items use the
+same bounded hierarchy; older values remain available through database search.
+The snippet hotkey shows nine quick
 items first and then the full folder hierarchy. The history menu also contains
-an explicit **Actions for First Result** submenu, pause, ignore-next-copy,
+an explicit **Actions for Top Item** submenu, pause, ignore-next-copy,
 clear, preferences, snippet
 editing, the manual update check, and quit.
 
 If macOS or another application already owns a NeClip global shortcut, the menu
 explains which combination is unavailable and keeps the equivalent command
-accessible from the menu bar. The two layout shortcuts can be recorded locally
-in Settings; a conflicting candidate never replaces the previous working one.
+accessible from the menu bar. All five global shortcuts can be recorded locally
+in the **Keys** Settings tab; a conflicting candidate never replaces the
+previous working one.
 
 Menu labels use one system appearance whether opened from the status item or a
 global shortcut. Long text is collapsed to one line and shortened after a
@@ -66,10 +69,16 @@ Search accepts ordinary text together with compact local filters:
 result, NeClip performs a bounded typo-tolerant pass over lightweight recent
 summaries, never image or RTF payloads.
 
-The first-result action submenu keeps advanced workflows out of the main menu:
-preview/edit/rename, safe URL or file opening, OCR-text paste, local text
-transforms and adding an item to the sequential queue. Queue collection is
-explicit and is discarded when NeClip exits.
+The top-item action submenu keeps advanced workflows out of the main menu:
+preview/edit/rename, safe URL or file opening, OCR-text paste and local text
+transforms. Sequential paste needs no collection mode: the first invocation
+captures a stable list of the 50 latest database identifiers, each successful
+invocation advances once, and the sequence resets after 30 seconds or a new
+external copy. Clipboard content is not duplicated.
+
+Settings are split into five compact sections: **General**, **Keys**, **Privacy**,
+**Layout**, and **Data**. Permission recovery, capture exclusions, and local
+data controls no longer compete with everyday history options in one long form.
 
 ## Keyboard layout correction
 

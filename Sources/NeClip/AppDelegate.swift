@@ -4,11 +4,7 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController!
     private let monitor = ClipboardMonitor()
-    private var mainHotKey: GlobalHotKey?
-    private var snippetsHotKey: GlobalHotKey?
-    private var sequentialPasteHotKey: GlobalHotKey?
-    private var fixedHotKeyWarnings: [String] = []
-    private var layoutHotKeyWarnings: [String] = []
+    private var hotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
     private let automaticLayoutCorrection = AutoLayoutController()
 
@@ -18,53 +14,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? Storage.shared.installStarterSnippetsIfNeeded(force: false)
         }
 
-        // Native global shortcuts keep the app dependency-light. Handlers are
-        // delivered by the application event target on the main run loop.
-        mainHotKey = try? GlobalHotKey(
-            shortcut: .historyReserved,
-            identifier: 1
-        ) { [weak self] in
-            MainActor.assumeIsolated { self?.statusBar.showHistory() }
-        }
-
-        snippetsHotKey = try? GlobalHotKey(
-            shortcut: .snippetsReserved,
-            identifier: 2
-        ) { [weak self] in
-            MainActor.assumeIsolated { self?.statusBar.showSnippets() }
-        }
-
-        sequentialPasteHotKey = try? GlobalHotKey(
-            shortcut: .sequentialPasteReserved,
-            identifier: 3
-        ) { [weak self] in
-            MainActor.assumeIsolated { self?.statusBar.pasteNextInQueue() }
-        }
-
-        var hotKeyWarnings: [String] = []
-        if mainHotKey == nil {
-            hotKeyWarnings.append("⌘⇧V занята — история доступна через значок NeClip")
-        }
-        if snippetsHotKey == nil {
-            hotKeyWarnings.append("⌘⇧B занята — сниппеты доступны в меню NeClip")
-        }
-        if sequentialPasteHotKey == nil {
-            hotKeyWarnings.append("⌃⌘V занята — очередь вставки доступна в меню NeClip")
-        }
-        fixedHotKeyWarnings = hotKeyWarnings
-
-        LayoutHotKeyCoordinator.shared.onWarningsChanged = { [weak self] warnings in
-            self?.layoutHotKeyWarnings = warnings
+        HotKeyCoordinator.shared.onWarningsChanged = { [weak self] warnings in
+            self?.hotKeyWarnings = warnings
             self?.refreshHotKeyWarnings()
         }
-        LayoutHotKeyCoordinator.shared.onManualShortcutChanged = { [weak self] shortcut in
-            self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
+        HotKeyCoordinator.shared.onShortcutChanged = { [weak self] action, shortcut in
+            self?.statusBar.refreshShortcutPresentation()
+            if action == .manualCorrection {
+                self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
+            }
         }
-        LayoutHotKeyCoordinator.shared.start(
-            manualAction: { [weak self] in
+        HotKeyCoordinator.shared.start(
+            historyAction: { [weak self] in
+                MainActor.assumeIsolated { self?.statusBar.showHistory() }
+            },
+            snippetsAction: { [weak self] in
+                MainActor.assumeIsolated { self?.statusBar.showSnippets() }
+            },
+            sequentialPasteAction: { [weak self] in
+                MainActor.assumeIsolated { self?.statusBar.pasteNextSequentially() }
+            },
+            manualCorrectionAction: { [weak self] in
                 MainActor.assumeIsolated { self?.correctLayoutOrUndo() }
             },
-            disableAction: { [weak self] in
+            disableAutomaticCorrectionAction: { [weak self] in
                 MainActor.assumeIsolated { self?.disableAutomaticLayoutCorrection() }
             }
         )
@@ -158,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshHotKeyWarnings() {
-        statusBar.setHotKeyWarnings(fixedHotKeyWarnings + layoutHotKeyWarnings)
+        statusBar.setHotKeyWarnings(hotKeyWarnings)
     }
 
     private func disableAutomaticLayoutCorrection() {
@@ -185,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let message: String
             switch result {
             case .corrected:
-                message = "Раскладка исправлена · \(LayoutHotKeyCoordinator.shared.manualShortcut.displayString) — отменить"
+                message = "Раскладка исправлена · \(HotKeyCoordinator.shared.shortcut(for: .manualCorrection).displayString) — отменить"
             case .undone:
                 message = "Исправление отменено"
             case .nothingToCorrect:

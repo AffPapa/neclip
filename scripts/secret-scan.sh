@@ -21,6 +21,10 @@ trap cleanup EXIT
 # SwiftPM build checkouts from creating noise while still catching a secret
 # before its first commit.
 while IFS= read -r -d '' source_path; do
+  # `git ls-files -c` also reports tracked paths deleted in the working tree.
+  # Their committed contents are covered by the history scan below; skipping
+  # missing paths keeps pre-commit scans valid during refactors and renames.
+  [[ -e "$source_path" || -L "$source_path" ]] || continue
   target_path="$SCAN_DIR/$source_path"
   mkdir -p "$(dirname "$target_path")"
   cp -P "$source_path" "$target_path"

@@ -16,9 +16,17 @@
     "Configurable manual-correction and off-only safety shortcuts",
     "Visible snippet folders, folder CRUD, moves and draft-safe editing"
   ],
+  "inDevelopment": [
+    "Direct recent-history sequential paste without collection mode",
+    "Configurable conflict-safe history, snippet and sequential-paste shortcuts",
+    "Five concise Settings sections",
+    "Bounded browsing for 100 recent and 100 pinned values",
+    "Simpler search and top-item action wording"
+  ],
   "next": [
     "Verify first-run permission wording across supported macOS releases",
     "Expand local layout pairs only with low-false-positive system tests",
+    "Measure menu-open latency with realistic maximum-size local databases",
     "Consider lightweight snippet-folder drag ordering only if section counts grow"
   ],
   "notPlanned": [

@@ -553,6 +553,18 @@ final class Storage: @unchecked Sendable {
         }
     }
 
+    /// Physical recency order for sequential paste. Pins affect menu grouping,
+    /// not the order in which the user originally copied values.
+    func recentClipIDs(limit: Int = 50) throws -> [Int64] {
+        try dbQueue.read { db in
+            try Int64.fetchAll(
+                db,
+                sql: "SELECT id FROM clip ORDER BY createdAt DESC, id DESC LIMIT ?",
+                arguments: [max(1, min(limit, 200))]
+            )
+        }
+    }
+
     private func fetchSearchSummaries(
         query: ClipboardSearchQuery,
         includeTerms: Bool,

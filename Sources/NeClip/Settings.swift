@@ -9,7 +9,7 @@ enum CapturePauseState: Equatable {
 extension Notification.Name {
     static let neClipCaptureControlsDidChange = Notification.Name("org.affpapa.neclip.captureControlsDidChange")
     static let neClipLayoutSettingsDidChange = Notification.Name("org.affpapa.neclip.layoutSettingsDidChange")
-    static let neClipLayoutHotKeysDidChange = Notification.Name("org.affpapa.neclip.layoutHotKeysDidChange")
+    static let neClipHotKeysDidChange = Notification.Name("org.affpapa.neclip.hotKeysDidChange")
     static let neClipManualLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.manualLayoutCorrectionRequested")
     static let neClipDisableAutomaticLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.disableAutomaticLayoutCorrectionRequested")
 }
@@ -33,13 +33,19 @@ enum Settings {
         static let ignoreNextCopy = "ignoreNextCopy"
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
         static let layoutExcludedApps = "layoutExcludedApps"
+        static let historyShortcut = "historyShortcut.v1"
+        static let snippetsShortcut = "snippetsShortcut.v1"
+        static let sequentialPasteShortcut = "sequentialPasteShortcut.v1"
         static let manualLayoutShortcut = "manualLayoutShortcut.v1"
         static let disableAutomaticLayoutShortcut = "disableAutomaticLayoutShortcut.v1"
     }
 
     static var historyLimit: Int {
-        get { d.object(forKey: Key.historyLimit) as? Int ?? 100 }
-        set { d.set(newValue, forKey: Key.historyLimit) }
+        get {
+            let stored = d.object(forKey: Key.historyLimit) as? Int ?? 100
+            return min(1_000, max(10, stored))
+        }
+        set { d.set(min(1_000, max(10, newValue)), forKey: Key.historyLimit) }
     }
 
     static var excludedApps: [String] {
@@ -85,12 +91,36 @@ enum Settings {
         set { d.set(MenuTitleFormatter.normalizedLimit(newValue), forKey: Key.menuTitleLength) }
     }
 
+    static var historyShortcut: ShortcutDescriptor {
+        decodedShortcut(forKey: Key.historyShortcut, fallback: .historyDefault)
+    }
+
+    static var snippetsShortcut: ShortcutDescriptor {
+        decodedShortcut(forKey: Key.snippetsShortcut, fallback: .snippetsDefault)
+    }
+
+    static var sequentialPasteShortcut: ShortcutDescriptor {
+        decodedShortcut(forKey: Key.sequentialPasteShortcut, fallback: .sequentialPasteDefault)
+    }
+
     static var manualLayoutShortcut: ShortcutDescriptor {
         decodedShortcut(forKey: Key.manualLayoutShortcut, fallback: .defaultManualLayout)
     }
 
     static var disableAutomaticLayoutShortcut: ShortcutDescriptor {
         decodedShortcut(forKey: Key.disableAutomaticLayoutShortcut, fallback: .defaultDisableAutomaticLayout)
+    }
+
+    static func storeHistoryShortcut(_ shortcut: ShortcutDescriptor) {
+        storeShortcut(shortcut, forKey: Key.historyShortcut)
+    }
+
+    static func storeSnippetsShortcut(_ shortcut: ShortcutDescriptor) {
+        storeShortcut(shortcut, forKey: Key.snippetsShortcut)
+    }
+
+    static func storeSequentialPasteShortcut(_ shortcut: ShortcutDescriptor) {
+        storeShortcut(shortcut, forKey: Key.sequentialPasteShortcut)
     }
 
     static func storeManualLayoutShortcut(_ shortcut: ShortcutDescriptor) {
@@ -241,7 +271,7 @@ enum Settings {
               let data = try? JSONEncoder().encode(shortcut) else { return }
         d.set(data, forKey: key)
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .neClipLayoutHotKeysDidChange, object: nil)
+            NotificationCenter.default.post(name: .neClipHotKeysDidChange, object: nil)
         }
     }
 

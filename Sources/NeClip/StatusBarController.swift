@@ -24,11 +24,19 @@ final class StatusBarController: NSObject {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
         let snippets: [Snippet]
+        let hasMorePinned: Bool
+        let hasMoreHistory: Bool
     }
 
     private let statusItem: NSStatusItem
     private let dataQueue = DispatchQueue(label: "org.affpapa.neclip.menu-data", qos: .userInitiated)
-    private var snapshot = MenuSnapshot(clips: [], folders: [], snippets: [])
+    private var snapshot = MenuSnapshot(
+        clips: [],
+        folders: [],
+        snippets: [],
+        hasMorePinned: false,
+        hasMoreHistory: false
+    )
     private var snapshotIsReady = false
     private var refreshGeneration = 0
     private var pendingPresentation: (kind: MenuKind, anchoredToStatusItem: Bool)?
@@ -53,7 +61,7 @@ final class StatusBarController: NSObject {
             button.target = self
             button.action = #selector(statusItemPressed(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.toolTip = "NeClip — ⌘⇧V"
+            button.toolTip = "NeClip — \(Settings.historyShortcut.displayString)"
         }
         NotificationCenter.default.addObserver(
             self,
@@ -79,12 +87,6 @@ final class StatusBarController: NSObject {
             name: .neClipStorageDidChange,
             object: nil
         )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(sequentialQueueDidChange),
-            name: .neClipSequentialQueueDidChange,
-            object: nil
-        )
         refreshIcon()
         statusItem.isVisible = true
         refreshSnapshot()
@@ -94,17 +96,21 @@ final class StatusBarController: NSObject {
         NotificationCenter.default.removeObserver(self)
     }
 
-    /// Global ⌘⇧V: show the native menu at the pointer, like ClipMenu/Clipy.
+    /// The history shortcut shows the native menu at the pointer, like ClipMenu/Clipy.
     func showHistory() {
         show(.history, anchoredToStatusItem: false)
     }
 
-    /// Global ⌘⇧B: open the snippet folders directly.
+    /// The snippets shortcut opens the snippet folders directly.
     func showSnippets() {
         show(.snippets, anchoredToStatusItem: false)
     }
 
     func refreshAuthorizationState() {
+        refreshIcon()
+    }
+
+    func refreshShortcutPresentation() {
         refreshIcon()
     }
 
@@ -177,19 +183,25 @@ final class StatusBarController: NSObject {
         dataQueue.async { [weak self] in
             do {
                 let pinned = try Storage.shared.summaries(
-                    limit: 20,
+                    limit: 101,
                     search: nil,
                     pinnedOnly: true
                 )
                 let recent = try Storage.shared.summaries(
-                    limit: 40,
+                    limit: 101,
                     search: nil,
                     pinnedOnly: false,
                     unpinnedOnly: true
                 )
                 let folders = try Storage.shared.snippetFolders()
                 let snippets = try Storage.shared.allSnippets(search: nil, pinnedOnly: false)
-                let loaded = MenuSnapshot(clips: pinned + recent, folders: folders, snippets: snippets)
+                let loaded = MenuSnapshot(
+                    clips: Array(pinned.prefix(100)) + Array(recent.prefix(100)),
+                    folders: folders,
+                    snippets: snippets,
+                    hasMorePinned: pinned.count > 100,
+                    hasMoreHistory: recent.count > 100
+                )
                 DispatchQueue.main.async {
                     guard let self, generation == self.refreshGeneration else { return }
                     self.snapshot = loaded
@@ -227,7 +239,7 @@ final class StatusBarController: NSObject {
 
     private func buildHistoryMenu() -> NSMenu {
         let menu = makeMenu(title: "NeClip")
-        menu.addItem(makeSearchItem(placeholder: "Поиск · type:link · app:safari…"))
+        menu.addItem(makeSearchItem(placeholder: "Поиск по истории…"))
         menu.addItem(.separator())
         appendHistoryContents(to: menu)
         return menu
@@ -283,12 +295,37 @@ final class StatusBarController: NSObject {
             menu.addItem(.separator())
         }
 
-        let pinned = Array(snapshot.clips.filter(\.isPinned).prefix(20))
+        let pinned = Array(snapshot.clips.filter(\.isPinned).prefix(100))
         if !pinned.isEmpty {
             let pinnedItem = item("Закреплённые", nil, symbol: "pin.fill")
             let pinnedMenu = makeMenu(title: "Закреплённые")
-            for (index, clip) in pinned.enumerated() {
+            for (index, clip) in pinned.prefix(10).enumerated() {
                 pinnedMenu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: nil, showNumber: false))
+            }
+            if pinned.count > 10 {
+                for start in stride(from: 10, to: pinned.count, by: 10) {
+                    let end = min(start + 10, pinned.count)
+                    let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
+                    let submenu = makeMenu(title: "Закреплённые \(start + 1)–\(end)")
+                    for index in start..<end {
+                        submenu.addItem(clipMenuItem(
+                            pinned[index],
+                            absoluteIndex: index,
+                            quickKey: nil,
+                            showNumber: false
+                        ))
+                    }
+                    rangeItem.submenu = submenu
+                    pinnedMenu.addItem(rangeItem)
+                }
+            }
+            if snapshot.hasMorePinned {
+                pinnedMenu.addItem(.separator())
+                pinnedMenu.addItem(NSMenuItem(
+                    title: "Остальные — через поиск is:pinned",
+                    action: nil,
+                    keyEquivalent: ""
+                ))
             }
             pinnedItem.submenu = pinnedMenu
             menu.addItem(pinnedItem)
@@ -296,7 +333,7 @@ final class StatusBarController: NSObject {
         }
 
         menu.addItem(.sectionHeader(title: "История"))
-        let history = Array(snapshot.clips.filter { !$0.isPinned }.prefix(40))
+        let history = Array(snapshot.clips.filter { !$0.isPinned }.prefix(100))
         let firstPage = Array(history.prefix(10))
         visibleKeyboardEntries = firstPage.map(SearchEntry.clip)
         if firstPage.isEmpty {
@@ -310,6 +347,8 @@ final class StatusBarController: NSObject {
         }
 
         if history.count > 10 {
+            let moreItem = item("Ещё из истории", nil, symbol: "clock.arrow.circlepath")
+            let moreMenu = makeMenu(title: "Ещё из истории")
             for start in stride(from: 10, to: history.count, by: 10) {
                 let end = min(start + 10, history.count)
                 let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
@@ -318,8 +357,17 @@ final class StatusBarController: NSObject {
                     submenu.addItem(clipMenuItem(history[index], absoluteIndex: index, quickKey: nil, showNumber: true))
                 }
                 rangeItem.submenu = submenu
-                menu.addItem(rangeItem)
+                moreMenu.addItem(rangeItem)
             }
+            moreItem.submenu = moreMenu
+            menu.addItem(moreItem)
+        }
+        if snapshot.hasMoreHistory {
+            menu.addItem(NSMenuItem(
+                title: "Более старые элементы — через поиск выше",
+                action: nil,
+                keyEquivalent: ""
+            ))
         }
         if !firstPage.isEmpty || undoDeletion != nil {
             menu.addItem(firstResultActionsItem())
@@ -330,7 +378,7 @@ final class StatusBarController: NSObject {
         snippetsItem.submenu = buildSnippetsMenu(asRoot: false)
         menu.addItem(snippetsItem)
 
-        menu.addItem(sequentialPasteMenuItem())
+        appendSequentialPasteControls(to: menu)
         menu.addItem(layoutMenuItem())
 
         menu.addItem(.separator())
@@ -565,7 +613,7 @@ final class StatusBarController: NSObject {
         }
         menu.addItem(.separator())
         if kind == .history {
-            menu.addItem(sequentialPasteMenuItem())
+            appendSequentialPasteControls(to: menu)
             menu.addItem(layoutMenuItem())
             menu.addItem(.separator())
             addCaptureControls(to: menu)
@@ -627,8 +675,8 @@ final class StatusBarController: NSObject {
     private func firstResultActionsItem() -> NSMenuItem {
         let hasEntry = visibleKeyboardEntries.first != nil
         let rootTitle = hasEntry
-            ? "Действия с первым результатом"
-            : (undoDeletion == nil ? "Действия с первым результатом" : "Вернуть удалённое")
+            ? "Действия с верхним элементом"
+            : (undoDeletion == nil ? "Действия с верхним элементом" : "Вернуть удалённое")
         let root = item(rootTitle, nil, symbol: hasEntry ? "ellipsis.circle" : "arrow.uturn.backward")
         root.toolTip = hasEntry
             ? "Команды применяются к первому видимому элементу списка"
@@ -662,11 +710,6 @@ final class StatusBarController: NSObject {
                         symbol: "text.viewfinder"
                     ))
                 }
-                submenu.addItem(item(
-                    "Добавить в очередь вставки",
-                    #selector(addFirstResultToSequentialQueue),
-                    symbol: "rectangle.stack.badge.plus"
-                ))
                 submenu.addItem(.separator())
             case .snippet(let snippet):
                 isPinned = snippet.isPinned
@@ -777,12 +820,6 @@ final class StatusBarController: NSObject {
         }
     }
 
-    @objc private func addFirstResultToSequentialQueue() {
-        guard case .clip(let clip) = visibleKeyboardEntries.first else { return }
-        let inserted = SequentialPasteQueue.shared.appendManual(id: clip.id)
-        showFeedback(inserted ? "Добавлено в очередь" : "Очередь заполнена")
-    }
-
     private func textTransformMenuItem() -> NSMenuItem {
         let root = item("Преобразовать и вставить", nil, symbol: "textformat")
         let submenu = makeMenu(title: "Преобразовать и вставить")
@@ -826,97 +863,74 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func sequentialPasteMenuItem() -> NSMenuItem {
-        let queue = SequentialPasteQueue.shared.snapshot
-        let title = queue.remaining > 0
-            ? "Очередь вставки · осталось (queue.remaining)"
-            : "Очередь вставки"
-        let root = item(title, nil, symbol: queue.isCollecting ? "rectangle.stack.badge.plus" : "rectangle.stack")
-        let submenu = makeMenu(title: "Очередь вставки")
-
-        if queue.isCollecting {
-            let status = NSMenuItem(title: "Копирования добавляются автоматически", action: nil, keyEquivalent: "")
-            status.state = .on
-            submenu.addItem(status)
-            submenu.addItem(item("Закончить сбор", #selector(stopSequentialCollection), symbol: "stop.fill"))
-        } else {
-            submenu.addItem(item("Начать новый сбор", #selector(startSequentialCollection), symbol: "record.circle"))
-        }
-        submenu.addItem(.separator())
-        submenu.addItem(item(
-            "Вставить следующий",
-            #selector(pasteNextInQueueFromMenu),
+    private func appendSequentialPasteControls(to menu: NSMenu) {
+        let sequence = SequentialPasteSequence.shared.snapshot()
+        let title = sequence.isActive
+            ? "Вставить следующее · \(sequence.position + 1) из \(sequence.total)"
+            : "Последовательная вставка"
+        menu.addItem(item(
+            title,
+            #selector(pasteNextSequentiallyFromMenu),
             symbol: "arrow.right.to.line",
-            keyEquivalent: ShortcutDescriptor.sequentialPasteReserved.keyEquivalent ?? "",
-            modifiers: ShortcutDescriptor.sequentialPasteReserved.nsEventModifiers
+            keyEquivalent: HotKeyCoordinator.shared.shortcut(for: .sequentialPaste).keyEquivalent ?? "",
+            modifiers: HotKeyCoordinator.shared.shortcut(for: .sequentialPaste).nsEventModifiers
         ))
-        submenu.items.last?.isEnabled = queue.remaining > 0
-        submenu.addItem(item("Начать очередь сначала", #selector(resetSequentialQueue), symbol: "backward.end"))
-        submenu.items.last?.isEnabled = queue.total > 0 && queue.position > 0
-        submenu.addItem(item("Очистить очередь", #selector(clearSequentialQueue), symbol: "trash"))
-        submenu.items.last?.isEnabled = queue.total > 0
-        let privacy = NSMenuItem(title: "Очередь хранится только до выхода", action: nil, keyEquivalent: "")
-        privacy.image = symbol("lock", description: nil)
-        submenu.addItem(.separator())
-        submenu.addItem(privacy)
-        root.submenu = submenu
-        return root
-    }
-
-    @objc private func startSequentialCollection() {
-        SequentialPasteQueue.shared.startCollecting(clearExisting: true)
-        showFeedback("Сбор очереди начат")
-    }
-
-    @objc private func stopSequentialCollection() {
-        SequentialPasteQueue.shared.stopCollecting()
-        showFeedback("Сбор очереди закончен")
-    }
-
-    @objc private func pasteNextInQueueFromMenu() {
-        activeMenu?.cancelTracking()
-        pasteNextInQueue()
-    }
-
-    @objc private func resetSequentialQueue() {
-        SequentialPasteQueue.shared.reset()
-        showFeedback("Очередь начата сначала")
-    }
-
-    @objc private func clearSequentialQueue() {
-        SequentialPasteQueue.shared.clear()
-        showFeedback("Очередь очищена")
-    }
-
-    /// Global ⌃⌘V and the menu command share one deterministic queue runner.
-    func pasteNextInQueue() {
-        guard let id = SequentialPasteQueue.shared.beginNext() else {
-            showFeedback("Очередь пуста")
-            return
+        if sequence.isActive {
+            menu.addItem(item(
+                "Сбросить последовательность",
+                #selector(resetSequentialPaste),
+                symbol: "arrow.counterclockwise"
+            ))
         }
-        let queueTargetPID = captureTargetPID()
+    }
+
+    @objc private func pasteNextSequentiallyFromMenu() {
+        activeMenu?.cancelTracking()
+        pasteNextSequentially()
+    }
+
+    @objc private func resetSequentialPaste() {
+        SequentialPasteSequence.shared.reset()
+        showFeedback("Последовательность сброшена")
+    }
+
+    /// The sequential shortcut walks recent history without a collection mode.
+    func pasteNextSequentially() {
+        let sequenceTargetPID = captureTargetPID()
         dataQueue.async { [weak self] in
             do {
+                let recentIDs = try Storage.shared.recentClipIDs()
+                guard let id = SequentialPasteSequence.shared.beginNext(recentIDs: recentIDs) else {
+                    DispatchQueue.main.async { self?.showFeedback("История пуста") }
+                    return
+                }
                 guard let clip = try Storage.shared.fetchClip(id: id) else {
-                    SequentialPasteQueue.shared.complete(id: id, advance: true)
-                    DispatchQueue.main.async { self?.pasteNextInQueue() }
+                    SequentialPasteSequence.shared.complete(id: id, advance: true)
+                    DispatchQueue.main.async { self?.pasteNextSequentially() }
                     return
                 }
                 DispatchQueue.main.async {
-                    PasteService.paste(clip, plainText: false, targetPID: queueTargetPID) { [weak self] result in
+                    guard SequentialPasteSequence.shared.isCurrent(id: id) else {
+                        self?.showFeedback("Новая копия — последовательность обновлена")
+                        return
+                    }
+                    PasteService.paste(clip, plainText: false, targetPID: sequenceTargetPID) { [weak self] result in
                         let succeeded: Bool
                         if case .failed = result { succeeded = false } else { succeeded = true }
-                        SequentialPasteQueue.shared.complete(id: id, advance: succeeded)
+                        SequentialPasteSequence.shared.complete(id: id, advance: succeeded)
                         self?.handlePasteResult(result)
                         if succeeded {
-                            let remaining = SequentialPasteQueue.shared.snapshot.remaining
-                            self?.showFeedback(remaining > 0 ? "Осталось в очереди: \(remaining)" : "Очередь завершена")
+                            let remaining = SequentialPasteSequence.shared.snapshot().remaining
+                            self?.showFeedback(
+                                remaining > 0
+                                    ? "Следующий элемент · осталось \(remaining)"
+                                    : "Последовательность завершена"
+                            )
                         }
                     }
                 }
             } catch {
-                SequentialPasteQueue.shared.complete(id: id, advance: false)
-                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент очереди") }
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть историю") }
             }
         }
     }
@@ -1074,7 +1088,7 @@ final class StatusBarController: NSObject {
     private func layoutMenuItem() -> NSMenuItem {
         let root = item("Раскладка", nil, symbol: "character.cursor.ibeam")
         let submenu = makeMenu(title: "Раскладка")
-        let shortcuts = LayoutHotKeyCoordinator.shared
+        let shortcuts = HotKeyCoordinator.shared
         let automatic = item(
             "Автоматически исправлять (бета)",
             #selector(toggleAutomaticLayoutCorrection),
@@ -1082,7 +1096,7 @@ final class StatusBarController: NSObject {
         )
         automatic.state = Settings.automaticLayoutCorrection ? .on : .off
         submenu.addItem(automatic)
-        let disableShortcut = shortcuts.disableAutomaticShortcut
+        let disableShortcut = shortcuts.shortcut(for: .disableAutomaticCorrection)
         let disable = item(
             "Быстро выключить автоисправление",
             #selector(disableAutomaticLayoutCorrection),
@@ -1092,7 +1106,7 @@ final class StatusBarController: NSObject {
         )
         disable.isEnabled = Settings.automaticLayoutCorrection
         submenu.addItem(disable)
-        let manualShortcut = shortcuts.manualShortcut
+        let manualShortcut = shortcuts.shortcut(for: .manualCorrection)
         submenu.addItem(item(
             "Исправить выделение или последнее слово",
             #selector(correctFocusedLayout),
@@ -1334,8 +1348,6 @@ final class StatusBarController: NSObject {
             symbolName = "pause.rectangle"
         } else if Settings.ignoreNextCopy {
             symbolName = "forward.end"
-        } else if SequentialPasteQueue.shared.snapshot.isCollecting {
-            symbolName = "rectangle.stack.badge.plus"
         } else {
             symbolName = "doc.on.clipboard"
         }
@@ -1352,19 +1364,13 @@ final class StatusBarController: NSObject {
                 button.toolTip = "NeClip — запись приостановлена"
             } else if Settings.ignoreNextCopy {
                 button.toolTip = "NeClip — следующее копирование будет пропущено"
-            } else if SequentialPasteQueue.shared.snapshot.isCollecting {
-                button.toolTip = "NeClip — сбор очереди · ⌃⌘V вставить следующий"
             } else {
-                button.toolTip = "NeClip — ⌘⇧V"
+                button.toolTip = "NeClip — \(HotKeyCoordinator.shared.shortcut(for: .history).displayString)"
             }
         }
     }
 
     @objc private func captureControlsChanged() {
-        refreshIcon()
-    }
-
-    @objc private func sequentialQueueDidChange() {
         refreshIcon()
     }
 

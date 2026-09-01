@@ -27,6 +27,7 @@ final class SecretScanningContractTests: XCTestCase {
         let script = try text("scripts/secret-scan.sh")
 
         XCTAssertTrue(script.contains("git ls-files -co --exclude-standard -z"))
+        XCTAssertTrue(script.contains("[[ -e \"$source_path\" || -L \"$source_path\" ]] || continue"))
         XCTAssertTrue(script.contains("--redact=100"))
         XCTAssertTrue(script.contains("--max-archive-depth=5"))
         XCTAssertTrue(script.contains("--max-decode-depth=8"))

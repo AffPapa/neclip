@@ -87,9 +87,9 @@ private struct OnboardingView: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                shortcut("⌘⇧V", "Открыть историю")
+                shortcut(Settings.historyShortcut.displayString, "Открыть историю")
                 shortcut("Поиск → ↩", "Найти и вставить")
-                shortcut("⌘⇧B", "Открыть готовые сниппеты")
+                shortcut(Settings.snippetsShortcut.displayString, "Открыть готовые сниппеты")
                 shortcut(Settings.manualLayoutShortcut.displayString, "Исправить неверную раскладку")
                 shortcut(Settings.disableAutomaticLayoutShortcut.displayString, "Быстро выключить автоисправление")
             }

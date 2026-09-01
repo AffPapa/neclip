@@ -73,6 +73,32 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(item.createdAt, secondDate)
     }
 
+    func testSequentialPasteIDsUsePhysicalRecencyInsteadOfPinOrder() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let oldest = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "oldest",
+            text: "oldest",
+            createdAt: Date(timeIntervalSince1970: 10)
+        )))
+        try storage.setPinned(id: oldest, pinned: true)
+        let newest = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "newest",
+            text: "newest",
+            createdAt: Date(timeIntervalSince1970: 30)
+        )))
+        let middle = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "middle",
+            text: "middle",
+            createdAt: Date(timeIntervalSince1970: 20)
+        )))
+
+        XCTAssertEqual(try storage.recentClipIDs(), [newest, middle, oldest])
+        XCTAssertEqual(try storage.recentClipIDs(limit: 2), [newest, middle])
+    }
+
     func testModernRowsNeverFallBackToFullPayloadComparison() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let firstID = try storage.insert(ClipItem(
@@ -644,7 +670,8 @@ final class StorageTests: XCTestCase {
         XCTAssertNotNil(try migrated.fetchClip(id: migratedClipID)?.contentHash)
     }
 
-    func testSearchOnTenThousandMigratedRowsStaysFast() throws {
+    func testSearchAndMenuReadsStayFastAtMaximumHistoryAfterLargeMigration() throws {
+        Settings.historyLimit = 1_000
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("neclip-10k-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -685,11 +712,21 @@ final class StorageTests: XCTestCase {
         }
 
         let storage = try Storage(path: path, installStarterContent: false)
+        XCTAssertEqual(storage.count, 1_000)
         let started = Date()
         let matches = try storage.summaries(limit: 40, search: "needle9999")
         let elapsed = Date().timeIntervalSince(started)
         XCTAssertEqual(matches.count, 1)
-        XCTAssertLessThan(elapsed, 0.05, "10k FTS search took \(elapsed) seconds")
+        XCTAssertLessThan(elapsed, 0.05, "Maximum-history FTS search took \(elapsed) seconds")
+
+        let menuStarted = Date()
+        XCTAssertEqual(
+            try storage.summaries(limit: 101, unpinnedOnly: true).count,
+            101
+        )
+        XCTAssertEqual(try storage.recentClipIDs(limit: 50).count, 50)
+        let menuElapsed = Date().timeIntervalSince(menuStarted)
+        XCTAssertLessThan(menuElapsed, 0.05, "Menu summary reads took \(menuElapsed) seconds")
     }
 
     func testExternalDatabaseCopyMigratesWithoutCountLossWhenProvided() throws {

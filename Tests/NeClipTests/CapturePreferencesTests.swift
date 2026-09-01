@@ -4,11 +4,13 @@ import XCTest
 final class CapturePreferencesTests: XCTestCase {
     private var previousRetention = 0
     private var previousRules: [String] = []
+    private var previousHistoryLimit = 100
 
     override func setUp() {
         super.setUp()
         previousRetention = Settings.retentionDays
         previousRules = Settings.sensitiveContentRules
+        previousHistoryLimit = Settings.historyLimit
         Settings.retentionDays = 0
         Settings.sensitiveContentRules = []
     }
@@ -16,6 +18,7 @@ final class CapturePreferencesTests: XCTestCase {
     override func tearDown() {
         Settings.retentionDays = previousRetention
         Settings.sensitiveContentRules = previousRules
+        Settings.historyLimit = previousHistoryLimit
         super.tearDown()
     }
 
@@ -27,6 +30,13 @@ final class CapturePreferencesTests: XCTestCase {
         XCTAssertTrue(SensitiveContentPolicy.matches("CLIENT-SECRET=abc", rules: rules))
         XCTAssertTrue(SensitiveContentPolicy.matches("Это Кодовое Слово", rules: rules))
         XCTAssertFalse(SensitiveContentPolicy.matches("обычная заметка", rules: rules))
+    }
+
+    func testHistoryLimitIsClampedAtTheSettingsBoundary() {
+        Settings.historyLimit = 1
+        XCTAssertEqual(Settings.historyLimit, 10)
+        Settings.historyLimit = 10_000
+        XCTAssertEqual(Settings.historyLimit, 1_000)
     }
 
     func testAgeRetentionDeletesOnlyOldUnpinnedClips() throws {
