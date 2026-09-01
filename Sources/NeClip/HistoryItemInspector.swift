@@ -221,7 +221,7 @@ private struct HistoryItemInspectorView: View {
         case .file: "Файл"
         }
         let bytes = ByteCountFormatter.string(fromByteCount: model.contentBytes, countStyle: .file)
-        let app = model.appBundleID ?? "неизвестное приложение"
+        let app = AppMetadataStore.shared.metadata(for: model.appBundleID).name
         return "\(kind) · \(bytes) · \(app) · \(model.createdAt.formatted(date: .abbreviated, time: .shortened))"
     }
 }

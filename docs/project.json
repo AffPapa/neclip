@@ -23,7 +23,9 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.4.0.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-2026-09-01.md",
+    "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
+    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/COMPETITOR-UX-2026-09-01.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
@@ -38,6 +40,9 @@
     "five configurable conflict-safe global shortcuts",
     "sectioned local settings",
     "configurable grapheme-safe menu label length",
+    "discoverable native structured-search filters",
+    "bounded menu browsing with complete on-demand search",
+    "atomic local history and snippet erasure",
     "bounded local storage and privacy exclusions"
   ],
   "shortcuts": [

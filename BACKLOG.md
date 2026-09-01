@@ -56,14 +56,18 @@ not planned.
 - Always-enabled native Quit command with draft-safe snippet termination
 - Bounded browsing for 100 recent and 100 pinned values, with full search for
   older local history
+- Native magnifier menu for common structured-search filters
+- A bounded 200-snippet menu projection with complete on-demand search/editing
+- One-transaction erasure of history, snippets and their folders
+- Human-readable source application names in the item inspector
 - Simpler search/action labels and removal of obsolete paste compatibility code
 
 ## Next
 
 - Verify first-run pasteboard wording across currently supported macOS releases
 - Expand local layout pairs only when system-layout tests can keep false fixes low
-- Measure menu-open latency with real 1,000-item and 250 MB databases before
-  changing the current 100-item browse window
+- Repeat measured menu latency before changing the bounded 100-history and
+  200-snippet browse windows
 - Consider manual drag ordering only if folder counts grow beyond the current
   compact section model
 

@@ -12,11 +12,15 @@ Current source version: **1.4.0 (build 8)**. See [CHANGELOG.md](CHANGELOG.md)
 for shipped changes and [BACKLOG.md](BACKLOG.md) for the intentionally small
 public roadmap.
 
-The reproducible three-track audit, decisions and release gates for this cycle
-are published in [docs/AUDIT-1.4.0.md](docs/AUDIT-1.4.0.md).
+The current module ownership and invariants are in
+[docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
+audit, decisions and verification gates are in
+[docs/AUDIT-2026-09-01.md](docs/AUDIT-2026-09-01.md).
 The researched catalogue of 100 competitor functions and the implemented
 minimal top 20 are in
-[docs/FEATURE-RESEARCH-2026-08-31.md](docs/FEATURE-RESEARCH-2026-08-31.md).
+[docs/FEATURE-RESEARCH-2026-08-31.md](docs/FEATURE-RESEARCH-2026-08-31.md); the
+current 20-product UX recheck is in
+[docs/COMPETITOR-UX-2026-09-01.md](docs/COMPETITOR-UX-2026-09-01.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 SHA-256:
@@ -46,8 +50,9 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 The first ten recent items are inline; up to 100 are browsable in one compact
 **More from History** hierarchy, grouped by tens. Up to 100 pinned items use the
 same bounded hierarchy; older values remain available through database search.
-The snippet hotkey shows nine quick
-items first and then the full folder hierarchy. The history menu also contains
+The snippet hotkey shows nine quick items first and then a bounded folder
+hierarchy; larger imported libraries remain fully searchable and editable. The
+history menu also contains
 an explicit **Actions for Top Item** submenu, pause, ignore-next-copy,
 clear, preferences, snippet
 editing, the manual update check, and quit.
@@ -68,6 +73,8 @@ Search accepts ordinary text together with compact local filters:
 `when:today/week/month`, and `is:pinned/history`. When exact search has no
 result, NeClip performs a bounded typo-tolerant pass over lightweight recent
 summaries, never image or RTF payloads.
+The standard magnifier inside the history search field exposes the common
+filters, so their syntax does not have to be memorized.
 
 The top-item action submenu keeps advanced workflows out of the main menu:
 preview/edit/rename, safe URL or file opening, OCR-text paste and local text

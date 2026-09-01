@@ -26,6 +26,7 @@ final class StatusBarController: NSObject {
         let snippets: [Snippet]
         let hasMorePinned: Bool
         let hasMoreHistory: Bool
+        let hasMoreSnippets: Bool
     }
 
     private let statusItem: NSStatusItem
@@ -35,7 +36,8 @@ final class StatusBarController: NSObject {
         folders: [],
         snippets: [],
         hasMorePinned: false,
-        hasMoreHistory: false
+        hasMoreHistory: false,
+        hasMoreSnippets: false
     )
     private var snapshotIsReady = false
     private var refreshGeneration = 0
@@ -193,14 +195,14 @@ final class StatusBarController: NSObject {
                     pinnedOnly: false,
                     unpinnedOnly: true
                 )
-                let folders = try Storage.shared.snippetFolders()
-                let snippets = try Storage.shared.allSnippets(search: nil, pinnedOnly: false)
+                let snippetSnapshot = try Storage.shared.menuSnippetSnapshot()
                 let loaded = MenuSnapshot(
                     clips: Array(pinned.prefix(100)) + Array(recent.prefix(100)),
-                    folders: folders,
-                    snippets: snippets,
+                    folders: snippetSnapshot.folders,
+                    snippets: snippetSnapshot.snippets,
                     hasMorePinned: pinned.count > 100,
-                    hasMoreHistory: recent.count > 100
+                    hasMoreHistory: recent.count > 100,
+                    hasMoreSnippets: snippetSnapshot.hasMore
                 )
                 DispatchQueue.main.async {
                     guard let self, generation == self.refreshGeneration else { return }
@@ -239,7 +241,10 @@ final class StatusBarController: NSObject {
 
     private func buildHistoryMenu() -> NSMenu {
         let menu = makeMenu(title: "NeClip")
-        menu.addItem(makeSearchItem(placeholder: "Поиск по истории…"))
+        menu.addItem(makeSearchItem(
+            placeholder: "Поиск по истории…",
+            showsHistoryFilters: true
+        ))
         menu.addItem(.separator())
         appendHistoryContents(to: menu)
         return menu
@@ -445,11 +450,21 @@ final class StatusBarController: NSObject {
         if !addedSnippetGroup {
             menu.addItem(NSMenuItem(title: "Сниппетов пока нет", action: nil, keyEquivalent: ""))
         }
+        if snapshot.hasMoreSnippets {
+            menu.addItem(NSMenuItem(
+                title: "Остальные сниппеты — через поиск",
+                action: nil,
+                keyEquivalent: ""
+            ))
+        }
         menu.addItem(.separator())
         menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
     }
 
-    private func makeSearchItem(placeholder: String) -> NSMenuItem {
+    private func makeSearchItem(
+        placeholder: String,
+        showsHistoryFilters: Bool = false
+    ) -> NSMenuItem {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 38))
         let searchField = MenuSearchField(frame: NSRect(x: 10, y: 5, width: 340, height: 28))
         searchField.placeholderString = placeholder
@@ -457,6 +472,9 @@ final class StatusBarController: NSObject {
         searchField.focusRingType = .none
         searchField.delegate = self
         searchField.setAccessibilityLabel(placeholder)
+        if showsHistoryFilters {
+            searchField.searchMenuTemplate = historySearchMenu()
+        }
         searchField.toolTip = """
             Фильтры: type:text/image/file/link/email/color/code · app:имя · \
             when:today/week/month · is:pinned/history
@@ -502,6 +520,51 @@ final class StatusBarController: NSObject {
         menuItem.view = container
         activeSearchField = searchField
         return menuItem
+    }
+
+    /// Native magnifier menu: discoverable structured filters without adding
+    /// permanent controls to the compact clipboard menu.
+    private func historySearchMenu() -> NSMenu {
+        let menu = makeMenu(title: "Фильтры поиска")
+        let filters: [(title: String, token: String)] = [
+            ("Текст", "type:text"),
+            ("Изображения", "type:image"),
+            ("Файлы", "type:file"),
+            ("Ссылки", "type:link"),
+            ("Почта", "type:email"),
+            ("Цвета", "type:color"),
+            ("Код", "type:code"),
+            ("Сегодня", "when:today"),
+            ("За неделю", "when:week"),
+            ("Закреплённые", "is:pinned"),
+            ("Только история", "is:history"),
+            ("Приложение…", "app:")
+        ]
+        for filter in filters {
+            let item = NSMenuItem(
+                title: "\(filter.title)  ·  \(filter.token)",
+                action: #selector(insertSearchFilter(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = filter.token
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func insertSearchFilter(_ sender: NSMenuItem) {
+        guard activeMenuKind == .history,
+              let searchField = activeSearchField,
+              let token = sender.representedObject as? String else { return }
+        let current = searchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let components = current.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        guard !components.contains(token) else { return }
+        let query = current.isEmpty ? token : "\(current) \(token)"
+        searchField.stringValue = query
+        searchChanged(query)
+        searchField.window?.makeFirstResponder(searchField)
+        searchField.currentEditor()?.moveToEndOfDocument(nil)
     }
 
     private func searchChanged(_ rawQuery: String) {

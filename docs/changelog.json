@@ -11,7 +11,9 @@
         "Immediately discoverable snippet editing with automatic selection and full-row edit actions",
         "Always-enabled Quit command with draft-safe snippet termination",
         "Bounded browsing for 100 recent and 100 pinned entries",
-        "109 local checks with one opt-in external-database case"
+        "Native structured-search filter menu and bounded snippet browsing",
+        "Atomic full-data erasure and readable source application names",
+        "111 local checks with one opt-in external-database case"
       ]
     },
     {

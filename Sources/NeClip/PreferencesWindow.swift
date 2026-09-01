@@ -624,14 +624,8 @@ private struct PreferencesView: View {
 
     private func deleteAllData() {
         do {
-            try Storage.shared.clearHistory(includePinned: true)
-            let snippets = try Storage.shared.allSnippets(search: nil, pinnedOnly: false)
-            for snippet in snippets {
-                if let id = snippet.id {
-                    try Storage.shared.deleteSnippet(id: id)
-                }
-            }
-            feedback = "История и сниппеты удалены"
+            try Storage.shared.deleteAllUserData()
+            feedback = "История, сниппеты и их папки удалены"
             vacuumInBackground()
         } catch {
             feedback = "Не удалось удалить все данные"

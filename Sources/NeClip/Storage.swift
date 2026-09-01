@@ -121,6 +121,14 @@ struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable
     }
 }
 
+/// A deliberately bounded projection for the native menu. The editor and
+/// search continue to query the complete snippet library on demand.
+struct SnippetMenuSnapshot: Sendable {
+    let folders: [SnippetFolder]
+    let snippets: [Snippet]
+    let hasMore: Bool
+}
+
 struct SnippetTransferDocument: Codable, Equatable, Sendable {
     static let currentVersion = 1
 
@@ -715,6 +723,17 @@ final class Storage: @unchecked Sendable {
         notifyChange()
     }
 
+    /// Erases every user-created record in one transaction. Keeping this
+    /// atomic avoids partially cleared state and one transaction per snippet.
+    func deleteAllUserData() throws {
+        try dbQueue.write { db in
+            try ClipItem.deleteAll(db)
+            try Snippet.deleteAll(db)
+            try SnippetFolder.deleteAll(db)
+        }
+        notifyChange()
+    }
+
     func vacuum() throws {
         try dbQueue.writeWithoutTransaction { db in
             try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
@@ -786,6 +805,36 @@ final class Storage: @unchecked Sendable {
                 arguments += [max(1, limit)]
             }
             return try Snippet.fetchAll(db, sql: sql, arguments: arguments)
+        }
+    }
+
+    /// Loads only the snippets that can reasonably be browsed in a native
+    /// menu, plus the folders needed to present those visible rows.
+    func menuSnippetSnapshot(limit requestedLimit: Int = 200) throws -> SnippetMenuSnapshot {
+        let limit = max(1, min(requestedLimit, 500))
+        return try dbQueue.read { db in
+            let fetched = try Snippet.fetchAll(
+                db,
+                sql: """
+                    SELECT * FROM snippet
+                    ORDER BY isPinned DESC, lastUsedAt DESC, updatedAt DESC, id DESC
+                    LIMIT ?
+                    """,
+                arguments: [limit + 1]
+            )
+            let snippets = Array(fetched.prefix(limit))
+            let folderIDs = Set(snippets.compactMap(\.folderID))
+            let folders = folderIDs.isEmpty
+                ? []
+                : try SnippetFolder
+                    .filter(keys: Array(folderIDs))
+                    .order(Column("sortIndex"), Column("id"))
+                    .fetchAll(db)
+            return SnippetMenuSnapshot(
+                folders: folders,
+                snippets: snippets,
+                hasMore: fetched.count > limit
+            )
         }
     }
 

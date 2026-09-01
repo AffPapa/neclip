@@ -7,6 +7,10 @@
 > добавления элементов и отдельного управления очередью. Актуальный контракт
 > описан в `README.md`, `CHANGELOG.md` и `BACKLOG.md`.
 
+Текущая повторная проверка 20 продуктов и явные решения
+«добавить/сохранить/отклонить» находятся в
+[`COMPETITOR-UX-2026-09-01.md`](COMPETITOR-UX-2026-09-01.md).
+
 Исследование сравнивает NeClip с Apple Clipboard History, Windows Clipboard,
 PowerToys Advanced Paste, Maccy, Raycast, Alfred, Paste, PasteNow, PastePal,
 CleanClip, PasteBar, Pastebot, CopyQ, Ditto, ClipClip, ClipboardFusion,

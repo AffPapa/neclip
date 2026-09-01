@@ -24,12 +24,16 @@
     "Immediately discoverable snippet editing with automatic selection and full-row edit actions",
     "Always-enabled native Quit command with draft-safe snippet termination",
     "Bounded browsing for 100 recent and 100 pinned values",
+    "Native magnifier menu for common structured-search filters",
+    "Bounded 200-snippet menu projection with complete on-demand search and editing",
+    "Atomic erasure of history, snippets and snippet folders",
+    "Human-readable source application names in the item inspector",
     "Simpler search and top-item action wording"
   ],
   "next": [
     "Verify first-run permission wording across supported macOS releases",
     "Expand local layout pairs only with low-false-positive system tests",
-    "Measure menu-open latency with realistic maximum-size local databases",
+    "Repeat measured menu latency before changing bounded browse windows",
     "Consider lightweight snippet-folder drag ordering only if section counts grow"
   ],
   "notPlanned": [

@@ -30,6 +30,15 @@ DMG checksum verification have passed.
   while keeping older values searchable without constructing 1,000 menu rows.
 - Simplified search wording and renamed first-result actions to explicitly say
   they operate on the top visible item.
+- Added a native magnifier menu for the common structured history filters, so
+  type, date, pin and application search no longer depend on memorized syntax.
+- Bounded the menu snapshot to 200 snippets and only their referenced folders;
+  the full imported library remains available through on-demand search/editor
+  queries.
+- Replaced per-snippet full-data deletion with one atomic transaction that
+  removes clips, snippets and snippet folders together.
+- Replaced technical bundle identifiers in the item inspector with the local
+  source application's display name.
 - Removed obsolete paste compatibility wrappers left behind by the deleted
   legacy history panel.
 - Added age retention for ordinary history, independent image capture,
@@ -40,7 +49,7 @@ DMG checksum verification have passed.
   import. History and usage metadata are never exported.
 - Documented the 100-function competitor catalogue and the scored top-20
   selection in `docs/FEATURE-RESEARCH-2026-08-31.md`.
-- Expanded the local suite to 109 checks (one optional external-database case is
+- Expanded the local suite to 111 checks (one optional external-database case is
   skipped unless its disposable fixture is supplied); strict Swift 6 release
   compilation and full-history secret scanning pass.
 

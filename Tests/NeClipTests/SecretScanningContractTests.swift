@@ -50,7 +50,8 @@ final class SecretScanningContractTests: XCTestCase {
     func testPublicAuditDocumentsDoNotPublishSubmissionIdentifiers() throws {
         let previousAudit = try text("docs/AUDIT-2026-08-31.md")
         let currentAudit = try text("docs/AUDIT-1.4.0.md")
-        let audit = previousAudit + currentAudit
+        let latestAudit = try text("docs/AUDIT-2026-09-01.md")
+        let audit = previousAudit + currentAudit + latestAudit
         let regex = try NSRegularExpression(
             pattern: #"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b"#
         )

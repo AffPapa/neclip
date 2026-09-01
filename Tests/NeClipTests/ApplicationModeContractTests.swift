@@ -97,6 +97,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("cleanTitle(clip.title)"))
         XCTAssertEqual(statusBar.components(separatedBy: "NSMenu(title:").count - 1, 1)
         XCTAssertTrue(statusBar.contains("private func makeMenu(title: String) -> NSMenu"))
+        XCTAssertTrue(statusBar.contains("searchField.searchMenuTemplate = historySearchMenu()"))
+        XCTAssertTrue(statusBar.contains("#selector(insertSearchFilter(_:))"))
+        XCTAssertTrue(statusBar.contains("Storage.shared.menuSnippetSnapshot()"))
 
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
@@ -104,6 +107,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("\"Длина строки в меню\""))
         XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
         XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
+        XCTAssertTrue(preferences.contains("Storage.shared.deleteAllUserData()"))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
         XCTAssertTrue(statusBar.contains("folderID: nil"))
     }

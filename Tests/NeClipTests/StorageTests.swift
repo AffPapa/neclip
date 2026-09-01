@@ -766,6 +766,50 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(try migrated.allSnippets().count, before.1)
         _ = try migrated.summaries(limit: 1)
     }
+
+    func testMenuSnippetSnapshotIsBoundedAndLoadsOnlyVisibleFolders() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        for index in 0..<4 {
+            let folder = try XCTUnwrap(storage.addFolder(title: "Folder \(index)"))
+            _ = try storage.addSnippet(
+                folderID: try XCTUnwrap(folder.id),
+                title: "Snippet \(index)",
+                content: "Value \(index)"
+            )
+        }
+
+        let snapshot = try storage.menuSnippetSnapshot(limit: 2)
+        XCTAssertEqual(snapshot.snippets.count, 2)
+        XCTAssertTrue(snapshot.hasMore)
+        XCTAssertEqual(
+            Set(snapshot.snippets.compactMap(\.folderID)),
+            Set(snapshot.folders.compactMap(\.id))
+        )
+        XCTAssertLessThan(snapshot.folders.count, try storage.snippetFolders().count)
+        XCTAssertEqual(try storage.allSnippets().count, 4)
+    }
+
+    func testDeleteAllUserDataRemovesHistorySnippetsAndFoldersAtomically() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        _ = try storage.insert(ClipItem(
+            kind: .text,
+            title: "Private value",
+            text: "Private value",
+            createdAt: Date()
+        ))
+        let folder = try XCTUnwrap(storage.addFolder(title: "Private folder"))
+        _ = try storage.addSnippet(
+            folderID: try XCTUnwrap(folder.id),
+            title: "Private snippet",
+            content: "Private value"
+        )
+
+        try storage.deleteAllUserData()
+
+        XCTAssertEqual(storage.count, 0)
+        XCTAssertTrue(try storage.allSnippets().isEmpty)
+        XCTAssertTrue(try storage.snippetFolders().isEmpty)
+    }
 }
 
 final class SnippetRendererTests: XCTestCase {
