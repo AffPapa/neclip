@@ -118,7 +118,7 @@ final class LayoutCorrectionTests: XCTestCase {
             userExcluded: []
         ))
         XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
-            bundleID: "com.example.editor",
+            bundleID: "COM.EXAMPLE.EDITOR",
             ownBundleID: "org.affpapa.neclip",
             userExcluded: ["com.example.editor"]
         ))
@@ -223,7 +223,7 @@ final class LayoutCorrectionTests: XCTestCase {
             userExcluded: []
         ))
         XCTAssertTrue(LayoutProtectedApplicationPolicy.blocksAutomatic(
-            bundleID: "com.example.editor",
+            bundleID: "COM.EXAMPLE.EDITOR",
             userExcluded: ["com.example.editor"]
         ))
         XCTAssertFalse(LayoutProtectedApplicationPolicy.blocksAutomatic(
@@ -252,7 +252,11 @@ final class LayoutCorrectionTests: XCTestCase {
         }
         Settings.excludedApps = ["com.example.clipboard"]
         Settings.layoutExcludedApps = ["com.example.layout"]
-        XCTAssertEqual(Settings.excludedApps, ["com.example.clipboard"])
+        XCTAssertTrue(Settings.excludedApps.contains("com.example.clipboard"))
+        XCTAssertTrue(
+            SensitiveApplicationPolicy.bundleIDs.isSubset(of: Set(Settings.excludedApps))
+        )
+        XCTAssertFalse(Settings.excludedApps.contains("com.example.layout"))
         XCTAssertEqual(Settings.layoutExcludedApps, ["com.example.layout"])
     }
 

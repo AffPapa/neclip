@@ -32,7 +32,15 @@ enum ClipboardCapturePolicy {
         excludedApps: Set<String>
     ) -> Bool {
         guard let bundleID else { return true }
-        return excludedTransitionActive || excludedApps.contains(bundleID)
+        return excludedTransitionActive
+            || isExcludedApplication(bundleID: bundleID, excludedApps: excludedApps)
+    }
+
+    static func isExcludedApplication(bundleID: String, excludedApps: Set<String>) -> Bool {
+        SensitiveApplicationPolicy.protects(bundleID)
+            || excludedApps.contains {
+                $0.caseInsensitiveCompare(bundleID) == .orderedSame
+            }
     }
 
     static func acceptsImage(byteCount: Int, width: Int, height: Int) -> Bool {
@@ -86,7 +94,6 @@ struct ClipboardExcludedChangeGuard {
 /// immutable snapshots on one serial queue.
 final class ClipboardMonitor: @unchecked Sendable {
     private struct Snapshot: @unchecked Sendable {
-        let changeCount: Int
         let appBundleID: String
         let createdAt: Date
         let fileURLs: [URL]
@@ -154,7 +161,10 @@ final class ClipboardMonitor: @unchecked Sendable {
         let newBundleID = application?.bundleIdentifier
 
         if let previous = lastActivatedBundleID,
-           Settings.excludedApps.contains(previous),
+           ClipboardCapturePolicy.isExcludedApplication(
+               bundleID: previous,
+               excludedApps: Set(Settings.excludedApps)
+           ),
            previous != newBundleID {
             excludedChangeGuard.record(changeCount: NSPasteboard.general.changeCount)
             excludedTransitionUntil = Date().addingTimeInterval(ClipboardCapturePolicy.excludedActivationWindow)
@@ -237,7 +247,6 @@ final class ClipboardMonitor: @unchecked Sendable {
         // observe and process the newer generation with fresh attribution.
         guard pasteboard.changeCount == changeCount else { return }
         let snapshot = Snapshot(
-            changeCount: changeCount,
             appBundleID: frontApp,
             createdAt: now,
             fileURLs: fileURLs,

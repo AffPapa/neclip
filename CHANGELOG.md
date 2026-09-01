@@ -6,6 +6,18 @@ DMG checksum verification have passed.
 
 ## Unreleased
 
+- Prepared source version 1.6.1/build 11 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until a separate release gate.
+- Made password-manager capture protection immutable and case-insensitive in
+  both ordinary capture and the delayed application-transition guard. Protected
+  applications stay visible, locked and human-readable in Privacy Settings.
+- Added a one-click, target-aware **Do Not Save from This App** rule to the
+  native menu, with an equally direct restore action for ordinary applications.
+- Rejected empty or over-16 MB snippet-import files before JSON decoding and
+  memory-mapped accepted imports where the system can do so safely.
+- Removed five proven unreachable fields/wrappers/helpers without touching
+  database migrations, compatibility tests or research evidence.
+
 - Prepared source version 1.6.0/build 10 while keeping the public update
   manifest and signed/notarized download on 1.4.0 until a separate release gate.
 - Added Space preview for the first result only while search is empty, so a

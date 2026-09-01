@@ -4,7 +4,7 @@ Updated: 1 September 2026. This is the source map for the current unreleased
 tree. Public release metadata remains pinned to 1.4.0 until the release gate is
 completed.
 
-The matching evidence report is `AUDIT-1.6.0-2026-09-01.md`; competitor
+The matching evidence report is `AUDIT-1.6.1-2026-09-01.md`; competitor
 matrices, the 100-item catalogue and top-20 decisions are in
 `RESEARCH-1.6.0-ZERO-2026-09-01.md`.
 
@@ -31,8 +31,9 @@ Important owners:
   asynchronous payload processing, including the user-bounded text payload.
 - `ClipboardTextMerge.swift`: deterministic one-newline append policy and
   single-line title generation for the explicit one-shot append action.
-- `SensitiveContentPolicy.swift`: concealed/transient/password-manager and
-  literal sensitive-phrase rejection.
+- `SensitiveContentPolicy.swift`: immutable case-insensitive password-manager
+  policy plus literal sensitive-phrase rejection; concealed/transient types are
+  rejected by `ClipboardMonitor` before payload reads.
 - `OCRService.swift`: serialized local Vision OCR.
 - `Storage.swift`: migrations, SHA-256 deduplication, retention, byte quota,
   FTS and atomic persistence.
@@ -62,7 +63,8 @@ available through bounded database search.
 folders and **Unfiled**. Selection, navigation and termination flush pending
 drafts; failed saves remain visible. `SnippetRenderer` expands only local
 `{date}`, `{time}` and `{clipboard}` placeholders. `Storage` provides versioned
-JSON export and atomic merge-only import without history or usage metadata.
+JSON export and atomic merge-only import without history or usage metadata;
+empty and over-16 MB import files are rejected before JSON decoding.
 
 ### Keyboard layout correction
 
@@ -83,8 +85,9 @@ ignore list until restart.
 
 ### Settings, shortcuts and lifecycle
 
-- `Settings.swift`: normalized local preferences and a 200-entry per-app layout
-  map plus a separate bounded fixed-layout map with explicit reset.
+- `Settings.swift`: normalized local preferences, mandatory password-manager
+  capture exclusions and a 200-entry per-app layout map plus a separate bounded
+  fixed-layout map with explicit reset.
 - `ShortcutDescriptor.swift`, `ShortcutRecorder.swift`, `GlobalHotKey.swift`,
   `HotKeyCoordinator.swift`: five transactional, conflict-safe native hotkeys.
 - `PreferencesWindow.swift`: General, Keys, Privacy, Layout and Data.
@@ -108,6 +111,10 @@ ignore list until restart.
     when the combined value exceeds the per-record limit.
 12. A fixed per-app input source overrides last-used memory only on activation;
     a temporary manual layout change remains possible until reactivation.
+13. Password-manager capture exclusions are mandatory, case-insensitive and
+    apply to both immediate source checks and delayed app-transition checks.
+14. Snippet JSON is bounded before decoding; importing remains merge-only and
+    transactional.
 
 ## Verification map
 

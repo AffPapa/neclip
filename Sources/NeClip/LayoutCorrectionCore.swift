@@ -206,15 +206,7 @@ struct BoundedLayoutIgnoreList {
 }
 
 enum LayoutProtectedApplicationPolicy {
-    static let sensitiveBundleIDs: Set<String> = [
-        "com.1password.1password",
-        "com.agilebits.onepassword7",
-        "com.apple.Passwords",
-        "com.apple.keychainaccess",
-        "com.bitwarden.desktop",
-        "com.dashlane.dashlanephonefinal",
-        "org.keepassxc.keepassxc"
-    ]
+    static let sensitiveBundleIDs = SensitiveApplicationPolicy.bundleIDs
 
     static let protectedBundleIDs: Set<String> = sensitiveBundleIDs.union([
         "com.apple.Terminal",
@@ -234,13 +226,17 @@ enum LayoutProtectedApplicationPolicy {
 
     static func blocksAutomatic(bundleID: String?, userExcluded: Set<String>) -> Bool {
         guard let bundleID, !bundleID.isEmpty else { return true }
-        if protectedBundleIDs.contains(bundleID) || userExcluded.contains(bundleID) { return true }
+        if SensitiveApplicationPolicy.protects(bundleID)
+            || protectedBundleIDs.contains(bundleID)
+            || userExcluded.contains(where: {
+                $0.caseInsensitiveCompare(bundleID) == .orderedSame
+            }) { return true }
         if bundleID.hasPrefix("com.jetbrains.") { return true }
         return false
     }
 
     static func blocksManual(bundleID: String?) -> Bool {
         guard let bundleID, !bundleID.isEmpty else { return true }
-        return sensitiveBundleIDs.contains(bundleID)
+        return SensitiveApplicationPolicy.protects(bundleID)
     }
 }

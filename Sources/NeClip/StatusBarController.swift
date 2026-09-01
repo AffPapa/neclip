@@ -1333,6 +1333,31 @@ final class StatusBarController: NSObject {
             pause.submenu = pauseMenu
             menu.addItem(pause)
         }
+        guard let bundleID = targetBundleID else { return }
+        let appName = MenuTitleFormatter.format(
+            AppMetadataStore.shared.metadata(for: bundleID).name,
+            limit: 32
+        )
+        let isProtected = SensitiveApplicationPolicy.protects(bundleID)
+        let isExcluded = Settings.excludedApps.contains {
+            $0.caseInsensitiveCompare(bundleID) == .orderedSame
+        }
+        let title: String
+        if isProtected {
+            title = "Не сохранять из \(appName) — всегда"
+        } else if isExcluded {
+            title = "Снова сохранять из \(appName)"
+        } else {
+            title = "Не сохранять из \(appName)"
+        }
+        let applicationRule = item(
+            title,
+            isProtected ? nil : #selector(toggleCaptureForTargetApplication(_:)),
+            symbol: isProtected ? "lock.shield" : "app.badge"
+        )
+        applicationRule.state = isExcluded ? .on : .off
+        applicationRule.representedObject = bundleID
+        menu.addItem(applicationRule)
     }
 
     private func item(
@@ -1592,6 +1617,21 @@ final class StatusBarController: NSObject {
 
     @objc private func captureDidAppend() {
         showFeedback("текст объединён с предыдущим")
+    }
+
+    @objc private func toggleCaptureForTargetApplication(_ sender: NSMenuItem) {
+        guard let bundleID = sender.representedObject as? String,
+              !SensitiveApplicationPolicy.protects(bundleID) else { return }
+        var excluded = Settings.excludedApps
+        if excluded.contains(where: { $0.caseInsensitiveCompare(bundleID) == .orderedSame }) {
+            excluded.removeAll { $0.caseInsensitiveCompare(bundleID) == .orderedSame }
+            Settings.excludedApps = excluded
+            showFeedback("копии из приложения снова сохраняются")
+        } else {
+            excluded.append(bundleID)
+            Settings.excludedApps = excluded
+            showFeedback("приложение исключено из истории")
+        }
     }
 
     @objc private func ignoreNextCopy() {

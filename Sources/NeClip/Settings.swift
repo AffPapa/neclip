@@ -58,8 +58,19 @@ enum Settings {
     }
 
     static var excludedApps: [String] {
-        get { normalizedBundleIDs(d.stringArray(forKey: Key.excludedApps) ?? defaultExcluded) }
-        set { d.set(normalizedBundleIDs(newValue), forKey: Key.excludedApps) }
+        get {
+            normalizedBundleIDs(
+                SensitiveApplicationPolicy.bundleIDs.sorted()
+                    + (d.stringArray(forKey: Key.excludedApps) ?? [])
+            )
+        }
+        set {
+            d.set(
+                normalizedBundleIDs(SensitiveApplicationPolicy.bundleIDs.sorted() + newValue),
+                forKey: Key.excludedApps
+            )
+            notifyCaptureControlsChanged()
+        }
     }
 
     static var captureImages: Bool {
@@ -321,15 +332,6 @@ enum Settings {
         pause(until: now.addingTimeInterval(15 * 60))
     }
 
-    /// UI-friendly alias. `.distantFuture` is stored as an indefinite pause.
-    static func pauseCapture(until: Date?) {
-        if until == .distantFuture {
-            pause(until: nil)
-        } else {
-            pause(until: until)
-        }
-    }
-
     static func resumeCapture() {
         withCaptureControlLock {
             d.removeObject(forKey: Key.capturePausedIndefinitely)
@@ -442,7 +444,11 @@ enum Settings {
     }
 
     private static func normalizedBundleIDs(_ values: [String]) -> [String] {
-        Array(Set(values.map(normalizedBundleID).filter { !$0.isEmpty })).sorted()
+        var seen = Set<String>()
+        return values
+            .map(normalizedBundleID)
+            .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     private static func normalizedBundleID(_ value: String) -> String {
@@ -469,16 +475,6 @@ enum Settings {
             NotificationCenter.default.post(name: .neClipHotKeysDidChange, object: nil)
         }
     }
-
-    private static let defaultExcluded = [
-        "com.agilebits.onepassword7",
-        "com.1password.1password",
-        "com.apple.Passwords",
-        "com.apple.keychainaccess",
-        "com.bitwarden.desktop",
-        "com.dashlane.dashlanephonefinal",
-        "org.keepassxc.keepassxc"
-    ]
 
     private static let defaultLayoutExcluded: [String] = []
 }

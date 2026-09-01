@@ -151,12 +151,14 @@ struct SnippetTransferRecord: Codable, Equatable, Sendable {
 
 enum SnippetTransferError: LocalizedError, Equatable {
     case unsupportedVersion
+    case fileTooLarge
     case tooManySnippets
     case invalidSnippet
 
     var errorDescription: String? {
         switch self {
         case .unsupportedVersion: "Эта версия файла сниппетов не поддерживается"
+        case .fileTooLarge: "Файл сниппетов слишком большой"
         case .tooManySnippets: "В файле слишком много сниппетов"
         case .invalidSnippet: "В файле есть некорректный сниппет"
         }
@@ -169,6 +171,7 @@ extension Notification.Name {
 
 final class Storage: @unchecked Sendable {
     static let maximumStorageBytes: Int64 = 250 * 1024 * 1024
+    static let maximumSnippetImportBytes = 16 * 1024 * 1024
 
     static let shared: Storage = {
         do {
@@ -793,10 +796,6 @@ final class Storage: @unchecked Sendable {
         return removed
     }
 
-    func clearAll(includePinned: Bool = false) throws {
-        _ = try clearHistory(includePinned: includePinned)
-    }
-
     /// Erases every user-created record in one transaction. Keeping this
     /// atomic avoids partially cleared state and one transaction per snippet.
     func deleteAllUserData() throws {
@@ -1117,6 +1116,9 @@ final class Storage: @unchecked Sendable {
     /// snippets are skipped. The whole file commits atomically.
     @discardableResult
     func importSnippetData(_ data: Data) throws -> Int {
+        guard !data.isEmpty, data.count <= Self.maximumSnippetImportBytes else {
+            throw SnippetTransferError.fileTooLarge
+        }
         let document = try JSONDecoder().decode(SnippetTransferDocument.self, from: data)
         guard document.version == SnippetTransferDocument.currentVersion else {
             throw SnippetTransferError.unsupportedVersion

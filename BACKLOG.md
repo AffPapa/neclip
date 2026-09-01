@@ -47,7 +47,11 @@ not planned.
 
 ## Done in current unreleased source
 
-- Source 1.6.0/build 10 separated from the still-public signed 1.4.0 release
+- Source 1.6.1/build 11 separated from the still-public signed 1.4.0 release
+- Immutable case-insensitive password-manager capture protection with readable names
+- One-click capture exclusion/restoration for the application that opened the menu
+- Pre-decode size limit for snippet JSON imports
+- Removal of five proven unreachable source members
 - Space preview when search is empty without stealing spaces from real queries
 - One-shot append of the next accepted text to recent unpinned text
 - Fixed per-application input source with priority over last-used memory

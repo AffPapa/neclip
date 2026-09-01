@@ -138,8 +138,39 @@ final class PrivacyLogicTests: XCTestCase {
         let previous = Settings.excludedApps
         defer { Settings.excludedApps = previous }
 
-        Settings.excludedApps = [" com.example.z ", "", "com.example.a", "com.example.z"]
-        XCTAssertEqual(Settings.excludedApps, ["com.example.a", "com.example.z"])
+        Settings.excludedApps = [
+            " com.example.z ", "", "com.example.a", "COM.EXAMPLE.Z"
+        ]
+        let result = Settings.excludedApps
+        XCTAssertTrue(result.contains("com.example.a"))
+        XCTAssertTrue(result.contains("com.example.z"))
+        XCTAssertEqual(
+            result.filter { $0.caseInsensitiveCompare("com.example.z") == .orderedSame }.count,
+            1
+        )
+        XCTAssertTrue(SensitiveApplicationPolicy.bundleIDs.isSubset(of: Set(result)))
+    }
+
+    func testSensitiveApplicationsCannotBeRemovedFromCaptureExclusions() {
+        let previous = Settings.excludedApps
+        defer { Settings.excludedApps = previous }
+
+        Settings.excludedApps = []
+        XCTAssertTrue(SensitiveApplicationPolicy.protects("COM.BITWARDEN.DESKTOP"))
+        XCTAssertEqual(
+            SensitiveApplicationPolicy.displayName(for: "COM.BITWARDEN.DESKTOP"),
+            "Bitwarden"
+        )
+        XCTAssertTrue(Settings.excludedApps.contains("com.bitwarden.desktop"))
+        XCTAssertTrue(ClipboardCapturePolicy.shouldRejectSource(
+            bundleID: "COM.BITWARDEN.DESKTOP",
+            excludedTransitionActive: false,
+            excludedApps: []
+        ))
+        XCTAssertTrue(ClipboardCapturePolicy.isExcludedApplication(
+            bundleID: "COM.EXAMPLE.PRIVATE",
+            excludedApps: ["com.example.private"]
+        ))
     }
 
     func testExcludedSourcePolicyFailsClosed() {

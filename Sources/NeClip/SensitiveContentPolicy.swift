@@ -1,5 +1,39 @@
 import Foundation
 
+enum SensitiveApplicationPolicy {
+    static let bundleIDs: Set<String> = [
+        "com.1password.1password",
+        "com.agilebits.onepassword7",
+        "com.apple.Passwords",
+        "com.apple.keychainaccess",
+        "com.bitwarden.desktop",
+        "com.dashlane.dashlanephonefinal",
+        "org.keepassxc.keepassxc"
+    ]
+
+    private static let normalizedBundleIDs = Set(bundleIDs.map { $0.lowercased() })
+    private static let displayNames = [
+        "com.1password.1password": "1Password",
+        "com.agilebits.onepassword7": "1Password 7",
+        "com.apple.passwords": "Apple Passwords",
+        "com.apple.keychainaccess": "Keychain Access",
+        "com.bitwarden.desktop": "Bitwarden",
+        "com.dashlane.dashlanephonefinal": "Dashlane",
+        "org.keepassxc.keepassxc": "KeePassXC"
+    ]
+
+    static func protects(_ bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return normalizedBundleIDs.contains(
+            bundleID.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        )
+    }
+
+    static func displayName(for bundleID: String) -> String? {
+        displayNames[bundleID.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()]
+    }
+}
+
 enum SensitiveContentPolicy {
     static let maximumRuleCount = 50
     static let maximumRuleLength = 200

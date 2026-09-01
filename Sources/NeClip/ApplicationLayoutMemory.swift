@@ -20,7 +20,9 @@ enum ApplicationLayoutMemoryPolicy {
               !bundleID.isEmpty,
               bundleID != ownBundleID,
               !ignoredBundleIDs.contains(bundleID),
-              !userExcluded.contains(bundleID) else { return false }
+              !userExcluded.contains(where: {
+                  $0.caseInsensitiveCompare(bundleID) == .orderedSame
+              }) else { return false }
         return true
     }
 }

@@ -399,12 +399,15 @@ private struct PreferencesView: View {
             }
 
             Section("Не записывать из приложений") {
-                Text("Парольные менеджеры исключены по умолчанию.")
+                Text("Парольные менеджеры защищены всегда; остальные приложения можно добавить или быстро исключить из меню NeClip.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 List {
                     ForEach(excludedApps, id: \.self) { bundleID in
-                        ExcludedApplicationRow(bundleIdentifier: bundleID) {
+                        ExcludedApplicationRow(
+                            bundleIdentifier: bundleID,
+                            isProtected: SensitiveApplicationPolicy.protects(bundleID)
+                        ) {
                             excludedApps.removeAll { $0 == bundleID }
                             Settings.excludedApps = excludedApps
                         }
@@ -488,7 +491,7 @@ private struct PreferencesView: View {
                 DisclosureGroup("Не менять раскладку автоматически в приложениях") {
                     List {
                         ForEach(layoutExcludedApps, id: \.self) { bundleID in
-                            ExcludedApplicationRow(bundleIdentifier: bundleID) {
+                            ExcludedApplicationRow(bundleIdentifier: bundleID, isProtected: false) {
                                 layoutExcludedApps.removeAll { $0 == bundleID }
                                 Settings.layoutExcludedApps = layoutExcludedApps
                             }
@@ -719,7 +722,14 @@ private struct PreferencesView: View {
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let count = try Storage.shared.importSnippetData(Data(contentsOf: url))
+            let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
+            guard let fileSize = resourceValues.fileSize,
+                  fileSize > 0,
+                  fileSize <= Storage.maximumSnippetImportBytes else {
+                throw SnippetTransferError.fileTooLarge
+            }
+            let data = try Data(contentsOf: url, options: .mappedIfSafe)
+            let count = try Storage.shared.importSnippetData(data)
             feedback = count == 0 ? "Новых сниппетов нет" : "Добавлено сниппетов: \(count)"
         } catch {
             feedback = error.localizedDescription
@@ -766,28 +776,42 @@ private struct PreferencesView: View {
 
 private struct ExcludedApplicationRow: View {
     let bundleIdentifier: String
+    let isProtected: Bool
     let remove: () -> Void
 
+    private var metadata: AppMetadata {
+        AppMetadataStore.shared.metadata(for: bundleIdentifier)
+    }
+
+    private var displayName: String {
+        SensitiveApplicationPolicy.displayName(for: bundleIdentifier) ?? metadata.name
+    }
+
     var body: some View {
-        let metadata = AppMetadataStore.shared.metadata(for: bundleIdentifier)
         HStack(spacing: 10) {
             Image(nsImage: metadata.icon)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 24, height: 24)
             VStack(alignment: .leading, spacing: 1) {
-                Text(metadata.name)
+                Text(displayName)
                 Text(bundleIdentifier)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
             Spacer()
-            Button(action: remove) {
-                Image(systemName: "minus.circle")
+            if isProtected {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("\(displayName) защищено от записи всегда")
+            } else {
+                Button(action: remove) {
+                    Image(systemName: "minus.circle")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Удалить \(displayName) из исключений")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Удалить \(metadata.name) из исключений")
         }
     }
 }

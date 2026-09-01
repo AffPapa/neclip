@@ -2,6 +2,21 @@ import XCTest
 @testable import NeClip
 
 final class SnippetTransferTests: XCTestCase {
+    func testImportRejectsEmptyAndOversizedFilesBeforeDecoding() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+
+        XCTAssertThrowsError(try storage.importSnippetData(Data())) { error in
+            XCTAssertEqual(error as? SnippetTransferError, .fileTooLarge)
+        }
+        XCTAssertThrowsError(
+            try storage.importSnippetData(
+                Data(repeating: 0, count: Storage.maximumSnippetImportBytes + 1)
+            )
+        ) { error in
+            XCTAssertEqual(error as? SnippetTransferError, .fileTooLarge)
+        }
+    }
+
     func testExportImportPreservesFoldersContentAndPinsWithoutUsageHistory() throws {
         let source = try Storage(inMemory: true, installStarterContent: false)
         let folder = try XCTUnwrap(source.addFolder(title: "Ответы"))

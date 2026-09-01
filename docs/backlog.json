@@ -17,7 +17,10 @@
     "Visible snippet folders, folder CRUD, moves and draft-safe editing"
   ],
   "inDevelopment": [
-    "Source 1.6.0 build 10 while public release metadata remains on 1.4.0",
+    "Source 1.6.1 build 11 while public release metadata remains on 1.4.0",
+    "Immutable case-insensitive password-manager capture protection",
+    "Quick capture exclusion and restoration for the target application",
+    "Pre-decode 16 MB snippet-import limit and proven dead-code cleanup",
     "Space preview only while search is empty",
     "One-shot append of the next accepted text",
     "Fixed per-application input source without key monitoring",

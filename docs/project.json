@@ -23,7 +23,7 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.6.0-2026-09-01.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.6.1-2026-09-01.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/COMPETITOR-UX-2026-09-01.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
@@ -51,7 +51,8 @@
     "atomic local history and snippet erasure",
     "partial or on-quit history cleanup and bounded text capture",
     "paste-and-delete only after successful direct-paste dispatch",
-    "bounded local storage and privacy exclusions"
+    "bounded local storage and privacy exclusions",
+    "immutable password-manager capture protection and quick per-app capture rules"
   ],
   "shortcuts": [
     {"action": "open-history", "keys": "Command-Shift-V", "customizable": true},
