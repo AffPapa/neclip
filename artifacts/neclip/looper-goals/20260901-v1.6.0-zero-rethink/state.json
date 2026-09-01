@@ -1,0 +1,15 @@
+{
+  "goal": "NeClip 1.6.0 zero-rethink",
+  "status": "complete",
+  "current_step": "complete",
+  "public_release": "1.4.0",
+  "source_base": "1.5.0-build-9",
+  "target_source": "1.6.0-build-10",
+  "publish_authorized": false,
+  "baseline": {
+    "xctest": 122,
+    "xctest_skipped": 1,
+    "swift_testing": 8,
+    "failures": 0
+  }
+}

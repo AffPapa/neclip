@@ -476,6 +476,69 @@ final class Storage: @unchecked Sendable {
         return id
     }
 
+    /// Appends text to the newest unpinned text record in one transaction.
+    /// Rich text is intentionally dropped because two independent RTF payloads
+    /// cannot be concatenated without changing their document semantics.
+    func appendToLatestUnpinnedText(
+        _ nextText: String,
+        appBundleID: String?,
+        createdAt: Date,
+        maximumBytes: Int
+    ) throws -> AppendTextResult {
+        let result = try dbQueue.write { db -> AppendTextResult in
+            guard var latest = try ClipItem
+                .filter(Column("kind") == ClipKind.text.rawValue && Column("isPinned") == false)
+                .order(Column("createdAt").desc, Column("id").desc)
+                .fetchOne(db),
+                let latestID = latest.id,
+                let existingText = latest.text else {
+                return .noEligibleItem
+            }
+
+            let merged = ClipboardTextMerge.join(existingText, nextText)
+            let mergedBytes = merged.utf8.count
+            guard mergedBytes <= max(1, maximumBytes) else {
+                return .combinedValueTooLarge
+            }
+
+            latest.title = ClipboardTextMerge.title(for: merged)
+            latest.text = merged
+            latest.data = nil
+            latest.rtf = nil
+            latest.ocrText = nil
+            latest.appBundleID = appBundleID
+            latest.createdAt = createdAt
+            latest.contentBytes = Int64(mergedBytes)
+            latest.contentHash = Self.hash(for: latest)
+
+            if let duplicate = try ClipItem
+                .filter(
+                    Column("kind") == ClipKind.text.rawValue
+                        && Column("contentHash") == latest.contentHash
+                        && Column("id") != latestID
+                )
+                .order(Column("createdAt").desc, Column("id").desc)
+                .fetchOne(db), let duplicateID = duplicate.id {
+                var replacement = latest
+                replacement.id = duplicateID
+                replacement.isPinned = duplicate.isPinned
+                replacement.pinnedAt = duplicate.pinnedAt
+                try ensureCapacityForItem(replacement, replacing: duplicateID, in: db)
+                try replacement.update(db)
+                try db.execute(sql: "DELETE FROM clip WHERE id = ?", arguments: [latestID])
+                try trim(db)
+                return .appended(duplicateID)
+            }
+
+            try ensureCapacityForItem(latest, replacing: latestID, in: db)
+            try latest.update(db)
+            try trim(db)
+            return .appended(latestID)
+        }
+        if case .appended = result { notifyChange() }
+        return result
+    }
+
     func summaries(
         limit: Int = 60,
         search: String? = nil,
@@ -1227,18 +1290,37 @@ final class Storage: @unchecked Sendable {
             arguments: [limit]
         )
 
-        var total = try Int64.fetchOne(db, sql: "SELECT COALESCE(SUM(contentBytes), 0) FROM clip") ?? 0
+        let total = try Int64.fetchOne(db, sql: "SELECT COALESCE(SUM(contentBytes), 0) FROM clip") ?? 0
         if total > Self.maximumStorageBytes {
-            let oldest = try Row.fetchAll(
-                db,
-                sql: "SELECT id, contentBytes FROM clip WHERE isPinned = 0 ORDER BY createdAt ASC, id ASC"
+            let bytesToRemove = total - Self.maximumStorageBytes
+            try db.execute(
+                sql: """
+                    WITH ordered AS (
+                        SELECT
+                            id,
+                            SUM(contentBytes) OVER (
+                                ORDER BY createdAt ASC, id ASC
+                                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                            ) AS removedBytes
+                        FROM clip
+                        WHERE isPinned = 0
+                    ), boundary AS (
+                        SELECT MIN(removedBytes) AS removedBytes
+                        FROM ordered
+                        WHERE removedBytes >= ?
+                    )
+                    DELETE FROM clip
+                    WHERE id IN (
+                        SELECT id
+                        FROM ordered
+                        WHERE removedBytes <= COALESCE(
+                            (SELECT removedBytes FROM boundary),
+                            9223372036854775807
+                        )
+                    )
+                    """,
+                arguments: [bytesToRemove]
             )
-            for row in oldest where total > Self.maximumStorageBytes {
-                let id: Int64 = row["id"]
-                let bytes: Int64 = row["contentBytes"]
-                try db.execute(sql: "DELETE FROM clip WHERE id = ?", arguments: [id])
-                total -= bytes
-            }
         }
     }
 

@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 extension Notification.Name {
     static let neClipCaptureDidSkip = Notification.Name("org.affpapa.neclip.captureDidSkip")
     static let neClipCaptureDidFail = Notification.Name("org.affpapa.neclip.captureDidFail")
+    static let neClipCaptureDidAppend = Notification.Name("org.affpapa.neclip.captureDidAppend")
 }
 
 enum ClipboardCapturePolicy {
@@ -324,7 +325,7 @@ final class ClipboardMonitor: @unchecked Sendable {
                     userLimit: payloadLimit
                 ) ? $0 : nil
         }
-        let title = String(trimmed.prefix(200)).replacingOccurrences(of: "\n", with: " ")
+        let title = ClipboardTextMerge.title(for: text)
         let item = ClipItem(
             kind: .text,
             title: title,
@@ -335,7 +336,31 @@ final class ClipboardMonitor: @unchecked Sendable {
             contentBytes: Int64(textData.count + (safeRTF?.count ?? 0)),
             contentHash: Self.sha256(textData)
         )
-        insert(item)
+        guard Settings.consumeAppendNextCopy() else {
+            insert(item)
+            return
+        }
+
+        do {
+            switch try Storage.shared.appendToLatestUnpinnedText(
+                text,
+                appBundleID: snapshot.appBundleID,
+                createdAt: snapshot.createdAt,
+                maximumBytes: payloadLimit
+            ) {
+            case .appended:
+                SequentialPasteSequence.shared.noteExternalCapture()
+                notifyAppended()
+            case .noEligibleItem:
+                insert(item)
+            case .combinedValueTooLarge:
+                // The valid new copy is never lost merely because the combined
+                // value would exceed the user's per-record limit.
+                insert(item)
+            }
+        } catch {
+            captureFailed(error)
+        }
     }
 
     private func processImage(_ imageData: Data, isPNG: Bool, snapshot: Snapshot) {
@@ -419,6 +444,12 @@ final class ClipboardMonitor: @unchecked Sendable {
                 object: self,
                 userInfo: ["reason": reason.rawValue, "skipReason": reason]
             )
+        }
+    }
+
+    private func notifyAppended() {
+        DispatchQueue.main.async { [weak self] in
+            NotificationCenter.default.post(name: .neClipCaptureDidAppend, object: self)
         }
     }
 

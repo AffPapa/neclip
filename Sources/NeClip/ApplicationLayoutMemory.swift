@@ -25,6 +25,28 @@ enum ApplicationLayoutMemoryPolicy {
     }
 }
 
+enum ApplicationLayoutRestorePolicy {
+    static func sourceToRestore(
+        fixedSource: String?,
+        rememberedSource: String?,
+        remembersLastSource: Bool
+    ) -> String? {
+        if let fixed = normalized(fixedSource) { return fixed }
+        guard remembersLastSource else { return nil }
+        return normalized(rememberedSource)
+    }
+
+    static func shouldLearnCurrentSource(fixedSource: String?, remembersLastSource: Bool) -> Bool {
+        normalized(fixedSource) == nil && remembersLastSource
+    }
+
+    private static func normalized(_ source: String?) -> String? {
+        guard let value = source?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        return value
+    }
+}
+
 /// Remembers only the selected TIS input source for the active application.
 /// It observes no keyboard events, text fields, windows or clipboard values.
 @MainActor
@@ -47,7 +69,9 @@ final class ApplicationLayoutMemoryController {
     }
 
     func applySetting() {
-        Settings.rememberLayoutPerApplication ? start() : stop()
+        Settings.rememberLayoutPerApplication || Settings.fixedApplicationCount > 0
+            ? start()
+            : stop()
     }
 
     func start() {
@@ -112,20 +136,32 @@ final class ApplicationLayoutMemoryController {
     private func restoreOrLearnLayout(for bundleID: String) {
         pendingRestore = nil
         guard activeBundleID == bundleID else { return }
-        if let remembered = Settings.rememberedLayoutSource(for: bundleID) {
-            guard layouts.currentSelectableSourceID() != remembered else { return }
+        let fixed = Settings.fixedLayoutSource(for: bundleID)
+        let sourceToRestore = ApplicationLayoutRestorePolicy.sourceToRestore(
+            fixedSource: fixed,
+            rememberedSource: Settings.rememberedLayoutSource(for: bundleID),
+            remembersLastSource: Settings.rememberLayoutPerApplication
+        )
+        if let sourceToRestore {
+            guard layouts.currentSelectableSourceID() != sourceToRestore else { return }
             programmaticSelection = ProgrammaticSelection(
                 bundleID: bundleID,
-                sourceID: remembered,
+                sourceID: sourceToRestore,
                 expiresAt: Date().addingTimeInterval(0.75)
             )
-            if !layouts.selectSelectableSource(id: remembered) {
+            if !layouts.selectSelectableSource(id: sourceToRestore) {
                 programmaticSelection = nil
-                if let current = layouts.currentSelectableSourceID() {
+                if ApplicationLayoutRestorePolicy.shouldLearnCurrentSource(
+                    fixedSource: fixed,
+                    remembersLastSource: Settings.rememberLayoutPerApplication
+                ), let current = layouts.currentSelectableSourceID() {
                     Settings.rememberLayoutSource(current, for: bundleID)
                 }
             }
-        } else if let current = layouts.currentSelectableSourceID() {
+        } else if ApplicationLayoutRestorePolicy.shouldLearnCurrentSource(
+            fixedSource: fixed,
+            remembersLastSource: Settings.rememberLayoutPerApplication
+        ), let current = layouts.currentSelectableSourceID() {
             Settings.rememberLayoutSource(current, for: bundleID)
         }
     }
@@ -146,6 +182,10 @@ final class ApplicationLayoutMemoryController {
                 return
             }
         }
+        guard ApplicationLayoutRestorePolicy.shouldLearnCurrentSource(
+            fixedSource: Settings.fixedLayoutSource(for: bundleID),
+            remembersLastSource: Settings.rememberLayoutPerApplication
+        ) else { return }
         Settings.rememberLayoutSource(sourceID, for: bundleID)
     }
 }

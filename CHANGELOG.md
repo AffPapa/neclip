@@ -6,6 +6,23 @@ DMG checksum verification have passed.
 
 ## Unreleased
 
+- Prepared source version 1.6.0/build 10 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until a separate release gate.
+- Added Space preview for the first result only while search is empty, so a
+  normal multiword query never loses its spaces.
+- Added an explicit one-shot append action for the next accepted text. It
+  merges transactionally into the latest unpinned text, preserves a valid new
+  copy as a separate record when the combined value exceeds the user's limit,
+  and never consumes the action for files, images or rejected text.
+- Added a fixed input source per application. It has priority over optional
+  last-used layout memory, acts only on application activation, requires no
+  Input Monitoring and has visible menu toggle, count and reset controls.
+- Replaced row-by-row byte-quota trimming with one SQLite window query and
+  normalized/deduplicated all application exclusion lists.
+- Repeated the product study from a blank decision set: 20 clipboard managers,
+  20 layout tools, five distinct layout architectures, exactly 100 candidates
+  and a newly scored top 20.
+
 - Prepared source version 1.5.0/build 9 while keeping the public update manifest
   and signed/notarized download on 1.4.0 until a separate release gate.
 - Added a 64–2048 KB maximum for one captured text record. RTF is retained only

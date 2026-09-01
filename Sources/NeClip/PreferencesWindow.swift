@@ -113,6 +113,7 @@ private struct PreferencesView: View {
     @State private var automaticLayoutCorrection = Settings.automaticLayoutCorrection
     @State private var rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
     @State private var rememberedApplicationCount = Settings.rememberedApplicationCount
+    @State private var fixedApplicationCount = Settings.fixedApplicationCount
     @State private var historyShortcut = Settings.historyShortcut
     @State private var snippetsShortcut = Settings.snippetsShortcut
     @State private var sequentialPasteShortcut = Settings.sequentialPasteShortcut
@@ -169,6 +170,7 @@ private struct PreferencesView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .neClipApplicationLayoutMemoryDidChange)) { _ in
             rememberedApplicationCount = Settings.rememberedApplicationCount
+            fixedApplicationCount = Settings.fixedApplicationCount
         }
         .onChange(of: feedback) { _, message in
             guard let message else { return }
@@ -379,6 +381,10 @@ private struct PreferencesView: View {
                     Settings.ignoreNextCopy = true
                     feedback = "Следующее копирование будет пропущено"
                 }
+                Button("Объединить следующий текст с предыдущим") {
+                    Settings.appendNextCopy = true
+                    feedback = "Следующий допустимый текст будет добавлен к предыдущему"
+                }
                 DisclosureGroup("Не сохранять текст с указанными фразами") {
                     TextEditor(text: $sensitiveRulesText)
                         .font(.system(.body, design: .monospaced))
@@ -422,12 +428,25 @@ private struct PreferencesView: View {
                     Text("Запомнено приложений: \(rememberedApplicationCount)")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Сбросить") {
+                    Button("Очистить память") {
                         Settings.clearRememberedApplicationLayouts()
                         feedback = "Запомненные раскладки сброшены"
                     }
                     .disabled(rememberedApplicationCount == 0)
                 }
+                HStack {
+                    Text("Закреплено приложений: \(fixedApplicationCount)")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Снять все") {
+                        Settings.clearFixedApplicationLayouts()
+                        feedback = "Закреплённые раскладки сброшены"
+                    }
+                    .disabled(fixedApplicationCount == 0)
+                }
+                Text("Закрепить текущую раскладку можно в меню NeClip → «Раскладка». Она будет выбрана при следующем открытии этого приложения.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Text("Следит только за активным приложением и выбранной системной раскладкой. Текст и нажатия клавиш не читаются; «Мониторинг ввода» не нужен.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

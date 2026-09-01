@@ -47,7 +47,12 @@ not planned.
 
 ## Done in current unreleased source
 
-- Source 1.5.0/build 9 separated from the still-public signed 1.4.0 release
+- Source 1.6.0/build 10 separated from the still-public signed 1.4.0 release
+- Space preview when search is empty without stealing spaces from real queries
+- One-shot append of the next accepted text to recent unpinned text
+- Fixed per-application input source with priority over last-used memory
+- Set-based SQLite byte-quota trim instead of loading and deleting rows one by one
+- Normalized and deduplicated clipboard/layout application exclusions
 - User-bounded 64–2048 KB text records
 - Last-hour/today/all-unpinned cleanup and optional fail-closed cleanup on quit
 - Paste-and-delete only after successful direct-paste dispatch, never after

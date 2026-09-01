@@ -32,6 +32,7 @@ final class PrivacyLogicTests: XCTestCase {
     }
     override func tearDown() {
         Settings.ignoreNextCopy = false
+        Settings.appendNextCopy = false
         Settings.resumeCapture()
         super.tearDown()
     }
@@ -117,6 +118,28 @@ final class PrivacyLogicTests: XCTestCase {
         XCTAssertTrue(Settings.consumeIgnoreNextCopy())
         XCTAssertFalse(Settings.consumeIgnoreNextCopy())
         XCTAssertFalse(Settings.ignoreNextCopy)
+    }
+
+    func testOneShotIgnoreAndAppendAreMutuallyExclusiveAndConsumedOnce() {
+        Settings.ignoreNextCopy = true
+        Settings.appendNextCopy = true
+        XCTAssertFalse(Settings.ignoreNextCopy)
+        XCTAssertTrue(Settings.appendNextCopy)
+        XCTAssertTrue(Settings.consumeAppendNextCopy())
+        XCTAssertFalse(Settings.consumeAppendNextCopy())
+
+        Settings.appendNextCopy = true
+        Settings.ignoreNextCopy = true
+        XCTAssertFalse(Settings.appendNextCopy)
+        XCTAssertTrue(Settings.ignoreNextCopy)
+    }
+
+    func testApplicationExclusionsAreTrimmedDeduplicatedAndSorted() {
+        let previous = Settings.excludedApps
+        defer { Settings.excludedApps = previous }
+
+        Settings.excludedApps = [" com.example.z ", "", "com.example.a", "com.example.z"]
+        XCTAssertEqual(Settings.excludedApps, ["com.example.a", "com.example.z"])
     }
 
     func testExcludedSourcePolicyFailsClosed() {

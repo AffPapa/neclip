@@ -34,11 +34,14 @@ enum Settings {
         static let capturePausedUntil = "capturePausedUntil"
         static let capturePausedIndefinitely = "capturePausedIndefinitely"
         static let ignoreNextCopy = "ignoreNextCopy"
+        static let appendNextCopy = "appendNextCopy"
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
         static let layoutExcludedApps = "layoutExcludedApps"
         static let rememberLayoutPerApplication = "rememberLayoutPerApplication"
         static let applicationLayoutMemory = "applicationLayoutMemory.v1"
         static let applicationLayoutMemoryOrder = "applicationLayoutMemoryOrder.v1"
+        static let fixedApplicationLayouts = "fixedApplicationLayouts.v1"
+        static let fixedApplicationLayoutOrder = "fixedApplicationLayoutOrder.v1"
         static let historyShortcut = "historyShortcut.v1"
         static let snippetsShortcut = "snippetsShortcut.v1"
         static let sequentialPasteShortcut = "sequentialPasteShortcut.v1"
@@ -55,8 +58,8 @@ enum Settings {
     }
 
     static var excludedApps: [String] {
-        get { d.stringArray(forKey: Key.excludedApps) ?? defaultExcluded }
-        set { d.set(newValue, forKey: Key.excludedApps) }
+        get { normalizedBundleIDs(d.stringArray(forKey: Key.excludedApps) ?? defaultExcluded) }
+        set { d.set(normalizedBundleIDs(newValue), forKey: Key.excludedApps) }
     }
 
     static var captureImages: Bool {
@@ -173,9 +176,9 @@ enum Settings {
     /// Separate from clipboard capture exclusions: these apps may still copy
     /// into history while automatic layout correction stays disabled in them.
     static var layoutExcludedApps: [String] {
-        get { d.stringArray(forKey: Key.layoutExcludedApps) ?? defaultLayoutExcluded }
+        get { normalizedBundleIDs(d.stringArray(forKey: Key.layoutExcludedApps) ?? defaultLayoutExcluded) }
         set {
-            d.set(Array(Set(newValue)).sorted(), forKey: Key.layoutExcludedApps)
+            d.set(normalizedBundleIDs(newValue), forKey: Key.layoutExcludedApps)
             notifyLayoutSettingsChanged()
         }
     }
@@ -222,6 +225,53 @@ enum Settings {
     static func clearRememberedApplicationLayouts() {
         d.removeObject(forKey: Key.applicationLayoutMemory)
         d.removeObject(forKey: Key.applicationLayoutMemoryOrder)
+        notifyApplicationLayoutMemoryChanged()
+    }
+
+    static func fixedLayoutSource(for bundleID: String) -> String? {
+        fixedApplicationLayouts[normalizedBundleID(bundleID)]
+    }
+
+    static var fixedApplicationCount: Int {
+        fixedApplicationLayouts.count
+    }
+
+    static var fixedApplicationLayouts: [String: String] {
+        boundedApplicationMap(
+            valueKey: Key.fixedApplicationLayouts,
+            orderKey: Key.fixedApplicationLayoutOrder
+        )
+    }
+
+    static func setFixedLayoutSource(_ sourceID: String?, for bundleID: String) {
+        let bundle = normalizedBundleID(bundleID)
+        guard !bundle.isEmpty, bundle.count <= 255 else { return }
+
+        var mapping = fixedApplicationLayouts
+        var order = (d.stringArray(forKey: Key.fixedApplicationLayoutOrder) ?? [])
+            .map(normalizedBundleID)
+            .filter { !$0.isEmpty && mapping[$0] != nil && $0 != bundle }
+        if let sourceID {
+            let source = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !source.isEmpty, source.count <= 512 else { return }
+            mapping[bundle] = source
+            order.append(bundle)
+        } else {
+            mapping.removeValue(forKey: bundle)
+        }
+        while order.count > maximumRememberedApplications {
+            mapping.removeValue(forKey: order.removeFirst())
+        }
+        d.set(mapping, forKey: Key.fixedApplicationLayouts)
+        d.set(order, forKey: Key.fixedApplicationLayoutOrder)
+        notifyLayoutSettingsChanged()
+        notifyApplicationLayoutMemoryChanged()
+    }
+
+    static func clearFixedApplicationLayouts() {
+        d.removeObject(forKey: Key.fixedApplicationLayouts)
+        d.removeObject(forKey: Key.fixedApplicationLayoutOrder)
+        notifyLayoutSettingsChanged()
         notifyApplicationLayoutMemoryChanged()
     }
 
@@ -294,7 +344,10 @@ enum Settings {
     static var ignoreNextCopy: Bool {
         get { withCaptureControlLock { d.bool(forKey: Key.ignoreNextCopy) } }
         set {
-            withCaptureControlLock { d.set(newValue, forKey: Key.ignoreNextCopy) }
+            withCaptureControlLock {
+                d.set(newValue, forKey: Key.ignoreNextCopy)
+                if newValue { d.set(false, forKey: Key.appendNextCopy) }
+            }
             notifyCaptureControlsChanged()
         }
     }
@@ -304,6 +357,30 @@ enum Settings {
         let consumed = withCaptureControlLock { () -> Bool in
             guard d.bool(forKey: Key.ignoreNextCopy) else { return false }
             d.set(false, forKey: Key.ignoreNextCopy)
+            return true
+        }
+        if consumed { notifyCaptureControlsChanged() }
+        return consumed
+    }
+
+    /// One-shot append applies only to the next accepted text value. Images,
+    /// files and rejected sensitive/oversized text do not consume it.
+    static var appendNextCopy: Bool {
+        get { withCaptureControlLock { d.bool(forKey: Key.appendNextCopy) } }
+        set {
+            withCaptureControlLock {
+                d.set(newValue, forKey: Key.appendNextCopy)
+                if newValue { d.set(false, forKey: Key.ignoreNextCopy) }
+            }
+            notifyCaptureControlsChanged()
+        }
+    }
+
+    @discardableResult
+    static func consumeAppendNextCopy() -> Bool {
+        let consumed = withCaptureControlLock { () -> Bool in
+            guard d.bool(forKey: Key.appendNextCopy) else { return false }
+            d.set(false, forKey: Key.appendNextCopy)
             return true
         }
         if consumed { notifyCaptureControlsChanged() }
@@ -335,8 +412,15 @@ enum Settings {
     }
 
     private static func applicationLayoutMemory() -> [String: String] {
-        let raw = d.dictionary(forKey: Key.applicationLayoutMemory) as? [String: String] ?? [:]
-        let order = d.stringArray(forKey: Key.applicationLayoutMemoryOrder) ?? []
+        boundedApplicationMap(
+            valueKey: Key.applicationLayoutMemory,
+            orderKey: Key.applicationLayoutMemoryOrder
+        )
+    }
+
+    private static func boundedApplicationMap(valueKey: String, orderKey: String) -> [String: String] {
+        let raw = d.dictionary(forKey: valueKey) as? [String: String] ?? [:]
+        let order = d.stringArray(forKey: orderKey) ?? []
         var result: [String: String] = [:]
         for bundle in order.suffix(maximumRememberedApplications) {
             let normalized = normalizedBundleID(bundle)
@@ -355,6 +439,10 @@ enum Settings {
             }
         }
         return result
+    }
+
+    private static func normalizedBundleIDs(_ values: [String]) -> [String] {
+        Array(Set(values.map(normalizedBundleID).filter { !$0.isEmpty })).sorted()
     }
 
     private static func normalizedBundleID(_ value: String) -> String {

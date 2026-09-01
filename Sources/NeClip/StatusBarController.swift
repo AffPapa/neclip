@@ -65,6 +65,7 @@ final class StatusBarController: NSObject {
     private var refreshGeneration = 0
     private var pendingPresentation: (kind: MenuKind, anchoredToStatusItem: Bool)?
     private var targetPID: pid_t?
+    private var targetBundleID: String?
     private var feedbackWorkItem: DispatchWorkItem?
     private var transientStatus: String?
     private weak var activeMenu: NSMenu?
@@ -103,6 +104,12 @@ final class StatusBarController: NSObject {
             self,
             selector: #selector(captureDidSkip(_:)),
             name: .neClipCaptureDidSkip,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(captureDidAppend),
+            name: .neClipCaptureDidAppend,
             object: nil
         )
         NotificationCenter.default.addObserver(
@@ -156,7 +163,9 @@ final class StatusBarController: NSObject {
     }
 
     private func show(_ kind: MenuKind, anchoredToStatusItem: Bool) {
-        targetPID = captureTargetPID()
+        let target = captureTargetApplication()
+        targetPID = target?.processIdentifier
+        targetBundleID = target?.bundleIdentifier
         guard snapshotIsReady else {
             pendingPresentation = (kind, anchoredToStatusItem)
             refreshSnapshot()
@@ -1034,7 +1043,7 @@ final class StatusBarController: NSObject {
 
     /// The sequential shortcut walks recent history without a collection mode.
     func pasteNextSequentially() {
-        let sequenceTargetPID = captureTargetPID()
+        let sequenceTargetPID = captureTargetApplication()?.processIdentifier
         dataQueue.async { [weak self] in
             do {
                 let recentIDs = try Storage.shared.recentClipIDs()
@@ -1234,6 +1243,21 @@ final class StatusBarController: NSObject {
         )
         remember.state = Settings.rememberLayoutPerApplication ? .on : .off
         submenu.addItem(remember)
+        if let bundleID = targetBundleID,
+           ApplicationLayoutMemoryPolicy.isEligible(
+               bundleID: bundleID,
+               ownBundleID: Bundle.main.bundleIdentifier,
+               userExcluded: Set(Settings.layoutExcludedApps)
+           ), KeyboardLayoutService.shared.currentSelectableSourceID() != nil {
+            let appName = AppMetadataStore.shared.metadata(for: bundleID).name
+            let fixed = item(
+                "Закрепить текущую для \(MenuTitleFormatter.format(appName, limit: 32))",
+                #selector(toggleFixedLayoutForTargetApplication),
+                symbol: "pin"
+            )
+            fixed.state = Settings.fixedLayoutSource(for: bundleID) == nil ? .off : .on
+            submenu.addItem(fixed)
+        }
         submenu.addItem(.separator())
         let automatic = item(
             "Автоматически исправлять (бета)",
@@ -1296,6 +1320,12 @@ final class StatusBarController: NSObject {
             let ignore = item(ignoreTitle, #selector(ignoreNextCopy), symbol: "forward.end")
             ignore.state = Settings.ignoreNextCopy ? .on : .off
             menu.addItem(ignore)
+            let appendTitle = Settings.appendNextCopy
+                ? "Следующий текст объединится с предыдущим"
+                : "Объединить следующий текст с предыдущим"
+            let append = item(appendTitle, #selector(appendNextCopy), symbol: "doc.on.doc")
+            append.state = Settings.appendNextCopy ? .on : .off
+            menu.addItem(append)
             let pause = item("Приостановить запись", nil, symbol: "pause.fill")
             let pauseMenu = makeMenu(title: "Приостановить запись")
             pauseMenu.addItem(item("На 15 минут", #selector(pauseForFifteenMinutes), symbol: "timer"))
@@ -1360,11 +1390,12 @@ final class StatusBarController: NSObject {
         MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)
     }
 
-    private func captureTargetPID() -> pid_t? {
+    private func captureTargetApplication() -> (processIdentifier: pid_t, bundleIdentifier: String)? {
         guard let application = NSWorkspace.shared.frontmostApplication,
-              application.bundleIdentifier != Bundle.main.bundleIdentifier,
+              let bundleIdentifier = application.bundleIdentifier,
+              bundleIdentifier != Bundle.main.bundleIdentifier,
               !application.isTerminated else { return nil }
-        return application.processIdentifier
+        return (application.processIdentifier, bundleIdentifier)
     }
 
     @objc private func pasteClip(_ sender: NSMenuItem) {
@@ -1505,6 +1536,8 @@ final class StatusBarController: NSObject {
             symbolName = "pause.rectangle"
         } else if Settings.ignoreNextCopy {
             symbolName = "forward.end"
+        } else if Settings.appendNextCopy {
+            symbolName = "doc.on.doc"
         } else {
             symbolName = "doc.on.clipboard"
         }
@@ -1512,7 +1545,9 @@ final class StatusBarController: NSObject {
             button.image = image
             button.title = ""
         } else {
-            button.title = Settings.isCapturePaused ? "Ⅱ" : (Settings.ignoreNextCopy ? "→" : "⧉")
+            button.title = Settings.isCapturePaused
+                ? "Ⅱ"
+                : (Settings.ignoreNextCopy ? "→" : (Settings.appendNextCopy ? "+" : "⧉"))
         }
         if ClipboardAccess.current == .denied {
             button.toolTip = "NeClip — доступ к буферу запрещён"
@@ -1521,6 +1556,8 @@ final class StatusBarController: NSObject {
                 button.toolTip = "NeClip — запись приостановлена"
             } else if Settings.ignoreNextCopy {
                 button.toolTip = "NeClip — следующее копирование будет пропущено"
+            } else if Settings.appendNextCopy {
+                button.toolTip = "NeClip — следующий текст объединится с предыдущим"
             } else {
                 button.toolTip = "NeClip — \(HotKeyCoordinator.shared.shortcut(for: .history).displayString)"
             }
@@ -1553,10 +1590,20 @@ final class StatusBarController: NSObject {
         }
     }
 
+    @objc private func captureDidAppend() {
+        showFeedback("текст объединён с предыдущим")
+    }
+
     @objc private func ignoreNextCopy() {
         Settings.ignoreNextCopy.toggle()
         refreshIcon()
         showFeedback(Settings.ignoreNextCopy ? "следующее копирование не сохранится" : "пропуск отменён")
+    }
+
+    @objc private func appendNextCopy() {
+        Settings.appendNextCopy.toggle()
+        refreshIcon()
+        showFeedback(Settings.appendNextCopy ? "следующий текст объединится с предыдущим" : "объединение отменено")
     }
 
     @objc private func toggleApplicationLayoutMemory() {
@@ -1566,6 +1613,18 @@ final class StatusBarController: NSObject {
                 ? "раскладка приложений запоминается"
                 : "запоминание раскладки выключено"
         )
+    }
+
+    @objc private func toggleFixedLayoutForTargetApplication() {
+        guard let bundleID = targetBundleID else { return }
+        let appName = AppMetadataStore.shared.metadata(for: bundleID).name
+        if Settings.fixedLayoutSource(for: bundleID) != nil {
+            Settings.setFixedLayoutSource(nil, for: bundleID)
+            showFeedback("закрепление для \(appName) снято")
+        } else if let sourceID = KeyboardLayoutService.shared.currentSelectableSourceID() {
+            Settings.setFixedLayoutSource(sourceID, for: bundleID)
+            showFeedback("текущая раскладка закреплена для \(appName)")
+        }
     }
 
     @objc private func pauseForFifteenMinutes() {
@@ -1679,6 +1738,15 @@ private final class MenuSearchField: NSSearchField {
     override func keyDown(with event: NSEvent) {
         let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
         let character = event.charactersIgnoringModifiers ?? ""
+        if MenuSearchKeyPolicy.shouldPreviewOnSpace(
+            keyCode: event.keyCode,
+            modifiers: modifiers,
+            searchText: stringValue,
+            isRepeat: event.isARepeat
+        ) {
+            onPreviewFirst?()
+            return
+        }
         if modifiers.contains(.command), let number = Int(character), (1...9).contains(number) {
             onQuickSelect?(number - 1, modifiers)
             return
@@ -1716,5 +1784,16 @@ private final class MenuSearchField: NSSearchField {
             return
         }
         super.keyDown(with: event)
+    }
+}
+
+enum MenuSearchKeyPolicy {
+    static func shouldPreviewOnSpace(
+        keyCode: UInt16,
+        modifiers: NSEvent.ModifierFlags,
+        searchText: String,
+        isRepeat: Bool
+    ) -> Bool {
+        keyCode == 49 && modifiers.isEmpty && searchText.isEmpty && !isRepeat
     }
 }

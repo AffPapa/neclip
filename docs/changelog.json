@@ -4,7 +4,11 @@
       "version": "next",
       "status": "in-development",
       "highlights": [
-        "Source 1.5.0 build 9; public signed release remains 1.4.0",
+        "Source 1.6.0 build 10; public signed release remains 1.4.0",
+        "Space preview only while search is empty",
+        "One-shot append of the next accepted text without losing over-limit values",
+        "Fixed per-application input source without key monitoring",
+        "Set-based SQLite byte-quota trim and normalized application exclusions",
         "User-bounded text capture and partial or on-quit history cleanup",
         "Paste-and-delete only after successful direct-paste dispatch, never copy-only fallback",
         "Per-application input-source memory without keyboard-event monitoring",

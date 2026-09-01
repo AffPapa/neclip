@@ -212,6 +212,116 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(storage.count, 1)
     }
 
+    func testAppendNextTextUpdatesOneRecordAndDropsIncompatibleRTF() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let firstID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "alpha",
+            text: "alpha",
+            rtf: Data([1, 2, 3]),
+            appBundleID: "app.one",
+            createdAt: Date(timeIntervalSince1970: 10)
+        )))
+
+        let result = try storage.appendToLatestUnpinnedText(
+            "beta",
+            appBundleID: "app.two",
+            createdAt: Date(timeIntervalSince1970: 20),
+            maximumBytes: 1_024
+        )
+
+        XCTAssertEqual(result, .appended(firstID))
+        XCTAssertEqual(storage.count, 1)
+        let merged = try XCTUnwrap(storage.fetchClip(id: firstID))
+        XCTAssertEqual(merged.text, "alpha\nbeta")
+        XCTAssertEqual(merged.title, "alpha beta")
+        XCTAssertNil(merged.rtf)
+        XCTAssertEqual(merged.appBundleID, "app.two")
+        XCTAssertEqual(merged.createdAt, Date(timeIntervalSince1970: 20))
+        XCTAssertEqual(merged.contentBytes, Int64("alpha\nbeta".utf8.count))
+        XCTAssertNotNil(merged.contentHash)
+    }
+
+    func testAppendNextTextFallsBackWithoutMutatingWhenCombinedValueIsTooLarge() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let firstID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "alpha",
+            text: "alpha",
+            createdAt: Date(timeIntervalSince1970: 10)
+        )))
+
+        XCTAssertEqual(try storage.appendToLatestUnpinnedText(
+            "beta",
+            appBundleID: "app.two",
+            createdAt: Date(timeIntervalSince1970: 20),
+            maximumBytes: 5
+        ), .combinedValueTooLarge)
+        XCTAssertEqual(try storage.fetchClip(id: firstID)?.text, "alpha")
+    }
+
+    func testAppendNextTextReusesExistingDuplicateInsteadOfCreatingTwoRows() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        _ = try storage.insert(ClipItem(
+            kind: .text,
+            title: "alpha",
+            text: "alpha",
+            createdAt: Date(timeIntervalSince1970: 20)
+        ))
+        let duplicateID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "combined",
+            text: "alpha\nbeta",
+            createdAt: Date(timeIntervalSince1970: 10)
+        )))
+        // Make the short value newest so append chooses it.
+        _ = try storage.insert(ClipItem(
+            kind: .text,
+            title: "alpha",
+            text: "alpha",
+            createdAt: Date(timeIntervalSince1970: 30)
+        ))
+
+        XCTAssertEqual(try storage.appendToLatestUnpinnedText(
+            "beta",
+            appBundleID: "app.two",
+            createdAt: Date(timeIntervalSince1970: 40),
+            maximumBytes: 1_024
+        ), .appended(duplicateID))
+        XCTAssertEqual(storage.count, 1)
+        XCTAssertEqual(try storage.fetchClip(id: duplicateID)?.text, "alpha\nbeta")
+    }
+
+    func testByteQuotaTrimDeletesTheSmallestOldestPrefixInOnePass() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let oldestID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "oldest",
+            text: "oldest",
+            createdAt: Date(timeIntervalSince1970: 10),
+            contentBytes: 100 * 1024 * 1024
+        )))
+        let middleID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "middle",
+            text: "middle",
+            createdAt: Date(timeIntervalSince1970: 20),
+            contentBytes: 100 * 1024 * 1024
+        )))
+        let newestID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "newest",
+            text: "newest",
+            createdAt: Date(timeIntervalSince1970: 30),
+            contentBytes: 60 * 1024 * 1024
+        )))
+
+        XCTAssertNil(try storage.fetchClip(id: oldestID))
+        XCTAssertNotNil(try storage.fetchClip(id: middleID))
+        XCTAssertNotNil(try storage.fetchClip(id: newestID))
+        XCTAssertEqual(storage.count, 2)
+    }
+
     func testOCRTextIsCountedAgainstPinnedHardCap() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let sentinelID = try XCTUnwrap(storage.insert(ClipItem(

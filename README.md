@@ -8,7 +8,7 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.5.0 (build 9)**. The latest public, signed and
+Current source version: **1.6.0 (build 10)**. The latest public, signed and
 notarized release remains **1.4.0** until a separate release gate is completed.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
@@ -16,10 +16,10 @@ for the intentionally small public roadmap.
 The current module ownership and invariants are in
 [docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
 audit, decisions and verification gates are in
-[docs/AUDIT-1.5.0-2026-09-01.md](docs/AUDIT-1.5.0-2026-09-01.md).
-The current deep comparison of 18 clipboard products, 19 layout products, 100
-candidate improvements and the 1.5.0 decisions is in
-[docs/RESEARCH-1.5.0-2026-09-01.md](docs/RESEARCH-1.5.0-2026-09-01.md).
+[docs/AUDIT-1.6.0-2026-09-01.md](docs/AUDIT-1.6.0-2026-09-01.md).
+The current from-scratch comparison of 20 clipboard products, 20 layout tools,
+100 candidate improvements and the 1.6.0 decisions is in
+[docs/RESEARCH-1.6.0-ZERO-2026-09-01.md](docs/RESEARCH-1.6.0-ZERO-2026-09-01.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 SHA-256:
@@ -44,6 +44,7 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Command-S` — save the first visible text result as a snippet
 - `Command-Delete` — delete the first visible result
 - `Command-Z` — restore the last individually deleted item
+- `Space` — preview the first result when search is empty
 - `Escape` — clear search, then close
 
 The first ten recent items are inline; up to 100 are browsable in one compact
@@ -53,6 +54,7 @@ The snippet hotkey shows nine quick items first and then a bounded folder
 hierarchy; larger imported libraries remain fully searchable and editable. The
 history menu also contains
 an explicit **Actions for Top Item** submenu, pause, ignore-next-copy,
+append-next-text,
 clear, preferences, snippet
 editing, the manual update check, and quit.
 
@@ -108,6 +110,10 @@ for up to 200 applications. It observes only application activation and the
 system input-source notification; it does not read text or key events and does
 not need Input Monitoring. Settings shows the local mapping count and provides
 one reset button.
+The menu can also pin the current system input source to the application that
+was active before NeClip opened. A fixed rule wins over last-used memory on the
+next application activation, still reads no text or key events, and can be
+removed from the same menu or reset in Settings.
 
 Automatic correction needs separate Input Monitoring and Accessibility access
 from macOS. NeClip requests them only when the user turns the feature on;
@@ -140,6 +146,10 @@ password-manager bundle identifiers by default, and fails closed while source
 application attribution is uncertain. Because not every app marks sensitive
 clipboard content correctly, pause capture or use **Ignore Next Copy** when
 handling data that must not enter history.
+The explicit **Append Next Text** action joins the next accepted text value to
+the latest unpinned text record with one newline. Images, files and rejected
+sensitive or oversized text do not consume the one-shot action; incompatible
+RTF is discarded and an over-limit combined value is safely stored separately.
 
 Manual selection replacement uses a compare-and-swap pasteboard transaction:
 the previous multi-item pasteboard is restored only if no other app copied

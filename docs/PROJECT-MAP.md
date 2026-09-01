@@ -4,9 +4,9 @@ Updated: 1 September 2026. This is the source map for the current unreleased
 tree. Public release metadata remains pinned to 1.4.0 until the release gate is
 completed.
 
-The matching evidence report is `AUDIT-1.5.0-2026-09-01.md`; competitor
+The matching evidence report is `AUDIT-1.6.0-2026-09-01.md`; competitor
 matrices, the 100-item catalogue and top-20 decisions are in
-`RESEARCH-1.5.0-2026-09-01.md`.
+`RESEARCH-1.6.0-ZERO-2026-09-01.md`.
 
 ## Product boundary
 
@@ -29,6 +29,8 @@ Important owners:
 - `ClipboardAccess.swift`: macOS pasteboard authorization state and recovery.
 - `ClipboardMonitor.swift`: generation-based polling, source attribution and
   asynchronous payload processing, including the user-bounded text payload.
+- `ClipboardTextMerge.swift`: deterministic one-newline append policy and
+  single-line title generation for the explicit one-shot append action.
 - `SensitiveContentPolicy.swift`: concealed/transient/password-manager and
   literal sensitive-phrase rejection.
 - `OCRService.swift`: serialized local Vision OCR.
@@ -70,7 +72,8 @@ JSON export and atomic merge-only import without history or usage metadata.
 - `AutoLayoutController.swift`: bounded in-memory keystroke buffer and event tap.
 - `LayoutFeedbackHUD.swift`: brief status/undo feedback.
 - `ApplicationLayoutMemory.swift`: independent app-activation/TIS observer for
-  a bounded last-used source map; it never observes text or key events.
+  bounded last-used and fixed source maps; fixed rules have restore priority
+  and the controller never observes text or key events.
 
 Manual correction is the dependable path. Automatic correction is conservative,
 off by default, EN/RU-only, Space-boundary-only and fails closed in secure,
@@ -81,7 +84,7 @@ ignore list until restart.
 ### Settings, shortcuts and lifecycle
 
 - `Settings.swift`: normalized local preferences and a 200-entry per-app layout
-  map with explicit reset.
+  map plus a separate bounded fixed-layout map with explicit reset.
 - `ShortcutDescriptor.swift`, `ShortcutRecorder.swift`, `GlobalHotKey.swift`,
   `HotKeyCoordinator.swift`: five transactional, conflict-safe native hotkeys.
 - `PreferencesWindow.swift`: General, Keys, Privacy, Layout and Data.
@@ -101,6 +104,10 @@ ignore list until restart.
 8. A conflicting shortcut never replaces the previous working registration.
 9. Partial/quit cleanup never removes pins or snippets.
 10. Per-app layout memory does not enable or depend on automatic key monitoring.
+11. Append-next is consumed only by accepted text and never loses a valid copy
+    when the combined value exceeds the per-record limit.
+12. A fixed per-app input source overrides last-used memory only on activation;
+    a temporary manual layout change remains possible until reactivation.
 
 ## Verification map
 

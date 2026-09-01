@@ -142,6 +142,61 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertFalse(Settings.automaticLayoutCorrection)
     }
 
+    func testFixedApplicationLayoutTakesPriorityAndDisablesLearning() {
+        XCTAssertEqual(ApplicationLayoutRestorePolicy.sourceToRestore(
+            fixedSource: "fixed",
+            rememberedSource: "remembered",
+            remembersLastSource: true
+        ), "fixed")
+        XCTAssertEqual(ApplicationLayoutRestorePolicy.sourceToRestore(
+            fixedSource: nil,
+            rememberedSource: "remembered",
+            remembersLastSource: true
+        ), "remembered")
+        XCTAssertNil(ApplicationLayoutRestorePolicy.sourceToRestore(
+            fixedSource: nil,
+            rememberedSource: "remembered",
+            remembersLastSource: false
+        ))
+        XCTAssertFalse(ApplicationLayoutRestorePolicy.shouldLearnCurrentSource(
+            fixedSource: "fixed",
+            remembersLastSource: true
+        ))
+        XCTAssertTrue(ApplicationLayoutRestorePolicy.shouldLearnCurrentSource(
+            fixedSource: nil,
+            remembersLastSource: true
+        ))
+    }
+
+    func testFixedApplicationLayoutMappingIsBoundedAndRemovable() {
+        let previous = Settings.fixedApplicationLayouts
+        defer {
+            Settings.clearFixedApplicationLayouts()
+            for (bundleID, sourceID) in previous.sorted(by: { $0.key < $1.key }) {
+                Settings.setFixedLayoutSource(sourceID, for: bundleID)
+            }
+        }
+
+        Settings.clearFixedApplicationLayouts()
+        Settings.setFixedLayoutSource(" source.en ", for: " com.example.Editor ")
+        XCTAssertEqual(Settings.fixedLayoutSource(for: "com.example.Editor"), "source.en")
+        XCTAssertEqual(Settings.fixedApplicationCount, 1)
+        Settings.setFixedLayoutSource(nil, for: "com.example.Editor")
+        XCTAssertNil(Settings.fixedLayoutSource(for: "com.example.Editor"))
+        XCTAssertEqual(Settings.fixedApplicationCount, 0)
+
+        for index in 0..<(Settings.maximumRememberedApplications + 5) {
+            Settings.setFixedLayoutSource("source.\(index)", for: "com.example.app.\(index)")
+        }
+        XCTAssertEqual(Settings.fixedApplicationCount, Settings.maximumRememberedApplications)
+        XCTAssertNil(Settings.fixedLayoutSource(for: "com.example.app.0"))
+        let newestIndex = Settings.maximumRememberedApplications + 4
+        XCTAssertEqual(
+            Settings.fixedLayoutSource(for: "com.example.app.\(newestIndex)"),
+            "source.\(newestIndex)"
+        )
+    }
+
     func testWholeValueCASNeverRollsBackOverConcurrentMutation() {
         XCTAssertTrue(LayoutWholeValueCASPolicy.shouldRollback(
             currentValue: "привет ",
