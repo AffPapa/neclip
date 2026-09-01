@@ -1,5 +1,14 @@
+import AppKit
 import XCTest
 @testable import NeClip
+
+private final class SilentPasteboardProvider: NSObject, NSPasteboardItemDataProvider {
+    func pasteboard(
+        _ pasteboard: NSPasteboard?,
+        item: NSPasteboardItem,
+        provideDataForType type: NSPasteboard.PasteboardType
+    ) {}
+}
 
 final class PrivacyLogicTests: XCTestCase {
     func testPasteboardAccessPolicyFailsClosedForUnknownAndDeniedStates() {
@@ -87,6 +96,34 @@ final class PrivacyLogicTests: XCTestCase {
         XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnlyNoAccessibility, isPinned: false))
         XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.copiedOnlyTargetChanged, isPinned: false))
         XCTAssertFalse(PasteService.shouldDeleteAfterPaste(.failed(.eventCreation), isPinned: false))
+    }
+
+    @MainActor
+    func testPasteboardSnapshotPreservesEveryRepresentationAndEmptyState() throws {
+        let pasteboard = NSPasteboard(name: .init("org.affpapa.neclip.tests.\(UUID().uuidString)"))
+        pasteboard.clearContents()
+        XCTAssertEqual(PasteService.snapshotPasteboard(pasteboard)?.count, 0)
+
+        let item = NSPasteboardItem()
+        item.setString("plain", forType: .string)
+        item.setData(Data([1, 2, 3]), forType: .rtf)
+        XCTAssertTrue(pasteboard.writeObjects([item]))
+
+        let snapshot = try XCTUnwrap(PasteService.snapshotPasteboard(pasteboard))
+        XCTAssertEqual(snapshot.count, 1)
+        XCTAssertEqual(snapshot[0].string(forType: .string), "plain")
+        XCTAssertEqual(snapshot[0].data(forType: .rtf), Data([1, 2, 3]))
+    }
+
+    @MainActor
+    func testPasteboardSnapshotRejectsUnreadablePromisedData() {
+        let pasteboard = NSPasteboard(name: .init("org.affpapa.neclip.tests.\(UUID().uuidString)"))
+        let provider = SilentPasteboardProvider()
+        let item = NSPasteboardItem()
+        item.setDataProvider(provider, forTypes: [.init("org.affpapa.neclip.tests.promised")])
+        XCTAssertTrue(pasteboard.writeObjects([item]))
+
+        XCTAssertNil(PasteService.snapshotPasteboard(pasteboard))
     }
 
     func testPauseAndResumeArePersistedThroughSettingsAPI() {

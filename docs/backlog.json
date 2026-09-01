@@ -17,7 +17,12 @@
     "Visible snippet folders, folder CRUD, moves and draft-safe editing"
   ],
   "inDevelopment": [
-    "Source 1.6.1 build 11 while public release metadata remains on 1.4.0",
+    "Source 1.6.2 build 12 while public release metadata remains on 1.4.0",
+    "Self-verifying secret scanning with generated canaries and explicit HEAD plus side-ref scans",
+    "Bounded snippet summaries with full content fetched only for the chosen item",
+    "Local snippet limits aligned with portable import",
+    "Latest-copy RTF semantics and fail-closed lossless pasteboard snapshots",
+    "Reduced automatic-layout Accessibility reads with sequence lock, CAS and rollback retained",
     "Immutable case-insensitive password-manager capture protection",
     "Quick capture exclusion and restoration for the target application",
     "Pre-decode 16 MB snippet-import limit and proven dead-code cleanup",

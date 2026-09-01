@@ -543,8 +543,7 @@ final class AutoLayoutController {
             record.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
-            guard contextStillMatches(record.context),
-                  layouts.currentSourceID() == record.targetSourceID,
+            guard layouts.currentSourceID() == record.targetSourceID,
                   accessibility.replaceTailAtomically(
                     expected: record.converted + " ",
                     replacement: record.original + " ",
@@ -598,8 +597,7 @@ final class AutoLayoutController {
             boundary.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
-            guard contextStillMatches(context),
-                  layouts.currentSourceID() == boundary.sourceID,
+            guard layouts.currentSourceID() == boundary.sourceID,
                   accessibility.replaceTailAtomically(
                     expected: translation.original + " ",
                     replacement: translation.converted + " ",

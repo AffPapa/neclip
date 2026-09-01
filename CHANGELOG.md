@@ -6,6 +6,21 @@ DMG checksum verification have passed.
 
 ## Unreleased
 
+- Prepared source version 1.6.2/build 12 while keeping the public update
+  manifest and signed/notarized download on 1.4.0 until a separate release gate.
+- Reworked snippet presentation around lightweight 280-character summaries.
+  Menus, search and the editor sidebar no longer retain every full body; the
+  selected snippet alone is fetched for editing or paste.
+- Applied the import field bounds to local snippet writes, fixed stale RTF after
+  a newer plain-text copy and made manual selection replacement abort before
+  clearing when any advertised pasteboard representation is unreadable.
+- Removed redundant automatic-layout Accessibility refreshes without weakening
+  the event-sequence lock, whole-value compare-and-swap, verification or
+  rollback.
+- Made secret scanning self-test GitHub, AWS and Slack detectors before use and
+  scan HEAD plus side-ref-only history explicitly. The audit contract now checks
+  every public `AUDIT*.md` document, and version assertions match the source.
+
 - Prepared source version 1.6.1/build 11 while keeping the public update
   manifest and signed/notarized download on 1.4.0 until a separate release gate.
 - Made password-manager capture protection immutable and case-insensitive in

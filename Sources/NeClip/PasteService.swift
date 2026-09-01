@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 enum PasteFailure: Equatable {
+    case clipboardSnapshot
     case clipboardWrite
     case eventCreation
 }
@@ -107,7 +108,10 @@ enum PasteService {
 
         let pasteboard = NSPasteboard.general
         let snapshotGeneration = pasteboard.changeCount
-        let savedItems = snapshotPasteboard(pasteboard)
+        guard let savedItems = snapshotPasteboard(pasteboard) else {
+            finish(.failed(.clipboardSnapshot), completion: completion)
+            return
+        }
         guard pasteboard.changeCount == snapshotGeneration,
               validateTarget(),
               NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID else {
@@ -242,16 +246,26 @@ enum PasteService {
         return success
     }
 
-    private static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
-        (pasteboard.pasteboardItems ?? []).map { source in
+    /// Captures every advertised representation or fails before the pasteboard
+    /// is cleared. Returning a partial snapshot would silently destroy lazy or
+    /// promised data after manual layout correction.
+    static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem]? {
+        let sources = pasteboard.pasteboardItems ?? []
+        if sources.isEmpty {
+            return pasteboard.types?.isEmpty == false ? nil : []
+        }
+        var snapshot: [NSPasteboardItem] = []
+        snapshot.reserveCapacity(sources.count)
+        for source in sources {
+            guard !source.types.isEmpty else { return nil }
             let copy = NSPasteboardItem()
             for type in source.types {
-                if let data = source.data(forType: type) {
-                    copy.setData(data, forType: type)
-                }
+                guard let data = source.data(forType: type) else { return nil }
+                guard copy.setData(data, forType: type) else { return nil }
             }
-            return copy
+            snapshot.append(copy)
         }
+        return snapshot
     }
 
     private static func restorePasteboard(_ items: [NSPasteboardItem], ifGenerationIs expected: Int) {

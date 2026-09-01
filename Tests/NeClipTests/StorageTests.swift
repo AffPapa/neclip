@@ -73,6 +73,28 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(item.createdAt, secondDate)
     }
 
+    func testHashDedupDropsStaleRTFWhenLatestCopyIsPlainText() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let id = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "rich",
+            text: "same payload",
+            rtf: Data([1, 2, 3]),
+            createdAt: Date(timeIntervalSince1970: 10)
+        )))
+
+        XCTAssertEqual(try storage.fetchClip(id: id)?.rtf, Data([1, 2, 3]))
+        XCTAssertEqual(try storage.insert(ClipItem(
+            kind: .text,
+            title: "plain",
+            text: "same payload",
+            rtf: nil,
+            createdAt: Date(timeIntervalSince1970: 20)
+        )), id)
+
+        XCTAssertNil(try storage.fetchClip(id: id)?.rtf)
+    }
+
     func testSequentialPasteIDsUsePhysicalRecencyInsteadOfPinOrder() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let oldest = try XCTUnwrap(storage.insert(ClipItem(
@@ -373,6 +395,56 @@ final class StorageTests: XCTestCase {
 
         XCTAssertEqual(try storage.allSnippets(search: "bulk", limit: 20).count, 20)
         XCTAssertEqual(try storage.allSnippets(search: "bulk").count, 30)
+    }
+
+    func testSnippetSummariesSearchFullContentButBoundTheReturnedPreview() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let content = String(repeating: "a", count: 800) + " unique-needle"
+        let created = try XCTUnwrap(storage.addSnippet(
+            folderID: nil,
+            title: "Long snippet",
+            content: content
+        ))
+        let id = try XCTUnwrap(created.id)
+
+        let summary = try XCTUnwrap(storage.snippetSummaries(search: "unique-needle").first)
+        XCTAssertEqual(summary.id, id)
+        XCTAssertEqual(summary.contentPreview.count, Storage.snippetPreviewCharacterLimit)
+        XCTAssertTrue(summary.contentIsTruncated)
+        XCTAssertFalse(summary.contentPreview.contains("unique-needle"))
+        XCTAssertEqual(try storage.fetchSnippet(id: id)?.content, content)
+    }
+
+    func testLocalSnippetWritesEnforcePortableFieldLimits() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+
+        XCTAssertThrowsError(try storage.addSnippet(
+            folderID: nil,
+            title: String(repeating: "t", count: Storage.maximumSnippetTitleCharacters + 1),
+            content: "value"
+        )) { error in
+            XCTAssertEqual(error as? SnippetStorageError, .snippetTitleTooLong)
+        }
+        XCTAssertThrowsError(try storage.addSnippet(
+            folderID: nil,
+            title: "Title",
+            content: "value",
+            keyword: String(repeating: "k", count: Storage.maximumSnippetKeywordCharacters + 1)
+        )) { error in
+            XCTAssertEqual(error as? SnippetStorageError, .snippetKeywordTooLong)
+        }
+        XCTAssertThrowsError(try storage.addSnippet(
+            folderID: nil,
+            title: "Title",
+            content: String(repeating: "x", count: ClipboardCapturePolicy.maxTextBytes + 1)
+        )) { error in
+            XCTAssertEqual(error as? SnippetStorageError, .snippetContentTooLarge)
+        }
+        XCTAssertThrowsError(try storage.addFolder(
+            title: String(repeating: "f", count: Storage.maximumSnippetTitleCharacters + 1)
+        )) { error in
+            XCTAssertEqual(error as? SnippetStorageError, .folderTitleTooLong)
+        }
     }
 
     func testSnippetKeywordNormalizationPinAndUsage() throws {
@@ -896,6 +968,9 @@ final class StorageTests: XCTestCase {
             Set(snapshot.folders.compactMap(\.id))
         )
         XCTAssertLessThan(snapshot.folders.count, try storage.snippetFolders().count)
+        XCTAssertTrue(snapshot.snippets.allSatisfy {
+            $0.contentPreview.count <= Storage.snippetPreviewCharacterLimit
+        })
         XCTAssertEqual(try storage.allSnippets().count, 4)
     }
 

@@ -8,7 +8,7 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.6.1 (build 11)**. The latest public, signed and
+Current source version: **1.6.2 (build 12)**. The latest public, signed and
 notarized release remains **1.4.0** until a separate release gate is completed.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
@@ -16,7 +16,7 @@ for the intentionally small public roadmap.
 The current module ownership and invariants are in
 [docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
 audit, decisions and verification gates are in
-[docs/AUDIT-1.6.1-2026-09-01.md](docs/AUDIT-1.6.1-2026-09-01.md).
+[docs/AUDIT-1.6.2-2026-09-01.md](docs/AUDIT-1.6.2-2026-09-01.md).
 The current from-scratch comparison of 20 clipboard products, 20 layout tools,
 100 candidate improvements and the 1.6.0 decisions is in
 [docs/RESEARCH-1.6.0-ZERO-2026-09-01.md](docs/RESEARCH-1.6.0-ZERO-2026-09-01.md).
@@ -127,7 +127,8 @@ on the right. Snippets can be edited, moved, pinned and searched; folders can be
 created, renamed and removed. Removing a folder keeps its snippets in
 **Unfiled**. Changes save automatically, pending edits are flushed before
 navigation or close, and a failed save remains visible instead of discarding
-the draft.
+the draft. Menus, searches and the sidebar retain only bounded previews; the
+complete text is loaded from SQLite only when one snippet is opened or pasted.
 
 ## Local data and privacy
 
@@ -152,7 +153,8 @@ sensitive or oversized text do not consume the one-shot action; incompatible
 RTF is discarded and an over-limit combined value is safely stored separately.
 
 Manual selection replacement uses a compare-and-swap pasteboard transaction:
-the previous multi-item pasteboard is restored only if no other app copied
+NeClip proceeds only after every advertised representation has been captured,
+then restores the previous multi-item pasteboard only if no other app copied
 something in the meantime. Automatic correction never uses the pasteboard.
 
 History is bounded by both an item limit and a hard 250 MB byte quota. Pinned

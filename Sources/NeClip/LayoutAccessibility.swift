@@ -189,8 +189,16 @@ final class LayoutAccessibility {
 
         let replacementLength = (replacement as NSString).length
         let nextCursor = CFRange(location: replacementRange.location + replacementLength, length: 0)
-        guard select(nextCursor, in: current, scope: .automatic),
-              let verified = refreshedContext(matching: current, scope: .automatic),
+        var mutableNextCursor = nextCursor
+        guard let valueBeforeSelection: String = attribute(latest.element, kAXValueAttribute),
+              valueBeforeSelection == next,
+              let rangeValue = AXValueCreate(.cfRange, &mutableNextCursor),
+              AXUIElementSetAttributeValue(
+                latest.element,
+                kAXSelectedTextRangeAttribute as CFString,
+                rangeValue
+              ) == .success,
+              let verified = refreshedContext(matching: latest, scope: .automatic),
               sameRange(verified.selectedRange, nextCursor),
               let verifiedValue: String = attribute(verified.element, kAXValueAttribute),
               verifiedValue == next else {

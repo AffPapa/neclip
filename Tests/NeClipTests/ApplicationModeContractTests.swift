@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.6.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "10")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.6.2")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "12")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -106,6 +106,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("searchField.searchMenuTemplate = historySearchMenu()"))
         XCTAssertTrue(statusBar.contains("#selector(insertSearchFilter(_:))"))
         XCTAssertTrue(statusBar.contains("Storage.shared.menuSnippetSnapshot()"))
+        XCTAssertTrue(statusBar.contains("Storage.shared.snippetSummaries("))
+        XCTAssertTrue(statusBar.contains("Storage.shared.fetchSnippet(id: id)"))
+        XCTAssertFalse(statusBar.contains("Storage.shared.allSnippets("))
 
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))

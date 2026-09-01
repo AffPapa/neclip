@@ -57,7 +57,7 @@ final class SnippetsEditorModel: ObservableObject {
     }
 
     @Published var folders: [SnippetFolder] = []
-    @Published var snippets: [Snippet] = []
+    @Published var snippets: [SnippetSummary] = []
     @Published var selectedSnippetID: Int64?
     @Published var activeFolderID: Int64?
     @Published var query = ""
@@ -105,7 +105,7 @@ final class SnippetsEditorModel: ObservableObject {
         do {
             let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
             folders = try storage.snippetFolders()
-            snippets = try storage.allSnippets(
+            snippets = try storage.snippetSummaries(
                 search: trimmedQuery.isEmpty ? nil : trimmedQuery,
                 pinnedOnly: false
             )
@@ -141,7 +141,7 @@ final class SnippetsEditorModel: ObservableObject {
         }
     }
 
-    func snippets(in folderID: Int64?) -> [Snippet] {
+    func snippets(in folderID: Int64?) -> [SnippetSummary] {
         snippets
             .filter { $0.folderID == folderID }
             .sorted {
@@ -189,7 +189,7 @@ final class SnippetsEditorModel: ObservableObject {
             query = ""
             reload(selecting: id)
         } catch {
-            message = "Не удалось создать сниппет"
+            message = error.localizedDescription
         }
     }
 
@@ -311,18 +311,28 @@ final class SnippetsEditorModel: ObservableObject {
     }
 
     private func loadEditor(id: Int64) {
-        guard let snippet = snippets.first(where: { $0.id == id }) else { return }
-        isLoadingEditor = true
-        editingSnippet = snippet
-        activeFolderID = snippet.folderID
-        editorTitle = snippet.title
-        editorKeyword = snippet.keyword ?? ""
-        editorContent = snippet.content
-        editorPinned = snippet.isPinned
-        editorFolderID = snippet.folderID
-        pendingDraft = nil
-        saveState = .saved
-        isLoadingEditor = false
+        do {
+            guard let snippet = try storage.fetchSnippet(id: id) else {
+                message = "Сниппет уже удалён"
+                reload()
+                return
+            }
+            isLoadingEditor = true
+            defer { isLoadingEditor = false }
+            editingSnippet = snippet
+            activeFolderID = snippet.folderID
+            editorTitle = snippet.title
+            editorKeyword = snippet.keyword ?? ""
+            editorContent = snippet.content
+            editorPinned = snippet.isPinned
+            editorFolderID = snippet.folderID
+            pendingDraft = nil
+            saveState = .saved
+        } catch {
+            selectedSnippetID = nil
+            clearEditor()
+            message = "Не удалось открыть сниппет"
+        }
     }
 
     private func clearEditor() {
@@ -346,7 +356,7 @@ final class SnippetsEditorModel: ObservableObject {
         do {
             let saved = try storage.update(draft.snippet)
             if let index = snippets.firstIndex(where: { $0.id == saved.id }) {
-                snippets[index] = saved
+                snippets[index] = SnippetSummary(snippet: saved)
             }
             if editingSnippet?.id == saved.id {
                 editingSnippet = saved
@@ -359,6 +369,7 @@ final class SnippetsEditorModel: ObservableObject {
         } catch {
             pendingDraft = draft
             saveState = .failed("Не сохранено · повторить ⌘S")
+            message = error.localizedDescription
             return false
         }
     }
@@ -570,7 +581,7 @@ private struct SnippetsEditorView: View {
         }
     }
 
-    private func snippetRow(_ snippet: Snippet, folderSubtitle: String? = nil) -> some View {
+    private func snippetRow(_ snippet: SnippetSummary, folderSubtitle: String? = nil) -> some View {
         Button {
             model.selectSnippet(snippet.id)
         } label: {

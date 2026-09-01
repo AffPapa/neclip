@@ -47,7 +47,17 @@ not planned.
 
 ## Done in current unreleased source
 
-- Source 1.6.1/build 11 separated from the still-public signed 1.4.0 release
+- Source 1.6.2/build 12 separated from the still-public signed 1.4.0 release
+- Self-verifying secret scanning with generated canaries plus explicit HEAD and
+  side-ref-only history scans
+- Lightweight 280-character snippet projections in menus, search and editor;
+  complete bodies load only for the chosen snippet
+- Local snippet field limits matching portable import, without loading JSON or
+  complete libraries into presentation state
+- Latest-copy RTF semantics: a newer plain-text copy cannot paste old styling
+- Lossless fail-closed pasteboard snapshots for manual selection replacement
+- Fewer redundant Accessibility reads in automatic correction while retaining
+  sequence locks, whole-value CAS, verification and rollback
 - Immutable case-insensitive password-manager capture protection with readable names
 - One-click capture exclusion/restoration for the application that opened the menu
 - Pre-decode size limit for snippet JSON imports

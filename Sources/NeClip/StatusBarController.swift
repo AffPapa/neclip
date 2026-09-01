@@ -12,7 +12,7 @@ final class StatusBarController: NSObject {
 
     private enum SearchEntry {
         case clip(ClipSummary)
-        case snippet(Snippet)
+        case snippet(SnippetSummary)
     }
 
     private enum UndoDeletion: Sendable {
@@ -45,7 +45,7 @@ final class StatusBarController: NSObject {
     private struct MenuSnapshot {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
-        let snippets: [Snippet]
+        let snippets: [SnippetSummary]
         let hasMorePinned: Bool
         let hasMoreHistory: Bool
         let hasMoreSnippets: Bool
@@ -629,7 +629,7 @@ final class StatusBarController: NSObject {
                         : []
                     let snippets = parsed.usesStructuredFilters
                         ? []
-                        : try Storage.shared.allSnippets(
+                        : try Storage.shared.snippetSummaries(
                             search: parsed.terms,
                             pinnedOnly: false,
                             limit: 20
@@ -662,7 +662,7 @@ final class StatusBarController: NSObject {
 
     private func showSearchResults(
         clips: [ClipSummary],
-        snippets: [Snippet],
+        snippets: [SnippetSummary],
         query: String,
         kind: MenuKind,
         in menu: NSMenu
@@ -1181,7 +1181,7 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func snippetFolderItem(title: String, snippets: [Snippet]) -> NSMenuItem {
+    private func snippetFolderItem(title: String, snippets: [SnippetSummary]) -> NSMenuItem {
         let displayTitle = cleanTitle(title)
         let folderItem = item(displayTitle, nil, symbol: "folder")
         let submenu = makeMenu(title: displayTitle)
@@ -1192,7 +1192,7 @@ final class StatusBarController: NSObject {
         return folderItem
     }
 
-    private func snippetMenuItem(_ snippet: Snippet, resultIndex: Int?, quickKey: String?) -> NSMenuItem {
+    private func snippetMenuItem(_ snippet: SnippetSummary, resultIndex: Int?, quickKey: String?) -> NSMenuItem {
         let keyword = snippet.keyword.map { "  —  \($0)" } ?? ""
         let prefix = resultIndex.map { "\($0 + 1). " } ?? ""
         let entry = item(
@@ -1207,7 +1207,7 @@ final class StatusBarController: NSObject {
         } else {
             entry.isEnabled = false
         }
-        entry.toolTip = snippet.content
+        entry.toolTip = snippet.contentPreview + (snippet.contentIsTruncated ? "…" : "")
         return entry
     }
 
@@ -1507,20 +1507,30 @@ final class StatusBarController: NSObject {
     }
 
     private func pasteSnippet(_ sender: NSMenuItem, forcedModifiers: NSEvent.ModifierFlags?) {
-        guard let id = (sender.representedObject as? NSNumber)?.int64Value,
-              var snippet = snapshot.snippets.first(where: { $0.id == id }) else { return }
+        guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = targetPID
         let copyOnly = (forcedModifiers ?? NSEvent.modifierFlags).contains(.command)
-        snippet.content = SnippetRenderer.render(
-            snippet.content,
-            clipboard: NSPasteboard.general.string(forType: .string)
-        )
-
-        dataQueue.async {
-            try? Storage.shared.markSnippetUsed(id: id)
-        }
-        PasteService.paste(snippet: snippet, targetPID: capturedTargetPID, copyOnly: copyOnly) { [weak self] result in
-            DispatchQueue.main.async { self?.handlePasteResult(result) }
+        let clipboard = NSPasteboard.general.string(forType: .string)
+        dataQueue.async { [weak self] in
+            do {
+                guard var snippet = try Storage.shared.fetchSnippet(id: id) else {
+                    DispatchQueue.main.async { self?.showFeedback("Сниппет уже удалён") }
+                    return
+                }
+                snippet.content = SnippetRenderer.render(snippet.content, clipboard: clipboard)
+                try? Storage.shared.markSnippetUsed(id: id)
+                DispatchQueue.main.async {
+                    PasteService.paste(
+                        snippet: snippet,
+                        targetPID: capturedTargetPID,
+                        copyOnly: copyOnly
+                    ) { [weak self] result in
+                        self?.handlePasteResult(result)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть сниппет") }
+            }
         }
     }
 

@@ -31,7 +31,11 @@ final class SecretScanningContractTests: XCTestCase {
         XCTAssertTrue(script.contains("--redact=100"))
         XCTAssertTrue(script.contains("--max-archive-depth=5"))
         XCTAssertTrue(script.contains("--max-decode-depth=8"))
-        XCTAssertTrue(script.contains("--all --full-history"))
+        XCTAssertTrue(script.contains("verify_detector \"GitHub PAT\""))
+        XCTAssertTrue(script.contains("verify_detector \"AWS access key\""))
+        XCTAssertTrue(script.contains("verify_detector \"Slack bot token\""))
+        XCTAssertTrue(script.contains("--full-history HEAD"))
+        XCTAssertTrue(script.contains("--all --not HEAD"))
         XCTAssertFalse(script.contains("--no-redact"))
     }
 
@@ -48,10 +52,15 @@ final class SecretScanningContractTests: XCTestCase {
     }
 
     func testPublicAuditDocumentsDoNotPublishSubmissionIdentifiers() throws {
-        let previousAudit = try text("docs/AUDIT-2026-08-31.md")
-        let currentAudit = try text("docs/AUDIT-1.4.0.md")
-        let latestAudit = try text("docs/AUDIT-2026-09-01.md")
-        let audit = previousAudit + currentAudit + latestAudit
+        let docsURL = repositoryRoot.appendingPathComponent("docs", isDirectory: true)
+        let audit = try FileManager.default.contentsOfDirectory(
+            at: docsURL,
+            includingPropertiesForKeys: nil
+        )
+        .filter { $0.lastPathComponent.hasPrefix("AUDIT") && $0.pathExtension == "md" }
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        .map { try String(contentsOf: $0, encoding: .utf8) }
+        .joined(separator: "\n")
         let regex = try NSRegularExpression(
             pattern: #"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b"#
         )

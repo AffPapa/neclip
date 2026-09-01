@@ -4,7 +4,7 @@ Updated: 1 September 2026. This is the source map for the current unreleased
 tree. Public release metadata remains pinned to 1.4.0 until the release gate is
 completed.
 
-The matching evidence report is `AUDIT-1.6.1-2026-09-01.md`; competitor
+The matching evidence report is `AUDIT-1.6.2-2026-09-01.md`; competitor
 matrices, the 100-item catalogue and top-20 decisions are in
 `RESEARCH-1.6.0-ZERO-2026-09-01.md`.
 
@@ -42,26 +42,29 @@ Important owners:
 
 `StatusBarController` owns both entry points: status-item click and global
 history/snippet shortcuts. Both build the same native `NSMenu`, apply the same
-effective appearance and use lightweight `ClipSummary` rows. The ordinary and
-pinned browse windows are capped at 100 each; the menu snippet projection is
-capped at 200. Full local history and the complete snippet library remain
-available through bounded database search.
+effective appearance and use lightweight `ClipSummary`/`SnippetSummary` rows.
+The ordinary and pinned browse windows are capped at 100 each; the menu snippet
+projection is capped at 200 and every content preview at 280 characters. Full
+local history and snippet bodies are fetched only for the chosen action.
 
 - `MenuPresentation.swift`: single-line, grapheme-safe menu titles.
 - `ClipboardSearch.swift`: ordinary and structured search, smart categories,
   bounded fuzzy fallback.
-- `PasteService.swift`: direct/plain/copy-only paste and compare-and-swap
-  restoration of a temporary pasteboard; paste-and-delete proceeds only for an
-  unpinned record after the direct-paste result.
+- `PasteService.swift`: direct/plain/copy-only paste and lossless,
+  compare-and-swap restoration of a temporary pasteboard; an unreadable
+  advertised representation aborts before clearing. Paste-and-delete proceeds
+  only for an unpinned record after the direct-paste result.
 - `HistoryItemInspector.swift`: preview, rename/edit, safe open and OCR paste.
 - `TextTransform.swift`: deterministic local transforms.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.
 
 ### Snippets
 
-`SnippetsEditor` reads the full library on demand and presents folders, empty
-folders and **Unfiled**. Selection, navigation and termination flush pending
-drafts; failed saves remain visible. `SnippetRenderer` expands only local
+`SnippetsEditor` reads lightweight summaries for folders, search, empty folders
+and **Unfiled**, then fetches one full body when selected. Selection, navigation
+and termination flush pending drafts; failed saves remain visible. Local writes
+and imports share title, keyword and 2 MB content bounds. `SnippetRenderer`
+expands only local
 `{date}`, `{time}` and `{clipboard}` placeholders. `Storage` provides versioned
 JSON export and atomic merge-only import without history or usage metadata;
 empty and over-16 MB import files are rejected before JSON decoding.
@@ -115,6 +118,10 @@ ignore list until restart.
     apply to both immediate source checks and delayed app-transition checks.
 14. Snippet JSON is bounded before decoding; importing remains merge-only and
     transactional.
+15. Menu/editor snippet lists never retain complete bodies; paste and editing
+    fetch exactly one full snippet by identifier.
+16. Secret scanning must first detect generated GitHub, AWS and Slack canaries,
+    then scan the publishable tree, HEAD history and side-ref-only commits.
 
 ## Verification map
 

@@ -4,7 +4,12 @@
       "version": "next",
       "status": "in-development",
       "highlights": [
-        "Source 1.6.1 build 11; public signed release remains 1.4.0",
+        "Source 1.6.2 build 12; public signed release remains 1.4.0",
+        "Self-verifying GitHub, AWS and Slack secret-detector canaries with explicit HEAD and side-ref scans",
+        "Lightweight bounded snippet summaries with one-body-at-a-time editing and paste",
+        "Local snippet write limits aligned with portable import",
+        "Latest-copy RTF semantics and fail-closed lossless pasteboard snapshots",
+        "Fewer redundant automatic-layout Accessibility reads with CAS and rollback retained",
         "Immutable case-insensitive password-manager capture protection",
         "Quick target-application capture exclusion and restoration",
         "Pre-decode 16 MB snippet-import bound and proven dead-code cleanup",

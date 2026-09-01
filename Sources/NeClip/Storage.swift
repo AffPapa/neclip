@@ -74,17 +74,29 @@ enum ClipStorageError: LocalizedError, Equatable {
 
 enum SnippetStorageError: LocalizedError, Equatable {
     case emptyFolderTitle
+    case folderTitleTooLong
     case folderNotFound
     case snippetNotFound
+    case snippetTitleTooLong
+    case snippetKeywordTooLong
+    case snippetContentTooLarge
 
     var errorDescription: String? {
         switch self {
         case .emptyFolderTitle:
             "Название папки не может быть пустым"
+        case .folderTitleTooLong:
+            "Название папки не должно быть длиннее 200 символов"
         case .folderNotFound:
             "Папка больше не существует"
         case .snippetNotFound:
             "Сниппет больше не существует"
+        case .snippetTitleTooLong:
+            "Название сниппета не должно быть длиннее 200 символов"
+        case .snippetKeywordTooLong:
+            "Ключ сниппета не должен быть длиннее 100 символов"
+        case .snippetContentTooLarge:
+            "Текст сниппета не должен быть больше 2 МБ"
         }
     }
 }
@@ -121,11 +133,34 @@ struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable
     }
 }
 
-/// A deliberately bounded projection for the native menu. The editor and
-/// search continue to query the complete snippet library on demand.
+/// Lightweight metadata used by menus, search and the editor sidebar. Full
+/// snippet bodies are fetched only when the user opens or pastes one item.
+struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendable {
+    let id: Int64?
+    let folderID: Int64?
+    let title: String
+    let contentPreview: String
+    let contentIsTruncated: Bool
+    let sortIndex: Int
+    let keyword: String?
+    let isPinned: Bool
+
+    init(snippet: Snippet, previewLimit: Int = Storage.snippetPreviewCharacterLimit) {
+        id = snippet.id
+        folderID = snippet.folderID
+        title = snippet.title
+        contentPreview = String(snippet.content.prefix(previewLimit))
+        contentIsTruncated = snippet.content.count > previewLimit
+        sortIndex = snippet.sortIndex
+        keyword = snippet.keyword
+        isPinned = snippet.isPinned
+    }
+}
+
+/// A deliberately bounded projection for the native menu.
 struct SnippetMenuSnapshot: Sendable {
     let folders: [SnippetFolder]
-    let snippets: [Snippet]
+    let snippets: [SnippetSummary]
     let hasMore: Bool
 }
 
@@ -172,6 +207,9 @@ extension Notification.Name {
 final class Storage: @unchecked Sendable {
     static let maximumStorageBytes: Int64 = 250 * 1024 * 1024
     static let maximumSnippetImportBytes = 16 * 1024 * 1024
+    static let maximumSnippetTitleCharacters = 200
+    static let maximumSnippetKeywordCharacters = 100
+    static let snippetPreviewCharacterLimit = 280
 
     static let shared: Storage = {
         do {
@@ -460,7 +498,10 @@ final class Storage: @unchecked Sendable {
                 existing.title = item.title
                 existing.text = item.text ?? existing.text
                 existing.data = item.data ?? existing.data
-                existing.rtf = item.rtf ?? existing.rtf
+                // Formatting belongs to the latest clipboard write. Retaining
+                // an older RTF representation would make a later plain-text
+                // copy paste with stale styling.
+                existing.rtf = item.rtf
                 existing.appBundleID = item.appBundleID
                 existing.createdAt = item.createdAt
                 existing.contentBytes = Self.payloadBytes(existing)
@@ -881,19 +922,35 @@ final class Storage: @unchecked Sendable {
         }
     }
 
+    func snippetSummaries(
+        search: String? = nil,
+        pinnedOnly: Bool = false,
+        limit: Int? = nil
+    ) throws -> [SnippetSummary] {
+        try dbQueue.read { db in
+            try Self.fetchSnippetSummaries(
+                database: db,
+                search: search,
+                pinnedOnly: pinnedOnly,
+                limit: limit
+            )
+        }
+    }
+
+    func fetchSnippet(id: Int64) throws -> Snippet? {
+        try dbQueue.read { db in try Snippet.fetchOne(db, key: id) }
+    }
+
     /// Loads only the snippets that can reasonably be browsed in a native
     /// menu, plus the folders needed to present those visible rows.
     func menuSnippetSnapshot(limit requestedLimit: Int = 200) throws -> SnippetMenuSnapshot {
         let limit = max(1, min(requestedLimit, 500))
         return try dbQueue.read { db in
-            let fetched = try Snippet.fetchAll(
-                db,
-                sql: """
-                    SELECT * FROM snippet
-                    ORDER BY isPinned DESC, lastUsedAt DESC, updatedAt DESC, id DESC
-                    LIMIT ?
-                    """,
-                arguments: [limit + 1]
+            let fetched = try Self.fetchSnippetSummaries(
+                database: db,
+                search: nil,
+                pinnedOnly: false,
+                limit: limit + 1
             )
             let snippets = Array(fetched.prefix(limit))
             let folderIDs = Set(snippets.compactMap(\.folderID))
@@ -915,6 +972,9 @@ final class Storage: @unchecked Sendable {
     func addFolder(title: String) throws -> SnippetFolder? {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { throw SnippetStorageError.emptyFolderTitle }
+        guard title.count <= Self.maximumSnippetTitleCharacters else {
+            throw SnippetStorageError.folderTitleTooLong
+        }
         let folder = try dbQueue.write { db -> SnippetFolder in
             let maxIndex = try Int.fetchOne(db, sql: "SELECT COALESCE(MAX(sortIndex), -1) FROM snippetFolder") ?? -1
             var folder = SnippetFolder(title: title, sortIndex: maxIndex + 1)
@@ -932,6 +992,11 @@ final class Storage: @unchecked Sendable {
         content: String,
         keyword: String? = nil
     ) throws -> Snippet? {
+        let fields = try Self.validatedSnippetFields(
+            title: title,
+            content: content,
+            keyword: keyword
+        )
         let snippet = try dbQueue.write { db -> Snippet in
             let maxIndex = try Int.fetchOne(
                 db,
@@ -940,10 +1005,10 @@ final class Storage: @unchecked Sendable {
             ) ?? -1
             var snippet = Snippet(
                 folderID: folderID,
-                title: title,
-                content: content,
+                title: fields.title,
+                content: fields.content,
                 sortIndex: maxIndex + 1,
-                keyword: Self.normalizedKeyword(keyword)
+                keyword: fields.keyword
             )
             try snippet.insert(db)
             return snippet
@@ -957,6 +1022,9 @@ final class Storage: @unchecked Sendable {
         guard let id = folder.id else { throw SnippetStorageError.folderNotFound }
         let title = folder.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { throw SnippetStorageError.emptyFolderTitle }
+        guard title.count <= Self.maximumSnippetTitleCharacters else {
+            throw SnippetStorageError.folderTitleTooLong
+        }
         let updated = try dbQueue.write { db -> SnippetFolder in
             guard var stored = try SnippetFolder.fetchOne(db, key: id) else {
                 throw SnippetStorageError.folderNotFound
@@ -973,7 +1041,14 @@ final class Storage: @unchecked Sendable {
     @discardableResult
     func update(_ snippet: Snippet) throws -> Snippet {
         var snippet = snippet
-        snippet.keyword = Self.normalizedKeyword(snippet.keyword)
+        let fields = try Self.validatedSnippetFields(
+            title: snippet.title,
+            content: snippet.content,
+            keyword: snippet.keyword
+        )
+        snippet.title = fields.title
+        snippet.content = fields.content
+        snippet.keyword = fields.keyword
         snippet.updatedAt = Date()
         let updated = try dbQueue.write { db -> Snippet in
             guard let id = snippet.id,
@@ -1129,18 +1204,19 @@ final class Storage: @unchecked Sendable {
         let validated = try document.snippets.map { record -> SnippetTransferRecord in
             let title = record.title.trimmingCharacters(in: .whitespacesAndNewlines)
             let folder = record.folder?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let keyword = Self.normalizedKeyword(record.keyword)
             guard !title.isEmpty,
-                  title.count <= 200,
+                  title.count <= Self.maximumSnippetTitleCharacters,
                   record.content.utf8.count <= ClipboardCapturePolicy.maxTextBytes,
-                  (folder?.count ?? 0) <= 200,
-                  (record.keyword?.count ?? 0) <= 100 else {
+                  (folder?.count ?? 0) <= Self.maximumSnippetTitleCharacters,
+                  (keyword?.count ?? 0) <= Self.maximumSnippetKeywordCharacters else {
                 throw SnippetTransferError.invalidSnippet
             }
             return SnippetTransferRecord(
                 folder: folder.flatMap { $0.isEmpty ? nil : $0 },
                 title: title,
                 content: record.content,
-                keyword: Self.normalizedKeyword(record.keyword),
+                keyword: keyword,
                 isPinned: record.isPinned
             )
         }
@@ -1268,6 +1344,74 @@ final class Storage: @unchecked Sendable {
     }
 
     // MARK: - Internals
+
+    private static func validatedSnippetFields(
+        title: String,
+        content: String,
+        keyword: String?
+    ) throws -> (title: String, content: String, keyword: String?) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard title.count <= maximumSnippetTitleCharacters else {
+            throw SnippetStorageError.snippetTitleTooLong
+        }
+        let keyword = normalizedKeyword(keyword)
+        guard (keyword?.count ?? 0) <= maximumSnippetKeywordCharacters else {
+            throw SnippetStorageError.snippetKeywordTooLong
+        }
+        guard content.utf8.count <= ClipboardCapturePolicy.maxTextBytes else {
+            throw SnippetStorageError.snippetContentTooLarge
+        }
+        return (title, content, keyword)
+    }
+
+    private static func fetchSnippetSummaries(
+        database db: Database,
+        search: String?,
+        pinnedOnly: Bool,
+        limit: Int?
+    ) throws -> [SnippetSummary] {
+        var sql = """
+            SELECT s.id, s.folderID, s.title,
+                   substr(s.content, 1, \(snippetPreviewCharacterLimit)) AS contentPreview,
+                   substr(s.content, \(snippetPreviewCharacterLimit + 1), 1) != '' AS contentIsTruncated,
+                   s.sortIndex, s.keyword, s.isPinned
+            FROM snippet s
+            """
+        var conditions: [String] = []
+        var arguments = StatementArguments()
+        let trimmedSearch = search?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmedSearch.isEmpty {
+            if let match = ftsMatch(trimmedSearch) {
+                sql += " JOIN snippetSearch ON snippetSearch.rowid = s.id"
+                conditions.append("snippetSearch MATCH ?")
+                arguments += [match]
+            } else {
+                conditions.append("""
+                    (s.title LIKE ? ESCAPE '\\' OR s.content LIKE ? ESCAPE '\\'
+                     OR s.keyword LIKE ? ESCAPE '\\')
+                    """)
+                let pattern = likePattern(trimmedSearch)
+                arguments += [pattern, pattern, pattern]
+            }
+        }
+        if pinnedOnly { conditions.append("s.isPinned = 1") }
+        if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
+        if !trimmedSearch.isEmpty {
+            sql += """
+                 ORDER BY
+                    CASE WHEN lower(COALESCE(s.keyword, '')) = lower(?) THEN 0 ELSE 1 END,
+                    s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC
+                """
+            arguments += [trimmedSearch]
+        } else {
+            sql += " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
+        }
+        if let limit {
+            sql += " LIMIT ?"
+            arguments += [max(1, limit)]
+        }
+        return try SnippetSummary.fetchAll(db, sql: sql, arguments: arguments)
+    }
 
     private func trim(_ db: Database) throws {
         let retentionDays = Settings.retentionDays
