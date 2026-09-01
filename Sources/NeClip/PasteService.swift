@@ -251,8 +251,17 @@ enum PasteService {
     /// promised data after manual layout correction.
     static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem]? {
         let sources = pasteboard.pasteboardItems ?? []
+        return snapshotPasteboardItems(sources, advertisedTypes: pasteboard.types)
+    }
+
+    /// Kept separate from the pasteboard service so representation copying can
+    /// be tested in headless environments where named pasteboards reject writes.
+    static func snapshotPasteboardItems(
+        _ sources: [NSPasteboardItem],
+        advertisedTypes: [NSPasteboard.PasteboardType]?
+    ) -> [NSPasteboardItem]? {
         if sources.isEmpty {
-            return pasteboard.types?.isEmpty == false ? nil : []
+            return advertisedTypes?.isEmpty == false ? nil : []
         }
         var snapshot: [NSPasteboardItem] = []
         snapshot.reserveCapacity(sources.count)

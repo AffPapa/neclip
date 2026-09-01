@@ -100,30 +100,36 @@ final class PrivacyLogicTests: XCTestCase {
 
     @MainActor
     func testPasteboardSnapshotPreservesEveryRepresentationAndEmptyState() throws {
-        let pasteboard = NSPasteboard(name: .init("org.affpapa.neclip.tests.\(UUID().uuidString)"))
-        pasteboard.clearContents()
-        XCTAssertEqual(PasteService.snapshotPasteboard(pasteboard)?.count, 0)
+        XCTAssertEqual(
+            PasteService.snapshotPasteboardItems([], advertisedTypes: nil)?.count,
+            0
+        )
+        XCTAssertNil(
+            PasteService.snapshotPasteboardItems([], advertisedTypes: [.string])
+        )
 
         let item = NSPasteboardItem()
         item.setString("plain", forType: .string)
         item.setData(Data([1, 2, 3]), forType: .rtf)
-        XCTAssertTrue(pasteboard.writeObjects([item]))
 
-        let snapshot = try XCTUnwrap(PasteService.snapshotPasteboard(pasteboard))
+        let snapshot = try XCTUnwrap(
+            PasteService.snapshotPasteboardItems([item], advertisedTypes: item.types)
+        )
         XCTAssertEqual(snapshot.count, 1)
-        XCTAssertEqual(snapshot[0].string(forType: .string), "plain")
-        XCTAssertEqual(snapshot[0].data(forType: .rtf), Data([1, 2, 3]))
+        let copiedItem = try XCTUnwrap(snapshot.first)
+        XCTAssertEqual(copiedItem.string(forType: .string), "plain")
+        XCTAssertEqual(copiedItem.data(forType: .rtf), Data([1, 2, 3]))
     }
 
     @MainActor
     func testPasteboardSnapshotRejectsUnreadablePromisedData() {
-        let pasteboard = NSPasteboard(name: .init("org.affpapa.neclip.tests.\(UUID().uuidString)"))
         let provider = SilentPasteboardProvider()
         let item = NSPasteboardItem()
         item.setDataProvider(provider, forTypes: [.init("org.affpapa.neclip.tests.promised")])
-        XCTAssertTrue(pasteboard.writeObjects([item]))
 
-        XCTAssertNil(PasteService.snapshotPasteboard(pasteboard))
+        XCTAssertNil(
+            PasteService.snapshotPasteboardItems([item], advertisedTypes: item.types)
+        )
     }
 
     func testPauseAndResumeArePersistedThroughSettingsAPI() {
