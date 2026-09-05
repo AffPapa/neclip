@@ -1,4 +1,40 @@
-# NeClip 1.8.0 / build 14: publication status
+# NeClip 1.8.0 / build 14: released
+
+Published: **2026-09-05T16:45:38Z**.
+Release: https://github.com/AffPapa/neclip/releases/tag/v1.8.0
+
+- Exact artifact source/tag: `24ebd53d15efa540d944823431c59524b9ae3afa`.
+- Source PR: https://github.com/AffPapa/neclip/pull/6, merged after green checks.
+- DMG: 2,731,971 bytes, arm64, macOS 14+.
+- SHA-256: `f2bb3c00acdc18b28906f671b04880d600c237c4abee417c43623675b2a121c2`.
+- Full rebuild, complete concurrency, warnings-as-errors: passed.
+- Tests: 206 passed, one opt-in skip, no failures.
+- GitHub Swift CI, Swift/Actions CodeQL and full-history secret scanning: passed.
+- Developer ID, Apple notarization, stapling and Gatekeeper for app and DMG:
+  passed, including the app inside the exact mounted image.
+- Fresh unauthenticated public download: checksum, codesign, stapler and
+  Gatekeeper passed again. Its executable matches `/Applications/NeClip.app`.
+
+The missing default profile was resolved by explicit user authorization to use
+an existing working Keychain notarization profile. Credentials stayed in
+Keychain and were never exported or committed. No further credential setup is
+needed for this release.
+
+Before local installation, both libraries and the previous app were backed up.
+A staged transactional merge preserved original rows and copied missing preview
+records without keyword conflicts. Integrity and foreign-key checks passed.
+Existing history limits were retained. Old duplicate apps were archived before
+retirement; user data directories were not deleted.
+
+Post-install process and database checks passed; the bundle remains
+menu-bar-only. The UI tool could not reliably attach to the final accessory-only
+app, so this report does not claim a second complete post-install visual pass.
+Earlier isolated visual QA is documented in the linked audit reports.
+
+## Historical pre-release snapshot (superseded)
+
+The text below records the earlier blocker, now resolved above. Its setup
+instructions are historical, not required actions for this release.
 
 Date: 2026-09-05. This page distinguishes verified source from downloadable apps.
 

@@ -8,8 +8,8 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.8.0 (build 14)**. The latest public, signed and
-notarized release remains **1.4.0** until a separate release gate is completed.
+Current public, signed and notarized version: **1.8.0 (build 14)**.
+The public DMG and its contained app passed checksum and Gatekeeper verification.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
 
@@ -21,9 +21,9 @@ The refreshed comparison of 19 clipboard products, 11 layout tools, 100
 candidate improvements and 27 selected refinements is in
 [docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
 
-[Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
+[Download the signed and notarized NeClip 1.8.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.8.0/NeClip-1.8.0.dmg).
 SHA-256:
-`0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.
+`f2bb3c00acdc18b28906f671b04880d600c237c4abee417c43623675b2a121c2`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
 ## Keyboard workflow

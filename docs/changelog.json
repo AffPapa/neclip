@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "next",
-      "status": "in-development",
+      "version": "1.8.0",
+      "status": "released",
       "highlights": [
-        "Source 1.8.0 build 14; public signed release remains 1.4.0",
+        "Public 1.8.0 build 14: Developer ID, Apple notarization and independently verified public DMG",
         "Settings/editor follow-up: effective permission states, persistent progress, retryable folder forms and friendly save errors",
         "Capture-barrier bulk deletion, export/import parity and bounded search overflow hints; 206 passed checks and one skip",
         "27 selected refinements from a refreshed 100-candidate matrix; no accounts or cloud",

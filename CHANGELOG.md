@@ -4,9 +4,12 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## Unreleased
+## 1.8.0 / build 14 — 2026-09-05
 
-### 1.8.0 / build 14 — local source candidate
+- Released with Developer ID signing, Apple notarization, stapling and
+  independent verification of the publicly downloaded DMG. Exact artifact
+  source: `24ebd53d15efa540d944823431c59524b9ae3afa`.
+- Swift CI, full-history secret scanning and Swift/Actions CodeQL passed.
 
 - Settings/editor follow-up: effective login authorization and privacy-rule
   limits, persistent progress, separate transfer/cleanup groups, friendly
@@ -37,9 +40,12 @@ DMG checksum verification have passed.
   text, cap expanded output at 2 MB, add literal escaping and ISO date/time.
 - Normalize CRLF in line actions; add blank-line removal/per-line trimming;
   correctly encode URL components instead of leaving query delimiters raw.
-- Public manifest, downloadable binary and installed app are unchanged.
+- Public manifest and download now point to the verified 1.8.0 release.
 
-### Previous unreleased source work
+### Earlier source work included in 1.8.0
+
+The notes below describe historical source milestones, not additional
+downloadable releases. Their improvements are now included in 1.8.0.
 
 - Prepared source version 1.7.0/build 13 while keeping the public update
   manifest and signed/notarized download on 1.4.0 until the exact release

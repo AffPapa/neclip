@@ -1,11 +1,9 @@
 # NeClip project map
 
-Updated: 5 September 2026. Source candidate: 1.8.0/build 14. This is the source map for the current unreleased
-tree. Public release metadata remains pinned to 1.4.0 until the release gate is
-completed.
-
-Current distribution gate: `RELEASE-1.8.0-STATUS.md`. Source updates do not
-advance the downloadable version until the Apple notarization gate passes.
+Updated: 5 September 2026. Public release: **1.8.0/build 14**.
+Artifact source: `24ebd53d15efa540d944823431c59524b9ae3afa`.
+Developer ID, notarization, stapling, CodeQL and independent public-DMG
+verification passed. Evidence: `RELEASE-1.8.0-STATUS.md`.
 
 The matching evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
 19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements
