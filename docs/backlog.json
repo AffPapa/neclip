@@ -17,7 +17,12 @@
     "Visible snippet folders, folder CRUD, moves and draft-safe editing"
   ],
   "inDevelopment": [
-    "Source 1.7.0 build 13 while public release metadata remains on 1.4.0",
+    "Source 1.8.0 build 14 while public release metadata remains on 1.4.0",
+    "27 selected refinements documented in RESEARCH-2026-09-05.md",
+    "Folder-first snippets, direct edit, duplicate, undo and safe full erasure",
+    "Folder-aware exact-keyword search with stable menu footer and pending-result protection",
+    "Individual hotkey reset, live settings and case-insensitive protected layout identities",
+    "Bounded nonrecursive ISO placeholders, CRLF line cleanup and URL component encoding",
     "Native snippet-list selection, visible-order arrow navigation and debounced search",
     "Short root menu with lower-frequency controls grouped under Management",
     "Distinct pending pasteboard permission state with direct recovery",

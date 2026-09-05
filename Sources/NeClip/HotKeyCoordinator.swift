@@ -30,7 +30,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
     var fallbackTitle: String {
         switch self {
         case .history: "история доступна через значок NeClip"
-        case .snippets: "сниппеты доступны в меню NeClip"
+        case .snippets: "папки сниппетов доступны по правому клику на NeClip"
         case .sequentialPaste: "последовательная вставка доступна в меню NeClip"
         case .manualCorrection: "ручное исправление доступно в меню"
         case .disableAutomaticCorrection: "автоисправление можно выключить в меню"

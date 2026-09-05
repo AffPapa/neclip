@@ -7,7 +7,7 @@ enum ApplicationLayoutMemoryPolicy {
         "com.apple.dock",
         "com.apple.loginwindow",
         "com.apple.notificationcenterui",
-        "com.apple.SecurityAgent",
+        "com.apple.securityagent",
         "com.apple.systemuiserver"
     ]
 
@@ -18,10 +18,10 @@ enum ApplicationLayoutMemoryPolicy {
     ) -> Bool {
         guard let bundleID = bundleID?.trimmingCharacters(in: .whitespacesAndNewlines),
               !bundleID.isEmpty,
-              bundleID != ownBundleID,
-              !ignoredBundleIDs.contains(bundleID),
+              bundleID.caseInsensitiveCompare(ownBundleID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") != .orderedSame,
+              !ignoredBundleIDs.contains(bundleID.lowercased()),
               !userExcluded.contains(where: {
-                  $0.caseInsensitiveCompare(bundleID) == .orderedSame
+                  $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(bundleID) == .orderedSame
               }) else { return false }
         return true
     }

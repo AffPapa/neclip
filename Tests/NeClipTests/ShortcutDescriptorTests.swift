@@ -5,6 +5,10 @@ import XCTest
 
 final class ShortcutDescriptorTests: XCTestCase {
     func testDefaultsPreserveLegacyManualAndProvideOffOnlySafetyShortcut() {
+        XCTAssertEqual(ShortcutDescriptor.snippetsDefault.keyCode, UInt32(kVK_ANSI_B))
+        XCTAssertEqual(ShortcutDescriptor.snippetsDefault.modifiers, [.command, .shift])
+        XCTAssertEqual(ShortcutDescriptor.snippetsDefault.displayName, "⇧⌘B")
+
         XCTAssertEqual(ShortcutDescriptor.defaultManualLayout.keyCode, UInt32(kVK_ANSI_L))
         XCTAssertEqual(ShortcutDescriptor.defaultManualLayout.modifiers, [.option, .shift])
         XCTAssertEqual(ShortcutDescriptor.defaultManualLayout.displayName, "⌥⇧L")

@@ -224,14 +224,18 @@ enum LayoutProtectedApplicationPolicy {
         "com.anydesk.AnyDesk"
     ])
 
+    private static let normalizedProtectedBundleIDs = Set(protectedBundleIDs.map { $0.lowercased() })
+
     static func blocksAutomatic(bundleID: String?, userExcluded: Set<String>) -> Bool {
-        guard let bundleID, !bundleID.isEmpty else { return true }
+        guard let bundleID = bundleID?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !bundleID.isEmpty else { return true }
+        let normalized = bundleID.lowercased()
         if SensitiveApplicationPolicy.protects(bundleID)
-            || protectedBundleIDs.contains(bundleID)
+            || normalizedProtectedBundleIDs.contains(normalized)
             || userExcluded.contains(where: {
-                $0.caseInsensitiveCompare(bundleID) == .orderedSame
+                $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(bundleID) == .orderedSame
             }) { return true }
-        if bundleID.hasPrefix("com.jetbrains.") { return true }
+        if normalized.hasPrefix("com.jetbrains.") { return true }
         return false
     }
 
