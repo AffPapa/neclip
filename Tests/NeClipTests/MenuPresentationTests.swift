@@ -52,10 +52,10 @@ final class MenuPresentationTests: XCTestCase {
     }
 
     func testLengthClampsToSupportedRange() {
-        XCTAssertEqual(MenuTitleFormatter.defaultLength, 64)
-        XCTAssertEqual(MenuTitleFormatter.clampedLength(Int.min), 16)
-        XCTAssertEqual(MenuTitleFormatter.clampedLength(32), 32)
-        XCTAssertEqual(MenuTitleFormatter.clampedLength(Int.max), 96)
+        XCTAssertEqual(MenuTitleFormatter.defaultLimit, 64)
+        XCTAssertEqual(MenuTitleFormatter.normalizedLimit(Int.min), 16)
+        XCTAssertEqual(MenuTitleFormatter.normalizedLimit(32), 32)
+        XCTAssertEqual(MenuTitleFormatter.normalizedLimit(Int.max), 96)
 
         let value = String(repeating: "x", count: 100)
         XCTAssertEqual(

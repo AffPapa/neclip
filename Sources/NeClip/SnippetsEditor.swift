@@ -8,11 +8,11 @@ final class SnippetsEditorWindowController: NSObject, NSWindowDelegate {
     private let model = SnippetsEditorModel()
     private var window: NSWindow?
 
-    func show() {
+    func show(snippetID: Int64? = nil) {
         if window == nil {
             let hosting = NSHostingController(rootView: SnippetsEditorView(model: model))
             let window = NSWindow(contentViewController: hosting)
-            window.title = "NeClip — Сниппеты"
+            window.title = "\(RuntimeIdentity.displayName) — Сниппеты"
             window.styleMask = [.titled, .closable, .resizable]
             window.setContentSize(NSSize(width: 760, height: 500))
             window.minSize = NSSize(width: 640, height: 420)
@@ -21,6 +21,7 @@ final class SnippetsEditorWindowController: NSObject, NSWindowDelegate {
             window.center()
             self.window = window
         }
+        if let snippetID { model.openSnippet(id: snippetID) }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
@@ -52,6 +53,12 @@ final class SnippetsEditorModel: ObservableObject {
         case failed(String)
     }
 
+    enum EmptyEditorState: Equatable {
+        case emptyLibrary
+        case chooseSnippet
+        case noSearchResults
+    }
+
     private struct Draft {
         var snippet: Snippet
     }
@@ -75,8 +82,11 @@ final class SnippetsEditorModel: ObservableObject {
     @Published var showFolderEditor = false
     @Published var showFolderDeleteAlert = false
     @Published var folderNameDraft = ""
+    @Published var folderEditorError: String?
     @Published var editingFolderID: Int64?
     @Published var folderPendingDeletion: SnippetFolder?
+    @Published private(set) var removedSnippet: RemovedSnippet?
+    @Published private var folderPendingDeletionCount: Int?
 
     private var editingSnippet: Snippet?
     private var pendingDraft: Draft?
@@ -95,9 +105,21 @@ final class SnippetsEditorModel: ObservableObject {
         editingFolderID == nil ? "Новая папка" : "Переименовать папку"
     }
 
+    var canSaveFolder: Bool {
+        !folderNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var emptyEditorState: EmptyEditorState {
+        if !snippets.isEmpty { return .chooseSnippet }
+        return query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? .emptyLibrary : .noSearchResults
+    }
+
     var folderDeletionMessage: String {
-        guard let folder = folderPendingDeletion, let id = folder.id else { return "" }
-        let count = snippets.filter { $0.folderID == id }.count
+        guard let folder = folderPendingDeletion, folder.id != nil else { return "" }
+        guard let count = folderPendingDeletionCount else {
+            return "Сниппеты останутся и перейдут в раздел «Без папки»."
+        }
         if count == 0 {
             return "Папка «\(folder.title)» пуста. Это действие нельзя отменить."
         }
@@ -119,7 +141,13 @@ final class SnippetsEditorModel: ObservableObject {
                 loadEditor(id: id)
             } else if let selectedSnippetID,
                       snippets.contains(where: { $0.id == selectedSnippetID }) {
-                if reloadEditor { loadEditor(id: selectedSnippetID) }
+                if pendingDraft == nil {
+                    if reloadEditor {
+                        loadEditor(id: selectedSnippetID)
+                    } else {
+                        refreshCleanEditor(id: selectedSnippetID)
+                    }
+                }
             } else if pendingDraft == nil, let firstID = firstVisibleSnippetID() {
                 selectedSnippetID = firstID
                 loadEditor(id: firstID)
@@ -148,6 +176,31 @@ final class SnippetsEditorModel: ObservableObject {
         }
     }
 
+    func storageDidChange(_ domain: StorageChangeDomain?) {
+        guard domain?.includesSnippets ?? true else { return }
+        if domain == .all {
+            // Full data erasure is different from ordinary sidebar refresh:
+            // no in-memory draft or undo payload may restore erased content.
+            saveTask?.cancel()
+            saveTask = nil
+            queryTask?.cancel()
+            queryTask = nil
+            removedSnippet = nil
+            selectedSnippetID = nil
+            activeFolderID = nil
+            folderPendingDeletion = nil
+            folderPendingDeletionCount = nil
+            folderNameDraft = ""
+            folderEditorError = nil
+            showFolderEditor = false
+            showFolderDeleteAlert = false
+            showDeleteSnippetAlert = false
+            query = ""
+            clearEditor()
+        }
+        reload()
+    }
+
     func selectSnippet(_ id: Int64?) {
         guard id != selectedSnippetID else { return }
         guard flushPendingSave() else { return }
@@ -156,6 +209,23 @@ final class SnippetsEditorModel: ObservableObject {
             loadEditor(id: id)
         } else {
             clearEditor()
+        }
+    }
+
+    @discardableResult
+    func openSnippet(id: Int64) -> Bool {
+        guard flushPendingSave() else { return false }
+        do {
+            guard try storage.fetchSnippet(id: id) != nil else {
+                message = "Сниппет уже удалён"
+                return false
+            }
+            query = ""
+            reload(selecting: id)
+            return selectedSnippetID == id
+        } catch {
+            message = "Не удалось открыть сниппет"
+            return false
         }
     }
 
@@ -203,7 +273,7 @@ final class SnippetsEditorModel: ObservableObject {
             query = ""
             reload(selecting: id)
         } catch {
-            message = error.localizedDescription
+            message = SnippetStorageError.userFacingMessage(for: error, fallback: "Не удалось создать сниппет. Повторите попытку.")
         }
     }
 
@@ -211,6 +281,7 @@ final class SnippetsEditorModel: ObservableObject {
         guard flushPendingSave() else { return }
         editingFolderID = nil
         folderNameDraft = ""
+        folderEditorError = nil
         showFolderEditor = true
     }
 
@@ -218,13 +289,21 @@ final class SnippetsEditorModel: ObservableObject {
         guard flushPendingSave() else { return }
         editingFolderID = folder.id
         folderNameDraft = folder.title
+        folderEditorError = nil
         showFolderEditor = true
+    }
+
+    func cancelFolderEditing() {
+        showFolderEditor = false
+        folderNameDraft = ""
+        folderEditorError = nil
+        editingFolderID = nil
     }
 
     func saveFolder() {
         let title = folderNameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else {
-            message = "Введите название папки"
+            folderEditorError = "Введите название папки"
             return
         }
         do {
@@ -239,14 +318,23 @@ final class SnippetsEditorModel: ObservableObject {
                 let folder = try storage.addFolder(title: title)
                 activeFolderID = folder?.id
             }
+            showFolderEditor = false
+            folderEditorError = nil
             reload(reloadEditor: false)
         } catch {
-            message = error.localizedDescription
+            folderEditorError = SnippetStorageError.userFacingMessage(for: error, fallback: "Не удалось сохранить папку. Повторите попытку.")
         }
     }
 
     func requestDelete(_ folder: SnippetFolder) {
         guard flushPendingSave() else { return }
+        guard let id = folder.id else { return }
+        do {
+            folderPendingDeletionCount = try storage.snippetCount(inFolder: id)
+        } catch {
+            message = "Не удалось проверить содержимое папки"
+            return
+        }
         folderPendingDeletion = folder
         showFolderDeleteAlert = true
     }
@@ -265,11 +353,14 @@ final class SnippetsEditorModel: ObservableObject {
     }
 
     func deleteSelected() {
-        guard let id = selectedSnippetID else { return }
+        guard flushPendingSave(), let id = selectedSnippetID else { return }
         saveTask?.cancel()
         saveTask = nil
         do {
-            try storage.deleteSnippet(id: id)
+            guard let removed = try storage.removeSnippet(id: id) else {
+                throw SnippetStorageError.snippetNotFound
+            }
+            removedSnippet = removed
             pendingDraft = nil
             selectedSnippetID = nil
             clearEditor()
@@ -279,6 +370,29 @@ final class SnippetsEditorModel: ObservableObject {
                 saveState = .failed("Не удалено · черновик сохранён для повтора")
             }
             message = "Не удалось удалить сниппет"
+        }
+    }
+
+    func duplicateSelected() {
+        guard flushPendingSave(), let id = selectedSnippetID else { return }
+        do {
+            let duplicate = try storage.duplicateSnippet(id: id)
+            query = ""
+            reload(selecting: duplicate.id)
+        } catch {
+            message = "Не удалось создать копию сниппета"
+        }
+    }
+
+    func undoSnippetDeletion() {
+        guard flushPendingSave(), let removedSnippet else { return }
+        do {
+            try storage.restoreSnippet(removedSnippet)
+            self.removedSnippet = nil
+            query = ""
+            reload(selecting: removedSnippet.item.id)
+        } catch {
+            message = "Не удалось восстановить сниппет. Проверьте, не занят ли его ключ поиска."
         }
     }
 
@@ -349,6 +463,24 @@ final class SnippetsEditorModel: ObservableObject {
         }
     }
 
+    private func refreshCleanEditor(id: Int64) {
+        guard pendingDraft == nil else { return }
+        do {
+            guard let latest = try storage.fetchSnippet(id: id) else { return }
+            // Usage counters/timestamps can change after every paste. Do not
+            // reset the text editor/caret for those background-only changes.
+            if latest.title != editingSnippet?.title
+                || latest.content != editingSnippet?.content
+                || latest.keyword != editingSnippet?.keyword
+                || latest.folderID != editingSnippet?.folderID
+                || latest.isPinned != editingSnippet?.isPinned {
+                loadEditor(id: id)
+            }
+        } catch {
+            message = "Не удалось обновить сниппет"
+        }
+    }
+
     private func clearEditor() {
         isLoadingEditor = true
         editingSnippet = nil
@@ -384,7 +516,7 @@ final class SnippetsEditorModel: ObservableObject {
         } catch {
             pendingDraft = draft
             saveState = .failed("Не сохранено · повторить ⌘S")
-            message = error.localizedDescription
+            message = SnippetStorageError.userFacingMessage(for: error, fallback: "Не удалось сохранить сниппет. Черновик сохранён для повтора.")
             return false
         }
     }
@@ -418,6 +550,7 @@ final class SnippetsEditorModel: ObservableObject {
 
 private struct SnippetsEditorView: View {
     @ObservedObject var model: SnippetsEditorModel
+    @FocusState private var searchIsFocused: Bool
 
     var body: some View {
         HSplitView {
@@ -433,10 +566,7 @@ private struct SnippetsEditorView: View {
             model.flushPendingSave()
         }
         .onReceive(NotificationCenter.default.publisher(for: .neClipStorageDidChange)) { notification in
-            let domain = StorageChangeDomain.from(notification)
-            if domain?.includesSnippets ?? true {
-                model.reload()
-            }
+            model.storageDidChange(StorageChangeDomain.from(notification))
         }
         .onChange(of: model.query) { _, _ in model.scheduleQueryReload() }
         .onChange(of: model.editorTitle) { _, _ in model.editorChanged() }
@@ -448,12 +578,31 @@ private struct SnippetsEditorView: View {
             Button("Удалить", role: .destructive, action: model.deleteSelected)
             Button("Отмена", role: .cancel) {}
         } message: {
-            Text("Это действие нельзя отменить.")
+            Text("После удаления можно нажать «Вернуть сниппет» внизу списка.")
         }
-        .alert(model.folderEditorTitle, isPresented: $model.showFolderEditor) {
-            TextField("Название папки", text: $model.folderNameDraft)
-            Button("Сохранить", action: model.saveFolder)
-            Button("Отмена", role: .cancel) {}
+        .sheet(isPresented: $model.showFolderEditor) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(model.folderEditorTitle).font(.headline)
+                TextField("Название папки", text: $model.folderNameDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityLabel("Название папки")
+                if let error = model.folderEditorError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack {
+                    Spacer()
+                    Button("Отмена", role: .cancel, action: model.cancelFolderEditing)
+                        .keyboardShortcut(.cancelAction)
+                    Button("Сохранить", action: model.saveFolder)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!model.canSaveFolder)
+                }
+            }
+            .padding(20)
+            .frame(width: 360)
         }
         .alert("Удалить папку?", isPresented: $model.showFolderDeleteAlert) {
             Button("Удалить папку", role: .destructive, action: model.confirmDeleteFolder)
@@ -465,8 +614,25 @@ private struct SnippetsEditorView: View {
 
     private var sidebar: some View {
         VStack(spacing: 10) {
-            TextField("Поиск сниппетов", text: $model.query)
-                .textFieldStyle(.roundedBorder)
+            HStack(spacing: 6) {
+                Button { searchIsFocused = true } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .buttonStyle(.borderless)
+                .keyboardShortcut("f", modifiers: .command)
+                .help("Поиск по названию, тексту, ключу и папке · ⌘F")
+                .accessibilityLabel("Найти сниппет")
+                TextField("Поиск сниппетов и папок", text: $model.query)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($searchIsFocused)
+                if !model.query.isEmpty {
+                    Button { model.query = ""; searchIsFocused = true } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Очистить поиск сниппетов")
+                }
+            }
 
             Text("Нажмите сниппет, чтобы изменить его справа")
                 .font(.caption)
@@ -494,6 +660,11 @@ private struct SnippetsEditorView: View {
             .listStyle(.inset)
 
             HStack {
+                Button(action: model.createSnippetInActiveFolder) {
+                    Label("Новый", systemImage: "plus")
+                }
+                .keyboardShortcut("n", modifiers: .command)
+                .help("Создать сниппет в текущей папке · ⌘N")
                 Menu {
                     Button(
                         model.activeFolderID.map {
@@ -503,9 +674,10 @@ private struct SnippetsEditorView: View {
                     )
                     Button("Новая папка…", action: model.requestNewFolder)
                 } label: {
-                    Label("Добавить", systemImage: "plus")
+                    Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
+                .accessibilityLabel("Добавить папку или сниппет")
 
                 Button(role: .destructive) {
                     model.showDeleteSnippetAlert = true
@@ -517,6 +689,13 @@ private struct SnippetsEditorView: View {
                 Spacer()
             }
             .buttonStyle(.borderless)
+            if model.removedSnippet != nil {
+                Button(action: model.undoSnippetDeletion) {
+                    Label("Вернуть сниппет", systemImage: "arrow.uturn.backward")
+                }
+                .buttonStyle(.borderless)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if let message = model.message, model.selectedSnippetID == nil {
                 Text(message)
                     .font(.caption)
@@ -656,12 +835,14 @@ private struct SnippetsEditorView: View {
         if model.selectedSnippetID != nil {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Label("Редактирование сниппета", systemImage: "pencil")
+                    Label("Редактирование", systemImage: "pencil")
                         .font(.headline)
                     Spacer()
-                    Text("Сохраняется автоматически")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Button(action: model.duplicateSelected) {
+                        Label("Копия", systemImage: "doc.on.doc")
+                    }
+                    .keyboardShortcut("d", modifiers: .command)
+                    .help("Создать копию без повторения ключа поиска · ⌘D")
                 }
 
                 Divider()
@@ -702,22 +883,24 @@ private struct SnippetsEditorView: View {
                     }
 
                 HStack {
-                    Text("Доступно: {date}, {time}, {clipboard}")
+                    Text("Подстановки: {date}, {time}, {clipboard}")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .help("Также: {date:iso} — 2026-09-05; {time:iso} — 14:30:00. Двойные скобки {{date}} вставят буквальный {date}. Итог — не более 2 МБ.")
                     Spacer()
-                    if let message = model.message {
-                        Text(message)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    } else {
-                        saveStatus
-                    }
+                    saveStatus
+                }
+                if let message = model.message {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(14)
         } else {
-            if model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            switch model.emptyEditorState {
+            case .emptyLibrary:
                 ContentUnavailableView {
                     Label("Сниппетов пока нет", systemImage: "scissors")
                 } description: {
@@ -726,7 +909,13 @@ private struct SnippetsEditorView: View {
                     Button("Создать сниппет без папки") { model.createSnippet(in: nil) }
                     Button("Создать папку", action: model.requestNewFolder)
                 }
-            } else {
+            case .chooseSnippet:
+                ContentUnavailableView {
+                    Label("Выберите сниппет слева", systemImage: "cursorarrow.click")
+                } description: {
+                    Text("Его название, папка и текст появятся здесь для редактирования.")
+                }
+            case .noSearchResults:
                 ContentUnavailableView {
                     Label("Ничего не найдено", systemImage: "magnifyingglass")
                 } description: {

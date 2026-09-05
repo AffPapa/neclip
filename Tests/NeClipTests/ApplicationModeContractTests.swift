@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.7.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "13")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.8.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "14")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -35,7 +35,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("#selector(saveFirstResultAsSnippet)"))
         XCTAssertTrue(statusBar.contains("#selector(deleteFirstResult)"))
         XCTAssertTrue(statusBar.contains("#selector(undoLastDeletion)"))
-        XCTAssertEqual(statusBar.components(separatedBy: "#selector(quitApplication)").count - 1, 3)
+        XCTAssertTrue(statusBar.contains("Self.appendStandardFooter(to: menu, target: self)"))
         XCTAssertFalse(statusBar.contains("#selector(NSApplication.terminate"))
         XCTAssertTrue(statusBar.contains("NSApp.terminate(nil)"))
         XCTAssertTrue(statusBar.contains("MenuAppearance.applyEffectiveAppearance"))
@@ -79,8 +79,6 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("prepareForTermination"))
         XCTAssertTrue(editor.contains("Button(\"Очистить поиск\")"))
         XCTAssertTrue(editor.contains("Нажмите сниппет, чтобы изменить его справа"))
-        XCTAssertTrue(editor.contains("Редактирование сниппета"))
-        XCTAssertTrue(editor.contains("Сохраняется автоматически"))
     }
 
     func testSnippetListSelectionUsesConcreteIDsAndDefersModelMutation() throws {
@@ -121,8 +119,14 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("Storage.shared.snippetSummaries("))
         XCTAssertTrue(statusBar.contains("Storage.shared.fetchSnippet(id: id)"))
         XCTAssertFalse(statusBar.contains("Storage.shared.allSnippets("))
+        XCTAssertTrue(statusBar.contains("NSApp.currentEvent?.type == .rightMouseUp ? .snippets : .history"))
+        XCTAssertTrue(statusBar.contains("applyShortcutPresentation(.snippets, to: snippetsItem)"))
+        let snippetFolders = try XCTUnwrap(statusBar.range(of: ".sectionHeader(title: \"Папки\")"))
+        let snippetQuickAccess = try XCTUnwrap(statusBar.range(of: ".sectionHeader(title: \"Быстрый доступ\")"))
+        XCTAssertLessThan(snippetFolders.lowerBound, snippetQuickAccess.lowerBound)
 
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
+        XCTAssertTrue(preferences.contains("Открыть папки сниппетов"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
         XCTAssertTrue(preferences.contains("\"Размер истории\""))
         XCTAssertTrue(preferences.contains("\"Длина строки в меню\""))

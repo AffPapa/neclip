@@ -1,12 +1,24 @@
 # NeClip project map
 
-Updated: 1 September 2026. This is the source map for the current unreleased
+Updated: 5 September 2026. Source candidate: 1.8.0/build 14. This is the source map for the current unreleased
 tree. Public release metadata remains pinned to 1.4.0 until the release gate is
 completed.
 
-The matching evidence report is `AUDIT-1.7.0-2026-09-01.md`; competitor
-matrices, the 100-item catalogue and top-20 decisions are in
-`RESEARCH-1.6.0-ZERO-2026-09-01.md`.
+Current distribution gate: `RELEASE-1.8.0-STATUS.md`. Source updates do not
+advance the downloadable version until the Apple notarization gate passes.
+
+The matching evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
+19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements
+are in `RESEARCH-2026-09-05.md`. Older reports remain historical evidence, not
+current feature or release claims.
+
+The later close/capture/shortcut repair and its live QA evidence are recorded
+in `BUGFIX-RUNTIME-2026-09-05.md` (185 checks passed, one opt-in skip).
+
+The next settings/editor usability audit is `UX-SETTINGS-2026-09-05.md`
+(206 checks passed, one opt-in skip). `HistoryCleanupCoordinator` now owns the
+capture barrier for explicit bulk deletion; `PreferencesUXPolicy` describes
+effective settings states and `MenuSearchPage` bounds visible search results.
 
 ## Product boundary
 
@@ -48,6 +60,8 @@ projection is capped at 200 and every content preview at 280 characters. Full
 local history and snippet bodies are fetched only for the chosen action.
 
 - `MenuPresentation.swift`: single-line, grapheme-safe menu titles.
+- `MenuSearchRequest.swift`: literal snippet search and mutually exclusive
+  history-filter replacement. Snippet queries do not consume `app:`/`type:`.
 - `ClipboardSearch.swift`: ordinary and structured search, smart categories,
   bounded fuzzy fallback.
 - `PasteService.swift`: direct/plain/copy-only paste and lossless,
@@ -61,14 +75,29 @@ local history and snippet bodies are fetched only for the chosen action.
 
 ### Snippets
 
+The dedicated shortcut opens folders first; right-clicking the status item is
+an alternative. Folder browse order matches editor sortIndex/ID, while the
+separate quick list follows pin/usage. Counts describe displayed items; search
+results carry projected folder names even outside the bounded menu snapshot.
+Command-E opens exactly the first matching snippet by ID after flushing drafts.
+
 `SnippetsEditor` reads lightweight summaries for folders, search, empty folders
 and **Unfiled**, then fetches one full body when selected. Selection, navigation
 and termination flush pending drafts; failed saves remain visible. Local writes
 and imports share title, keyword and 2 MB content bounds. `SnippetRenderer`
-expands only local
-`{date}`, `{time}` and `{clipboard}` placeholders. `Storage` provides versioned
+expands local `{date}`, `{time}`, `{clipboard}`, `{date:iso}` and `{time:iso}`
+placeholders in a single bounded pass. `{{date}}` escapes a literal token;
+inserted clipboard text is never reinterpreted. Formatters are lazy, expanded
+output above 2 MB fails before appending, and preview truncation uses slice
+indices rather than counting the entire stored body. `Storage` provides versioned
 JSON export and atomic merge-only import without history or usage metadata;
 empty and over-16 MB import files are rejected before JSON decoding.
+
+Editor creation/search/duplicate use Command-N/F/D and visible buttons. Duplicate
+preserves editable content/folder/pin but not keyword/usage. A one-item deletion
+undo survives ordinary refresh but not explicit full-data erasure. Clean editors
+refresh external pin/move changes; dirty drafts are not replaced. Folder search
+matches Unicode names; exact keyword normalization occurs before SQL LIMIT.
 
 ### Keyboard layout correction
 
@@ -89,6 +118,10 @@ ignore list until restart.
 
 ### Settings, shortcuts and lifecycle
 
+- `RuntimeIdentity.swift`: debug-only preview label and persistent bundle
+  fallback for isolated QA data; production ignores the override.
+- `AppDelegate.swift`: native Close/Command-W and configured history/snippet
+  commands, refreshed after shortcut changes.
 - `Settings.swift`: normalized local preferences, mandatory password-manager
   capture exclusions and a 200-entry per-app layout map plus a separate bounded
   fixed-layout map with explicit reset.
@@ -123,6 +156,14 @@ ignore list until restart.
     fetch exactly one full snippet by identifier.
 16. Secret scanning must first detect generated GitHub, AWS and Slack canaries,
     then scan the publishable tree, HEAD history and side-ref-only commits.
+17. Search invalidates old keyboard results immediately, before debounce/DB
+    work; Settings/Quit remain present during loading, errors and empty results.
+18. Deferred keyboard activation captures the destination with the selected
+    item, never reads a later menu's target; old completions do not clear it.
+19. Full data erasure drops editor drafts, undo payloads, menu snapshots and
+    sequential-paste state as well as database rows.
+20. No snippet expansion silently truncates output or recursively expands
+    clipboard text. CRLF is one line break in explicit line transformations.
 
 ## Verification map
 
@@ -133,7 +174,8 @@ ignore list until restart.
 - Menu/app-mode contracts: `ApplicationModeContractTests`,
   `MenuPresentationTests`.
 - Snippets/transforms/actions: `SnippetTransferTests`, `TextTransformTests`,
-  `HistoryItemActionsTests`.
+  `HistoryItemActionsTests`, `SnippetsEditorTests`, `StorageSnippetDiscoveryTests`,
+  `SnippetRenderingBehaviorTests` and `MenuSearchRequestTests`.
 - Release/update/security: `UpdateManifestTests`,
   `SecretScanningContractTests`, `scripts/secret-scan.sh`, `build-app.sh`.
 

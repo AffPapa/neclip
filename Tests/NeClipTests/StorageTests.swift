@@ -1064,9 +1064,9 @@ final class StorageTests: XCTestCase {
 }
 
 final class SnippetRendererTests: XCTestCase {
-    func testLocalPlaceholdersAreDeterministicAndOffline() {
+    func testLocalPlaceholdersAreDeterministicAndOffline() throws {
         let date = Date(timeIntervalSince1970: 1_700_000_000)
-        let result = SnippetRenderer.render(
+        let result = try SnippetRenderer.render(
             "{date} | {time} | {clipboard}",
             clipboard: "local value",
             date: date,

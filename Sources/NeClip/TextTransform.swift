@@ -8,6 +8,8 @@ enum TextTransform: String, CaseIterable, Sendable {
     case titleCase
     case uniqueLines
     case sortLines
+    case removeBlankLines
+    case trimLines
     case urlEncode
     case urlDecode
     case jsonPretty
@@ -22,8 +24,10 @@ enum TextTransform: String, CaseIterable, Sendable {
         case .titleCase: "Каждое Слово С Заглавной"
         case .uniqueLines: "Убрать повторяющиеся строки"
         case .sortLines: "Сортировать строки"
-        case .urlEncode: "Кодировать URL"
-        case .urlDecode: "Декодировать URL"
+        case .removeBlankLines: "Убрать пустые строки"
+        case .trimLines: "Убрать пробелы по краям строк"
+        case .urlEncode: "Кодировать компонент URL"
+        case .urlDecode: "Декодировать компонент URL"
         case .jsonPretty: "Форматировать JSON"
         case .jsonMinify: "Сжать JSON"
         }
@@ -46,15 +50,23 @@ enum TextTransform: String, CaseIterable, Sendable {
             return text.capitalized
         case .uniqueLines:
             var seen = Set<String>()
-            return text.components(separatedBy: .newlines)
+            return Self.lines(in: text)
                 .filter { seen.insert($0).inserted }
                 .joined(separator: "\n")
         case .sortLines:
-            return text.components(separatedBy: .newlines)
+            return Self.lines(in: text)
                 .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
                 .joined(separator: "\n")
+        case .removeBlankLines:
+            return Self.lines(in: text)
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                .joined(separator: "\n")
+        case .trimLines:
+            return Self.lines(in: text)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .joined(separator: "\n")
         case .urlEncode:
-            guard let value = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            guard let value = text.addingPercentEncoding(withAllowedCharacters: Self.urlUnreservedCharacters) else {
                 throw TextTransformError.invalidURLText
             }
             return value
@@ -70,6 +82,16 @@ enum TextTransform: String, CaseIterable, Sendable {
             if self == .jsonPretty { options.insert(.prettyPrinted) }
             return String(decoding: try JSONSerialization.data(withJSONObject: object, options: options), as: UTF8.self)
         }
+    }
+
+    private static let urlUnreservedCharacters = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+    )
+
+    private static func lines(in text: String) -> [String] {
+        // Swift treats CRLF as one Character, unlike splitting a CharacterSet
+        // of newline scalars, which introduces spurious empty Windows lines.
+        text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
     }
 }
 

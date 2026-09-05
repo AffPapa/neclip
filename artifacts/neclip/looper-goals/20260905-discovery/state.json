@@ -1,0 +1,28 @@
+{
+  "project": "NeClip",
+  "date": "2026-09-05",
+  "scope": "research-and-local-refinement",
+  "status": "local-delivery-complete",
+  "sourceVersion": "1.8.0",
+  "sourceBuild": 14,
+  "candidateRecommendations": 100,
+  "selectedRefinements": 27,
+  "checks": {
+    "xctestTotal": 167,
+    "xctestSkipped": 1,
+    "swiftTestingPassed": 11,
+    "strictRelease": "passed",
+    "addressSanitizer": "passed",
+    "threadSanitizer": "passed",
+    "secretScan": "tree-and-fetched-local-refs-clean",
+    "visualQA": "sampled-isolated-editor-and-keys",
+    "crossApplicationPasteMatrix": "not-certified"
+  },
+  "publication": {
+    "committed": false,
+    "pushed": false,
+    "installedAppChanged": false,
+    "publicManifestChanged": false,
+    "publicVersion": "1.4.0"
+  }
+}

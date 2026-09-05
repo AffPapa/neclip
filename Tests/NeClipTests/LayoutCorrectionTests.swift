@@ -142,6 +142,39 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertFalse(Settings.automaticLayoutCorrection)
     }
 
+    func testApplicationMemoryRejectsCaseVariantsAndWhitespaceInProtectedIdentities() {
+        for bundleID in [" COM.APPLE.SECURITYAGENT ", "COM.APPLE.LOGINWINDOW", "ORG.AFFPAPA.NECLIP"] {
+            XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
+                bundleID: bundleID,
+                ownBundleID: "org.affpapa.neclip",
+                userExcluded: []
+            ), bundleID)
+        }
+        XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: "com.example.editor",
+            ownBundleID: nil,
+            userExcluded: [" COM.EXAMPLE.EDITOR "]
+        ))
+        XCTAssertTrue(ApplicationLayoutMemoryPolicy.isEligible(
+            bundleID: "com.apple.TextEdit",
+            ownBundleID: "org.affpapa.neclip",
+            userExcluded: []
+        ))
+    }
+
+    func testMandatoryAutomaticExclusionsHandleCaseAndWhitespaceWithoutBlockingManualEditing() {
+        for bundleID in LayoutProtectedApplicationPolicy.protectedBundleIDs {
+            XCTAssertTrue(LayoutProtectedApplicationPolicy.blocksAutomatic(
+                bundleID: " \(bundleID.uppercased()) ", userExcluded: []
+            ), bundleID)
+        }
+        for bundleID in ["COM.JETBRAINS.PYCHARM", " ", "\n"] {
+            XCTAssertTrue(LayoutProtectedApplicationPolicy.blocksAutomatic(bundleID: bundleID, userExcluded: []))
+        }
+        XCTAssertFalse(LayoutProtectedApplicationPolicy.blocksAutomatic(bundleID: "com.jetbrainsclone.editor", userExcluded: []))
+        XCTAssertFalse(LayoutProtectedApplicationPolicy.blocksManual(bundleID: "COM.APPLE.TERMINAL"))
+    }
+
     func testFixedApplicationLayoutTakesPriorityAndDisablesLearning() {
         XCTAssertEqual(ApplicationLayoutRestorePolicy.sourceToRestore(
             fixedSource: "fixed",

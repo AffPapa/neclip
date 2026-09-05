@@ -1,16 +1,19 @@
 import AppKit
 
+enum SnippetMenuOrder {
+    /// Browsing a folder must match the editor, independent of recent use.
+    static func lessThan(_ lhs: SnippetSummary, _ rhs: SnippetSummary) -> Bool {
+        if lhs.sortIndex != rhs.sortIndex { return lhs.sortIndex < rhs.sortIndex }
+        return (lhs.id ?? 0) < (rhs.id ?? 0)
+    }
+}
+
 enum MenuTitleFormatter {
     static let validLengthRange = 16...96
     static let defaultLimit = 64
-    static let defaultLength = defaultLimit
 
     static func normalizedLimit(_ value: Int) -> Int {
         min(max(value, validLengthRange.lowerBound), validLengthRange.upperBound)
-    }
-
-    static func clampedLength(_ value: Int) -> Int {
-        normalizedLimit(value)
     }
 
     /// Produces a single-line menu label without changing the stored value.

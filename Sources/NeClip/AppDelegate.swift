@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        HistoryCleanupCoordinator.shared.attach(monitor)
         configureApplicationMenu()
         statusBar = StatusBarController()
         DispatchQueue.global(qos: .utility).async {
@@ -22,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         HotKeyCoordinator.shared.onShortcutChanged = { [weak self] action, shortcut in
             self?.statusBar.refreshShortcutPresentation()
+            self?.configureApplicationMenu()
             if action == .manualCorrection {
                 self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
             }
@@ -154,11 +156,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applicationMenu.addItem(quitItem)
         applicationItem.submenu = applicationMenu
         mainMenu.addItem(applicationItem)
+        let fileItem = NSMenuItem()
+        fileItem.submenu = Self.makeFileMenu(
+            historyShortcut: HotKeyCoordinator.shared.shortcut(for: .history),
+            snippetsShortcut: HotKeyCoordinator.shared.shortcut(for: .snippets),
+            target: self
+        )
+        mainMenu.addItem(fileItem)
         NSApp.mainMenu = mainMenu
+    }
+
+    static func makeFileMenu(
+        historyShortcut: ShortcutDescriptor,
+        snippetsShortcut: ShortcutDescriptor,
+        target: AnyObject
+    ) -> NSMenu {
+        let menu = NSMenu(title: "Файл")
+        let commands: [(String, Selector, ShortcutDescriptor)] = [
+            ("Открыть историю", #selector(openHistoryFromApplicationMenu), historyShortcut),
+            ("Открыть папки сниппетов", #selector(openSnippetsFromApplicationMenu), snippetsShortcut)
+        ]
+        for (title, action, shortcut) in commands {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: shortcut.keyEquivalent ?? "")
+            item.keyEquivalentModifierMask = shortcut.nsEventModifiers
+            item.target = target
+            menu.addItem(item)
+        }
+        menu.addItem(.separator())
+        let closeItem = NSMenuItem(
+            title: "Закрыть окно",
+            action: #selector(NSWindow.performClose(_:)),
+            keyEquivalent: "w"
+        )
+        closeItem.keyEquivalentModifierMask = [.command]
+        // Resolve through the key window's responder chain. performClose
+        // respects the snippets editor's unsaved-draft close veto.
+        closeItem.target = nil
+        menu.addItem(closeItem)
+        return menu
     }
 
     @objc private func quitFromApplicationMenu() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func openHistoryFromApplicationMenu() {
+        statusBar.showHistory()
+    }
+
+    @objc private func openSnippetsFromApplicationMenu() {
+        statusBar.showSnippets()
     }
 
     private func startMonitorAroundOnboarding() {

@@ -47,6 +47,17 @@ not planned.
 
 ## Done in current unreleased source
 
+- Source 1.8.0/build 14: [100 recommendations and 27 selected refinements](docs/RESEARCH-2026-09-05.md)
+- Folder-first shortcut, right-click access, direct editing and stable folder context
+- Duplicate, deletion undo, keyboard-first creation/search and full-erasure draft cleanup
+- Literal/folder-aware search, exact-key priority before LIMIT and safe pending results
+- Consistent Settings/Quit footer and replacing mutually exclusive search filters
+- Clean-editor external refresh, whole-folder counts and quick-snippet usage refresh
+- Individual hotkey reset, live settings, numeric Escape and precise modifier help
+- Normalized protected layout identities and system/self exclusions
+- Bounded nonrecursive placeholders with ISO formats/literal escaping
+- CRLF-aware line cleanup and correctly scoped URL component encoding
+
 - Source 1.7.0/build 13 separated from the still-public signed 1.4.0 release
 - Native snippet-list selection and visible-order arrow navigation, debounced
   search and a query-aware empty state

@@ -8,7 +8,7 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current source version: **1.7.0 (build 13)**. The latest public, signed and
+Current source version: **1.8.0 (build 14)**. The latest public, signed and
 notarized release remains **1.4.0** until a separate release gate is completed.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
@@ -16,10 +16,10 @@ for the intentionally small public roadmap.
 The current module ownership and invariants are in
 [docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
 audit, decisions and verification gates are in
-[docs/AUDIT-1.7.0-2026-09-01.md](docs/AUDIT-1.7.0-2026-09-01.md).
-The current from-scratch comparison of 20 clipboard products, 20 layout tools,
-100 candidate improvements and the 1.6.0 decisions is in
-[docs/RESEARCH-1.6.0-ZERO-2026-09-01.md](docs/RESEARCH-1.6.0-ZERO-2026-09-01.md).
+[docs/AUDIT-1.8.0-2026-09-05.md](docs/AUDIT-1.8.0-2026-09-05.md).
+The refreshed comparison of 19 clipboard products, 11 layout tools, 100
+candidate improvements and 27 selected refinements is in
+[docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
 
 [Download the signed and notarized NeClip 1.4.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 SHA-256:
@@ -30,6 +30,7 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 
 - `Command-Shift-V` — open the native history menu at the pointer (customizable)
 - `Command-Shift-B` — open snippet folders directly (customizable)
+- right-click the menu-bar icon — open snippet folders without a keyboard
 - type immediately — search inside the menu (digits and punctuation work)
 - `Up` / `Down` — leave search; continue with arrows through native menu items
 - `Return` — use the first visible result, or copy when Accessibility is unavailable
@@ -45,13 +46,16 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Command-Delete` — delete the first visible result
 - `Command-Z` — restore the last individually deleted item
 - `Space` — preview the first result when search is empty
+- `Command-E` — inspect the first result or edit the first matching snippet
 - `Escape` — clear search, then close
 
 The first ten recent items are inline; up to 100 are browsable in one compact
 **More from History** hierarchy, grouped by tens. Up to 100 pinned items use the
 same bounded hierarchy; older values remain available through database search.
-The snippet hotkey shows nine quick items first and then a bounded folder
-hierarchy; larger imported libraries remain fully searchable and editable. The
+The snippet hotkey shows a bounded folder hierarchy first, then nine quick
+items. Folder order matches the editor; search includes folder names and
+prioritizes exact keywords with or without `;`. Larger imported libraries remain
+searchable and editable. The
 history menu also contains an explicit **Actions for Top Item** submenu.
 Lower-frequency capture, cleanup, sequential-paste, layout and update controls
 are grouped under **Management**, followed by snippet editing, Settings and Quit.
@@ -61,6 +65,13 @@ explains which combination is unavailable and keeps the equivalent command
 accessible from the menu bar. All five global shortcuts can be recorded locally
 in the **Keys** Settings tab; a conflicting candidate never replaces the
 previous working one.
+
+In the snippet editor, `Command-F` focuses search, `Command-N` creates a snippet
+in the active folder, and `Command-D` duplicates it without copying its search
+key. The visible **Restore Snippet** action undoes the last deletion. Explicit
+full-data erasure clears undo and drafts too. Templates support `{date}`,
+`{time}`, `{clipboard}`, `{date:iso}` and `{time:iso}`; `{{date}}` inserts the
+literal `{date}`. Expanded output is capped at 2 MB and never silently truncated.
 
 Menu labels use one system appearance whether opened from the status item or a
 global shortcut. Long text is collapsed to one line and shortened after a

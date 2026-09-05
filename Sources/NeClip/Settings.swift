@@ -6,6 +6,24 @@ enum CapturePauseState: Equatable {
     case indefinite
 }
 
+/// Keep launch arguments separate from mutable preferences. A deliberate QA or
+/// command-line pause must not silently disappear when persistent state clears.
+enum CapturePausePreferences {
+    static let indefiniteKey = "capturePausedIndefinitely"
+    static let untilKey = "capturePausedUntil"
+
+    static func isLaunchLocked(in defaults: UserDefaults) -> Bool {
+        let value = defaults.volatileDomain(forName: UserDefaults.argumentDomain)[indefiniteKey]
+        if let number = value as? NSNumber { return number.boolValue }
+        return (value as? NSString)?.boolValue ?? false
+    }
+
+    static func resume(in defaults: UserDefaults) {
+        defaults.removeObject(forKey: indefiniteKey)
+        defaults.removeObject(forKey: untilKey)
+    }
+}
+
 extension Notification.Name {
     static let neClipCaptureControlsDidChange = Notification.Name("org.affpapa.neclip.captureControlsDidChange")
     static let neClipLayoutSettingsDidChange = Notification.Name("org.affpapa.neclip.layoutSettingsDidChange")
@@ -31,8 +49,8 @@ enum Settings {
         static let sensitiveContentRules = "sensitiveContentRules"
         static let preferPlainText = "preferPlainText"
         static let menuTitleLength = "menuTitleLength"
-        static let capturePausedUntil = "capturePausedUntil"
-        static let capturePausedIndefinitely = "capturePausedIndefinitely"
+        static let capturePausedUntil = CapturePausePreferences.untilKey
+        static let capturePausedIndefinitely = CapturePausePreferences.indefiniteKey
         static let ignoreNextCopy = "ignoreNextCopy"
         static let appendNextCopy = "appendNextCopy"
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
@@ -311,6 +329,19 @@ enum Settings {
         capturePauseState != .active
     }
 
+    static var capturePauseIsLaunchLocked: Bool {
+        withCaptureControlLock { CapturePausePreferences.isLaunchLocked(in: d) }
+    }
+
+    /// Read after requesting resume; nil means the pause actually ended.
+    static var captureResumeFailureMessage: String? {
+        guard isCapturePaused else { return nil }
+        if capturePauseIsLaunchLocked {
+            return "Запись отключена параметром запуска. Перезапустите NeClip без принудительной паузы."
+        }
+        return "Не удалось возобновить запись: пауза остаётся включённой."
+    }
+
     /// `nil` means pause indefinitely. A past date is equivalent to resume.
     static func pause(until: Date?) {
         withCaptureControlLock {
@@ -334,8 +365,7 @@ enum Settings {
 
     static func resumeCapture() {
         withCaptureControlLock {
-            d.removeObject(forKey: Key.capturePausedIndefinitely)
-            d.removeObject(forKey: Key.capturePausedUntil)
+            CapturePausePreferences.resume(in: d)
         }
         notifyCaptureControlsChanged()
     }

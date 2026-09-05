@@ -52,6 +52,32 @@ final class HotKeyCoordinatorTests: XCTestCase {
     )
 
     @MainActor
+    func testSingleShortcutResetPreservesOtherActionsAndRejectsUnavailableDefault() {
+        let registry = FakeHotKeyRegistry()
+        let coordinator = makeCoordinator(registry: registry)
+        start(coordinator)
+        XCTAssertEqual(coordinator.update(.history, to: alternateHistory), .applied)
+        let others = Dictionary(uniqueKeysWithValues: NeClipShortcutAction.allCases.filter { $0 != .history }.map {
+            ($0, coordinator.shortcut(for: $0))
+        })
+
+        registry.setBlocked([.historyDefault])
+        guard case .rejected = coordinator.update(.history, to: NeClipShortcutAction.history.defaultShortcut) else {
+            return XCTFail("A reset must not discard the working shortcut when the default is unavailable")
+        }
+        XCTAssertEqual(coordinator.shortcut(for: .history), alternateHistory)
+        XCTAssertTrue(registry.active.contains(alternateHistory))
+
+        registry.setBlocked([])
+        XCTAssertEqual(coordinator.update(.history, to: NeClipShortcutAction.history.defaultShortcut), .applied)
+        XCTAssertFalse(registry.active.contains(alternateHistory))
+        for (action, shortcut) in others {
+            XCTAssertEqual(coordinator.shortcut(for: action), shortcut)
+            XCTAssertTrue(registry.active.contains(shortcut))
+        }
+    }
+
+    @MainActor
     func testUpdateKeepsWorkingShortcutWhenCandidateIsUnavailable() {
         let registry = FakeHotKeyRegistry()
         let coordinator = makeCoordinator(registry: registry)

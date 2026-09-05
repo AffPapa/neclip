@@ -68,7 +68,7 @@ final class GlobalHotKey: @unchecked Sendable {
             shortcut.carbonModifiers,
             hotKeyID,
             GetApplicationEventTarget(),
-            0,
+            OptionBits(kEventHotKeyExclusive),
             &reference
         )
         guard registrationStatus == noErr else {
@@ -103,14 +103,32 @@ final class GlobalHotKey: @unchecked Sendable {
             nil,
             &received
         )
-        guard status == noErr,
-              received.signature == Self.signature,
+        guard status == noErr else { return OSStatus(eventNotHandledErr) }
+        return Self.dispatch(
+            eventKind: GetEventKind(event),
+            received: received,
+            identifier: identifier,
+            action: action
+        )
+    }
+
+    /// Finish consuming our Carbon event before an action can enter AppKit's
+    /// nested menu tracking loop. Unrelated keys and releases remain unhandled.
+    @discardableResult
+    static func dispatch(
+        eventKind: UInt32,
+        received: EventHotKeyID,
+        identifier: UInt32,
+        action: @escaping Action
+    ) -> OSStatus {
+        guard eventKind == UInt32(kEventHotKeyPressed),
+              received.signature == signature,
               received.id == identifier else { return OSStatus(eventNotHandledErr) }
-        action()
+        DispatchQueue.main.async(execute: action)
         return noErr
     }
 
-    private static let signature: OSType = 0x4E_43_4C_50 // "NCLP"
+    static let signature: OSType = 0x4E_43_4C_50 // "NCLP"
 }
 
 extension GlobalHotKey: HotKeyRegistrationToken {}

@@ -169,6 +169,17 @@ final class ClipboardMonitor: @unchecked Sendable {
         processingQueue.sync {}
     }
 
+    @MainActor
+    var isRunning: Bool { timer != nil }
+
+    @MainActor
+    func stopAndDrainAsync() async {
+        stop()
+        await withCheckedContinuation { continuation in
+            processingQueue.async { continuation.resume() }
+        }
+    }
+
     func refreshAuthorization() {
         precondition(Thread.isMainThread)
         if ClipboardAccess.current == .denied {
@@ -514,3 +525,5 @@ final class ClipboardMonitor: @unchecked Sendable {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
+
+extension ClipboardMonitor: HistoryCaptureControlling {}

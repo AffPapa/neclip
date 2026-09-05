@@ -6,6 +6,41 @@ DMG checksum verification have passed.
 
 ## Unreleased
 
+### 1.8.0 / build 14 — local source candidate
+
+- Settings/editor follow-up: effective login authorization and privacy-rule
+  limits, persistent progress, separate transfer/cleanup groups, friendly
+  duplicate-key errors, retryable folder forms and truthful deselection.
+- Added asynchronous capture barriers to bulk deletion, export/import size
+  parity, search overflow hints and safer query-editing key routing.
+- Fixed the follow-up runtime regression: settings expose native Command-W
+  and a visible Close button; history/snippet commands also work through the
+  application menu with the configured shortcuts. Carbon hotkeys dispatch
+  after consuming the event and explicitly reject conflicting registrations.
+- Capture resume now reports a command-line pause instead of false success.
+  Isolated debug copies show Preview identity and retain their database
+  isolation across Finder relaunches. See the runtime follow-up audit.
+- Refreshed primary-source research: 19 clipboard products, 11 layout tools,
+  100 evaluated recommendations and 27 selected refinements (including fixes).
+- Completed folder-first snippet hotkey and right-click access. Folder order
+  matches the editor; counts/context and Command-E direct editing are visible.
+- Added snippet duplication, editor deletion undo and Command-F/N/D. Explicit
+  full erasure also drops in-memory drafts, cached menu results and undo.
+- Fixed search footer disappearance, literal snippet queries, old-result
+  activation while searching, filter replacement and exact keyword ranking
+  before LIMIT. Search now includes Unicode folder names.
+- Refresh clean editor state after external pin/move and update quick items
+  after use. Count whole folders independently of active editor search.
+- Normalize protected layout identities, keep Settings synchronized, reset one
+  shortcut at a time, explain paste modifiers and numeric input cancellation.
+- Render placeholders lazily in one pass, never interpret inserted clipboard
+  text, cap expanded output at 2 MB, add literal escaping and ISO date/time.
+- Normalize CRLF in line actions; add blank-line removal/per-line trimming;
+  correctly encode URL components instead of leaving query delimiters raw.
+- Public manifest, downloadable binary and installed app are unchanged.
+
+### Previous unreleased source work
+
 - Prepared source version 1.7.0/build 13 while keeping the public update
   manifest and signed/notarized download on 1.4.0 until the exact release
   artifact passes the external notarization and publication gates.

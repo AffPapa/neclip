@@ -52,4 +52,16 @@ final class SnippetTransferTests: XCTestCase {
         }
         XCTAssertTrue(try storage.allSnippets().isEmpty)
     }
+
+    func testExportRejectsLibraryThatItsOwnImporterCannotReadWithoutDeletingAnything() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let content = String(repeating: "x", count: ClipboardCapturePolicy.maxTextBytes)
+        for index in 0..<9 {
+            _ = try storage.addSnippet(folderID: nil, title: "Large \(index)", content: content, keyword: nil)
+        }
+        XCTAssertThrowsError(try storage.exportSnippetData()) { error in
+            XCTAssertEqual(error as? SnippetTransferError, .exportTooLarge)
+        }
+        XCTAssertEqual(try storage.snippetSummaries().count, 9)
+    }
 }
