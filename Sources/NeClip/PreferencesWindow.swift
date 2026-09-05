@@ -329,7 +329,7 @@ private struct PreferencesView: View {
                 let login = LoginItemPresentation(status: loginItemStatus)
                 Toggle("Запускать при входе в систему", isOn: Binding(
                     get: { login.isRequested },
-                    set: updateLaunchAtLogin
+                    set: { enabled in updateLaunchAtLogin(enabled) }
                 ))
                 if let detail = login.detail {
                     Text(detail)
