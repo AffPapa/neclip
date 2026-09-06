@@ -6,6 +6,10 @@ not planned.
 
 ## Local development after 1.9.1 — not published
 
+- 1.10.0/build 17 source candidate; binary publication waits for restored
+  notarization credentials. See `docs/RELEASE-1.10.0-STATUS.md`.
+- Retry dirty/failed snapshots on explicit open; remove unused OCR notifications.
+- Keep public site/download and source-candidate status coherent in CI.
 - Refresh only changed menu domains; retain dirty work after failed/stale reads.
 - Strip local/debug symbols from distribution copies, keep UUID-matched dSYM
   outside the shipped app, before signing. Bound application metadata caching.

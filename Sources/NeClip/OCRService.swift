@@ -1,13 +1,10 @@
 import Foundation
 import ImageIO
+import OSLog
 import Vision
 
-extension Notification.Name {
-    static let neClipOCRDidFinish = Notification.Name("org.affpapa.neclip.ocrDidFinish")
-    static let neClipOCRDidFail = Notification.Name("org.affpapa.neclip.ocrDidFail")
-}
-
 enum OCRService {
+    private static let logger = Logger(subsystem: "org.affpapa.neclip", category: "OCR")
     private static let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "org.affpapa.neclip.ocr"
@@ -29,7 +26,7 @@ enum OCRService {
             autoreleasepool {
                 guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
                       let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-                    notifyFailure(clipID: clipID, error: OCRFailure.invalidImage)
+                    logger.error("OCR image decoding failed")
                     return
                 }
 
@@ -53,31 +50,12 @@ enum OCRService {
                     try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
                     guard let recognizedText else { return }
                     try Storage.shared.setOCRText(recognizedText, forClipID: clipID)
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(
-                            name: .neClipOCRDidFinish,
-                            object: nil,
-                            userInfo: ["clipID": clipID]
-                        )
-                    }
                 } catch {
-                    notifyFailure(clipID: clipID, error: error)
+                    // Never log clipboard text, source paths or raw errors.
+                    logger.error("OCR recognition or storage failed")
                 }
             }
         }
     }
 
-    private static func notifyFailure(clipID: Int64, error: Error) {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(
-                name: .neClipOCRDidFail,
-                object: nil,
-                userInfo: ["clipID": clipID, "error": error]
-            )
-        }
-    }
-
-    private enum OCRFailure: Error {
-        case invalidImage
-    }
 }

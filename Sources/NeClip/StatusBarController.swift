@@ -167,7 +167,9 @@ final class StatusBarController: NSObject {
         let target = captureTargetApplication()
         targetPID = target?.processIdentifier
         targetBundleID = target?.bundleIdentifier
-        guard snapshotIsReady else {
+        // An unsuccessful read must be retried on the next explicit open,
+        // rather than leaving an empty/stale menu until another copy occurs.
+        guard snapshotIsReady, refreshState.domains.isEmpty else {
             pendingPresentation = (kind, anchoredToStatusItem)
             refreshSnapshot()
             return

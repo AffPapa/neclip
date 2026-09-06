@@ -33,6 +33,10 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 
 ## Current development workflow (not yet released)
 
+Source candidate: **1.10.0/build 17**. [Release status](docs/RELEASE-1.10.0-STATUS.md)
+tracks verification and the current notarization-credential blocker. The public
+download above remains 1.9.1; a source commit is not an installable release.
+
 The source branch removes search everywhere. The public 1.9.1 download above
 still has the previous interface; no new release or installed-app update is
 implied. The app is for immediate reuse, not managing a searchable archive.

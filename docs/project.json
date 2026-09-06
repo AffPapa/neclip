@@ -11,14 +11,16 @@
   },
   "platform": {
     "minimumMacOS": "14.0",
-    "architectures": ["arm64"],
+    "architectures": [
+      "arm64"
+    ],
     "interface": "menu-bar-only",
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "1.9.1",
-    "build": 16,
-    "status": "released",
+    "version": "1.10.0",
+    "build": 17,
+    "status": "awaiting-notarization",
     "publicVersion": "1.9.1"
   },
   "canonical": {
@@ -29,15 +31,19 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.1-2026-09-06.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.10.0-STATUS.md",
     "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.9.1-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
-    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.9.0-SIMPLIFICATION.md",
+    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/OPTIMIZATION-2026-09-06.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
   "features": [
+    "immediate-use history and folder snippets without search or keyword fields",
+    "selective menu refresh with stale-result rejection and retry on explicit open",
+    "compact retention controls with visible active-cleanup indicator",
+    "distribution binaries stripped after saving UUID-matched private debug symbols",
     "native macOS Settings toolbar with five persistent categories",
     "numeric setting drafts commit on explicit completion rather than partial keystrokes",
     "draft-safe history editing, save-on-close choices and stale-load rejection",
@@ -46,18 +52,14 @@
     "scrollable first-run help with always-reachable permission and continue actions",
     "folder-first snippet hotkey and right-click menu-bar access",
     "direct snippet editing, duplicate and deletion undo",
-    "folder-aware snippet search with exact-keyword priority before limiting",
-    "consistent search footer and stale-result activation protection",
     "bounded nonrecursive snippet placeholders with ISO formats and literal escaping",
     "individual shortcut reset and live settings state",
     "clipboard history for text, images and files",
-    "local search, pins, individual delete with undo and OCR",
     "discoverable editable snippet folders, starter snippets and local placeholders",
     "manual EN/RU layout correction with a configurable shortcut",
     "optional conservative automatic EN/RU correction",
     "per-application input-source memory without keyboard monitoring",
     "fixed per-application input source without keyboard monitoring",
-    "Space preview while search is empty",
     "one-shot append of the next accepted text",
     "session ignore after undoing a false automatic correction",
     "off-only automatic-correction safety shortcut",
@@ -65,8 +67,6 @@
     "five configurable conflict-safe global shortcuts",
     "sectioned local settings",
     "configurable grapheme-safe menu label length",
-    "discoverable native structured-search filters",
-    "bounded menu browsing with complete on-demand search",
     "atomic local history and snippet erasure",
     "partial or on-quit history cleanup and bounded text capture",
     "race-free clear-on-quit after queued capture drain",
@@ -79,17 +79,56 @@
     "atomic provenance-bound local release staging"
   ],
   "shortcuts": [
-    {"action": "open-history", "keys": "Command-Shift-V", "customizable": true},
-    {"action": "open-snippets", "keys": "Command-Shift-B", "customizable": true},
-    {"action": "sequential-paste", "keys": "Control-Command-V", "customizable": true},
-    {"action": "correct-layout", "keys": "Option-Shift-L", "customizable": true},
-    {"action": "disable-automatic-layout-correction", "keys": "Control-Option-A", "customizable": true, "offOnly": true},
-    {"action": "pin-first-result", "keys": "Command-P"},
-    {"action": "save-first-result-as-snippet", "keys": "Command-S"},
-    {"action": "delete-first-result", "keys": "Command-Delete"},
-    {"action": "undo-item-deletion", "keys": "Command-Z"},
-    {"action": "paste-plain-text", "keys": "Shift-Return"},
-    {"action": "copy-without-pasting", "keys": "Command-Return"}
+    {
+      "action": "open-history",
+      "keys": "Command-Shift-V",
+      "customizable": true
+    },
+    {
+      "action": "open-snippets",
+      "keys": "Command-Shift-B",
+      "customizable": true
+    },
+    {
+      "action": "sequential-paste",
+      "keys": "Control-Command-V",
+      "customizable": true
+    },
+    {
+      "action": "correct-layout",
+      "keys": "Option-Shift-L",
+      "customizable": true
+    },
+    {
+      "action": "disable-automatic-layout-correction",
+      "keys": "Control-Option-A",
+      "customizable": true,
+      "offOnly": true
+    },
+    {
+      "action": "pin-first-result",
+      "keys": "Command-P"
+    },
+    {
+      "action": "save-first-result-as-snippet",
+      "keys": "Command-S"
+    },
+    {
+      "action": "delete-first-result",
+      "keys": "Command-Delete"
+    },
+    {
+      "action": "undo-item-deletion",
+      "keys": "Command-Z"
+    },
+    {
+      "action": "paste-plain-text",
+      "keys": "Shift-Return"
+    },
+    {
+      "action": "copy-without-pasting",
+      "keys": "Command-Return"
+    }
   ],
   "permissions": {
     "pasteboard": "Explained before monitoring; denied access fails closed on macOS 15.4+",
@@ -101,6 +140,8 @@
     "cloud synchronization",
     "telemetry or advertising",
     "AI processing of clipboard contents",
-    "a permanent Dock icon"
-  ]
+    "a permanent Dock icon",
+    "search, keyword fields, tags or smart collections"
+  ],
+  "featuresVersion": "1.10.0 source candidate; downloadable version is identified by version.json"
 }

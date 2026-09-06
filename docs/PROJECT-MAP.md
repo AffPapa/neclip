@@ -1,6 +1,9 @@
 # NeClip project map
 
 Updated: 6 September 2026. Public release: **1.9.1/build 16**.
+Current source candidate: **1.10.0/build 17**, not notarized or downloadable;
+see `RELEASE-1.10.0-STATUS.md`. Site/download consistency is checked by
+`scripts/verify-site.rb`; public download metadata stays on 1.9.1 until release.
 This release adds native Settings navigation, safe history
 editing, standard application/Edit menus and bounded local artifact cleanup.
 Current scoped evidence: `AUDIT-1.9.1-2026-09-06.md`.

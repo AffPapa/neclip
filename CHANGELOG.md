@@ -4,6 +4,23 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.10.0 / build 17 — source candidate, 2026-09-06
+
+- Removed search, snippet keywords and derived FTS work; recent copies and
+  snippet folders are the entire browsing concept. Existing content is preserved.
+- Refresh only changed menu domains; retry dirty/failed reads when opening.
+- Bound application metadata caching; remove unused storage and OCR routes.
+- Keep debug symbols outside distribution binaries, with UUID verification
+  before stripping and Developer ID signing.
+- Group advanced retention controls without resetting user preferences;
+  active cleanup stays visible, and the full disclosure header is clickable.
+- Include transaction-scoped erasure/undo protection, atomic history-to-snippet
+  conversion, OCR-only payload reads and lazy append fallback from local development.
+- Website/JSON now distinguish the source candidate from the public download.
+- **Not yet downloadable:** notarization credentials must be restored. Public
+  1.9.1 remains available. Migration v7 requires a matching database backup for
+  downgrade. Exact progress: `docs/RELEASE-1.10.0-STATUS.md`.
+
 ## 1.9.1 / build 16 — 2026-09-06
 
 - Published artifact source/tag: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.

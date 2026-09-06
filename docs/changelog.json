@@ -1,6 +1,20 @@
 {
   "versions": [
     {
+      "version": "1.10.0",
+      "build": 17,
+      "status": "awaiting-notarization",
+      "changes": [
+        "Immediate-use menus and snippet folders without search or keyword fields",
+        "Migration retires derived FTS indexes while preserving clips, snippets, folders and pins",
+        "Selective menu refresh; retry on explicit opening after failed reads",
+        "Bounded app metadata cache and removal of unused storage/OCR paths",
+        "Smaller distribution binary with UUID-matched debug symbols archived outside the app",
+        "Compact advanced retention settings with visible active-cleanup state",
+        "Public download remains verified 1.9.1 until notarization and release gates pass"
+      ]
+    },
+    {
       "version": "1.9.1",
       "status": "released",
       "highlights": [

@@ -11,6 +11,7 @@ final class MenuRefreshStateTests: XCTestCase {
         XCTAssertTrue(source.contains("refreshState.invalidate(domain)"))
         XCTAssertTrue(source.contains("self.refreshState.accept(generation)"))
         XCTAssertFalse(source.contains("refreshGeneration"))
+        XCTAssertTrue(source.contains("guard snapshotIsReady, refreshState.domains.isEmpty else"))
     }
 
     func testInitialLoadAndUnchangedSnapshot() {
