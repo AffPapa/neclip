@@ -1,6 +1,15 @@
 import AppKit
 import SwiftUI
 
+enum SnippetRowContext {
+    static func description(keyword: String?, folder: String?) -> String {
+        [keyword, folder].compactMap { value in
+            guard let value, !value.isEmpty else { return nil }
+            return value
+        }.joined(separator: " · ")
+    }
+}
+
 @MainActor
 final class SnippetsEditorWindowController: NSObject, NSWindowDelegate {
     static let shared = SnippetsEditorWindowController()
@@ -108,6 +117,12 @@ final class SnippetsEditorModel: ObservableObject {
 
     var canSaveFolder: Bool {
         !folderNameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var editorMessage: String? {
+        if let message { return message }
+        if case .failed(let detail) = saveState { return detail }
+        return nil
     }
 
     var emptyEditorState: EmptyEditorState {
@@ -712,6 +727,7 @@ private struct SnippetsEditorView: View {
             HStack(spacing: 6) {
                 Label(folder.title, systemImage: "folder")
                     .lineLimit(1)
+                    .help(folder.title)
                 Spacer()
                 Text("\(items.count)")
                     .foregroundStyle(.secondary)
@@ -775,7 +791,8 @@ private struct SnippetsEditorView: View {
     }
 
     private func snippetRow(_ snippet: SnippetSummary, folderSubtitle: String? = nil) -> some View {
-        HStack(spacing: 8) {
+        let context = SnippetRowContext.description(keyword: snippet.keyword, folder: folderSubtitle)
+        return HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
                     if snippet.isPinned {
@@ -797,6 +814,8 @@ private struct SnippetsEditorView: View {
                     }
                 }
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
             }
             Spacer(minLength: 4)
             Image(systemName: model.selectedSnippetID == snippet.id ? "pencil.circle.fill" : "pencil")
@@ -805,9 +824,10 @@ private struct SnippetsEditorView: View {
         }
         .contentShape(Rectangle())
         .padding(.vertical, 2)
-        .help("Редактировать сниппет справа")
+        .help(context.isEmpty ? "Редактировать сниппет справа" : "\(context)\nРедактировать сниппет справа")
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Сниппет \(snippet.title.isEmpty ? "Без названия" : snippet.title)")
+        .accessibilityValue(context)
         .accessibilityHint("Открывает название, папку, ключ и текст справа")
         .listRowBackground(
             model.selectedSnippetID == snippet.id
@@ -877,7 +897,7 @@ private struct SnippetsEditorView: View {
                     Spacer()
                     saveStatus
                 }
-                if let message = model.message {
+                if let message = model.editorMessage {
                     Text(message)
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -923,7 +943,7 @@ private struct SnippetsEditorView: View {
             Button {
                 model.flushPendingSave()
             } label: {
-                Label("Изменено", systemImage: "circle.fill")
+                Label("Сохранить", systemImage: "square.and.arrow.down")
             }
             .buttonStyle(.plain)
             .keyboardShortcut("s", modifiers: .command)
@@ -932,16 +952,10 @@ private struct SnippetsEditorView: View {
             Label("Сохранение…", systemImage: "arrow.triangle.2.circlepath")
                 .foregroundStyle(.secondary)
         case .saved:
-            Button {
-                model.flushPendingSave()
-            } label: {
-                Label("Сохранено", systemImage: "checkmark.circle.fill")
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut("s", modifiers: .command)
-            .foregroundStyle(.green)
-        case .failed(let text):
-            Button(text) { model.flushPendingSave() }
+            Label("Сохранено", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.secondary)
+        case .failed:
+            Button("Повторить") { model.flushPendingSave() }
                 .buttonStyle(.link)
                 .keyboardShortcut("s", modifiers: .command)
                 .foregroundStyle(.red)

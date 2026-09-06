@@ -338,7 +338,7 @@ private struct PreferencesView: View {
         Form {
             Section("История") {
                 NumericPreferenceRow(
-                    "Хранить в истории",
+                    "Лимит истории",
                     value: $historyLimit,
                     range: 10...1_000,
                     step: 10,
@@ -348,17 +348,20 @@ private struct PreferencesView: View {
                 )
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
-                Picker("Удалять незакреплённое", selection: $retentionDays) {
+                Picker("Срок хранения", selection: $retentionDays) {
                     Text("Без ограничения по сроку").tag(0)
-                    Text("Через 1 день").tag(1)
-                    Text("Через 7 дней").tag(7)
-                    Text("Через 30 дней").tag(30)
-                    Text("Через 90 дней").tag(90)
+                    Text("1 день").tag(1)
+                    Text("7 дней").tag(7)
+                    Text("30 дней").tag(30)
+                    Text("90 дней").tag(90)
                 }
                 .onChange(of: retentionDays) { _, value in
                     Settings.retentionDays = value
                     trimHistoryToLimits()
                 }
+                Text("Лимиты применяются только к незакреплённым записям. Сниппеты сохраняются отдельно.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 if retentionDays > 0 {
                     Text("Срок проверяется при запуске, новом копировании и изменении лимитов. На паузе очистка по сроку откладывается.")
                         .font(.caption)
@@ -379,7 +382,7 @@ private struct PreferencesView: View {
                     Text("Текст больше этого лимита не сохраняется. Уже сохранённый текст не сокращается.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("Незакреплённая история ограничена количеством записей и общим объёмом хранилища, даже без ограничения по сроку.")
+                    Text("Без ограничения по сроку действуют лимит записей и общий объём хранилища.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -19,6 +19,13 @@ final class StatusBarController: NSObject {
     private enum UndoDeletion: Sendable {
         case clip(RemovedClip)
         case snippet(RemovedSnippet)
+
+        var generation: UUID {
+            switch self {
+            case .clip(let removed): removed.undoGeneration
+            case .snippet(let removed): removed.undoGeneration
+            }
+        }
     }
 
     private enum HistoryCleanupWindow: Equatable {
@@ -900,19 +907,10 @@ final class StatusBarController: NSObject {
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
-                guard let stored = try Storage.shared.fetchClip(id: summary.id),
-                      stored.kind == .image,
-                      let ocrText = stored.ocrText?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !ocrText.isEmpty else {
+                guard let textItem = try Storage.shared.fetchOCRTextItem(id: summary.id) else {
                     DispatchQueue.main.async { self?.showFeedback("Распознанного текста нет") }
                     return
                 }
-                let textItem = ClipItem(
-                    kind: .text,
-                    title: stored.title,
-                    text: ocrText,
-                    createdAt: stored.createdAt
-                )
                 DispatchQueue.main.async {
                     PasteService.paste(
                         textItem,
@@ -1093,20 +1091,12 @@ final class StatusBarController: NSObject {
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
-                guard let clip = try Storage.shared.fetchClip(id: summary.id) else {
-                    DispatchQueue.main.async { self?.showFeedback("Элемент уже удалён") }
-                    return
-                }
-                guard let content = clip.text, !content.isEmpty else {
-                    DispatchQueue.main.async { self?.showFeedback("Сниппет можно создать только из текста") }
-                    return
-                }
-                _ = try Storage.shared.addSnippet(
-                    folderID: nil,
-                    title: String(summary.title.prefix(60)),
-                    content: content
-                )
+                try Storage.shared.saveClipAsSnippet(id: summary.id)
                 DispatchQueue.main.async { self?.showFeedback("Сохранено в «Без папки»") }
+            } catch ClipStorageError.clipNotFound {
+                DispatchQueue.main.async { self?.showFeedback("Элемент уже удалён") }
+            } catch ClipStorageError.snippetRequiresText {
+                DispatchQueue.main.async { self?.showFeedback("Сниппет можно создать только из текста") }
             } catch {
                 DispatchQueue.main.async { self?.showFeedback("Не удалось создать сниппет") }
             }
@@ -1132,6 +1122,7 @@ final class StatusBarController: NSObject {
                         self.showFeedback("Элемент уже удалён")
                         return
                     }
+                    guard Storage.shared.isUndoCurrent(removed.generation) else { return }
                     self.undoDeletion = removed
                     self.showFeedback("Удалено — ⌘Z вернуть")
                 }
@@ -1144,6 +1135,7 @@ final class StatusBarController: NSObject {
     @objc private func undoLastDeletion() {
         guard let removed = undoDeletion else { return }
         undoDeletion = nil
+        guard Storage.shared.isUndoCurrent(removed.generation) else { return }
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
@@ -1153,9 +1145,13 @@ final class StatusBarController: NSObject {
                 case .snippet(let snippet):
                     try Storage.shared.restoreSnippet(snippet)
                 }
-                DispatchQueue.main.async { self?.showFeedback("Восстановлено") }
+                DispatchQueue.main.async {
+                    guard Storage.shared.isUndoCurrent(removed.generation) else { return }
+                    self?.showFeedback("Восстановлено")
+                }
             } catch {
                 DispatchQueue.main.async {
+                    guard Storage.shared.isUndoCurrent(removed.generation) else { return }
                     self?.undoDeletion = removed
                     self?.showFeedback("Не удалось восстановить")
                 }

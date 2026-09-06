@@ -129,7 +129,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
         XCTAssertTrue(preferences.contains("Открыть папки сниппетов"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
-        XCTAssertTrue(preferences.contains("\"Хранить в истории\""))
+        XCTAssertTrue(preferences.contains("\"Лимит истории\""))
         XCTAssertTrue(preferences.contains("\"Длина строки в меню\""))
         XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
         XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
@@ -142,7 +142,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
-        XCTAssertTrue(statusBar.contains("folderID: nil"))
+        XCTAssertTrue(statusBar.contains("Storage.shared.saveClipAsSnippet(id: summary.id)"))
     }
 
     func testPackageUsesSwift6AndNoHotKeyDependency() throws {

@@ -29,6 +29,17 @@ final class HotPathBenchmarks: XCTestCase {
             try record("pin-\(megabytes)MB", iterations: 12) { _ in
                 try storage.setPinned(id: id, pinned: true)
             }
+            let expectedOCR = "Synthetic OCR Привет 11"
+            try record("ocr-full-fetch-\(megabytes)MB", iterations: 20) { _ in
+                let item = try storage.fetchClip(id: id)
+                XCTAssertEqual(item?.ocrText, expectedOCR)
+                XCTAssertEqual(item?.data?.count, payload.count)
+            }
+            try record("ocr-projected-fetch-\(megabytes)MB", iterations: 20) { _ in
+                let item = try storage.fetchOCRTextItem(id: id)
+                XCTAssertEqual(item?.text, expectedOCR)
+                XCTAssertNil(item?.data)
+            }
             XCTAssertEqual(try storage.fetchClip(id: id)?.data, payload)
         }
 

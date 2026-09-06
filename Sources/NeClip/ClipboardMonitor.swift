@@ -361,6 +361,31 @@ final class ClipboardMonitor: @unchecked Sendable {
             notifySkipped(reason)
             return
         }
+        if Settings.consumeAppendNextCopy() {
+            do {
+                switch try Storage.shared.appendToLatestUnpinnedText(
+                    text,
+                    appBundleID: snapshot.appBundleID,
+                    createdAt: snapshot.createdAt,
+                    maximumBytes: payloadLimit
+                ) {
+                case .appended:
+                    SequentialPasteSequence.shared.noteExternalCapture()
+                    notifyAppended()
+                    return
+                case .noEligibleItem, .combinedValueTooLarge:
+                    // Fall through to an ordinary capture. A valid new copy
+                    // is never lost just because it cannot be combined.
+                    break
+                }
+            } catch {
+                captureFailed(error)
+                return
+            }
+        }
+
+        // Only an ordinary/fallback capture needs its own UTF-8 buffer, title
+        // and hash. Successful append has already built the combined record.
         let textData = Data(text.utf8)
         let safeRTF = snapshot.rtf.flatMap {
             $0.count <= ClipboardCapturePolicy.maxRTFBytes
@@ -381,31 +406,7 @@ final class ClipboardMonitor: @unchecked Sendable {
             contentBytes: Int64(textData.count + (safeRTF?.count ?? 0)),
             contentHash: Self.sha256(textData)
         )
-        guard Settings.consumeAppendNextCopy() else {
-            insert(item)
-            return
-        }
-
-        do {
-            switch try Storage.shared.appendToLatestUnpinnedText(
-                text,
-                appBundleID: snapshot.appBundleID,
-                createdAt: snapshot.createdAt,
-                maximumBytes: payloadLimit
-            ) {
-            case .appended:
-                SequentialPasteSequence.shared.noteExternalCapture()
-                notifyAppended()
-            case .noEligibleItem:
-                insert(item)
-            case .combinedValueTooLarge:
-                // The valid new copy is never lost merely because the combined
-                // value would exceed the user's per-record limit.
-                insert(item)
-            }
-        } catch {
-            captureFailed(error)
-        }
+        insert(item)
     }
 
     private func processImage(_ imageData: Data, isPNG: Bool, snapshot: Snapshot) {

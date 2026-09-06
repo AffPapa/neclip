@@ -44,10 +44,18 @@ struct ClipSummary: Identifiable, Hashable, Sendable {
 
 struct RemovedClip: Sendable {
     let item: ClipItem
+    let undoGeneration: UUID
 }
 
 struct RemovedSnippet: Sendable {
     let item: Snippet
+    let undoGeneration: UUID
+}
+
+enum UndoRestorationError: LocalizedError, Equatable {
+    case invalidatedByErasure
+
+    var errorDescription: String? { "После полной очистки восстановление недоступно" }
 }
 
 enum StorageCapacityError: LocalizedError, Equatable {
@@ -61,6 +69,7 @@ enum StorageCapacityError: LocalizedError, Equatable {
 enum ClipStorageError: LocalizedError, Equatable {
     case clipNotFound
     case emptyText
+    case snippetRequiresText
 
     var errorDescription: String? {
         switch self {
@@ -68,6 +77,8 @@ enum ClipStorageError: LocalizedError, Equatable {
             "Элемент истории больше не существует"
         case .emptyText:
             "Текст не может быть пустым"
+        case .snippetRequiresText:
+            "Сниппет можно создать только из текста"
         }
     }
 }
@@ -258,6 +269,9 @@ final class Storage: @unchecked Sendable {
     let startupError: Error?
     private let dbQueue: DatabaseQueue
     private let installStarterContent: Bool
+    // Access only inside dbQueue. Tokens belong to this storage instance and
+    // cannot survive full erasure, even in a queued undo or late UI completion.
+    private var undoGeneration = UUID()
 
     init(
         path: String? = nil,
@@ -810,6 +824,21 @@ final class Storage: @unchecked Sendable {
         try dbQueue.read { db in try ClipItem.fetchOne(db, key: id) }
     }
 
+    // OCR-only paste must not materialize the original image or RTF BLOBs.
+    static let ocrTextProjectionSQL = """
+        SELECT title, ocrText, createdAt FROM clip WHERE id = ? AND kind = 'image'
+        """
+
+    func fetchOCRTextItem(id: Int64) throws -> ClipItem? {
+        try dbQueue.read { db in
+            guard let row = try Row.fetchOne(db, sql: Self.ocrTextProjectionSQL, arguments: [id]),
+                  let recognized: String = row["ocrText"] else { return nil }
+            let text = recognized.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            return ClipItem(kind: .text, title: row["title"], text: text, createdAt: row["createdAt"])
+        }
+    }
+
     func setOCRText(_ text: String, forClipID id: Int64) throws {
         try dbQueue.write { db in
             // Recount the original representations without materializing them
@@ -884,7 +913,7 @@ final class Storage: @unchecked Sendable {
         let removed = try dbQueue.write { db -> RemovedClip? in
             guard let item = try ClipItem.fetchOne(db, key: id) else { return nil }
             try ClipItem.deleteOne(db, key: id)
-            return RemovedClip(item: item)
+            return RemovedClip(item: item, undoGeneration: undoGeneration)
         }
         if removed != nil { notifyChange(.clips) }
         return removed
@@ -893,6 +922,9 @@ final class Storage: @unchecked Sendable {
     func restoreClip(_ removed: RemovedClip) throws {
         var item = removed.item
         try dbQueue.write { db in
+            guard removed.undoGeneration == undoGeneration else {
+                throw UndoRestorationError.invalidatedByErasure
+            }
             try ensureCapacityForBytes(item.contentBytes, replacing: item.isPinned ? item.id : nil, in: db)
             try item.insert(db, onConflict: .replace)
             try trim(db)
@@ -923,12 +955,23 @@ final class Storage: @unchecked Sendable {
     /// Erases every user-created record in one transaction. Keeping this
     /// atomic avoids partially cleared state and one transaction per snippet.
     func deleteAllUserData() throws {
-        try dbQueue.write { db in
-            try ClipItem.deleteAll(db)
-            try Snippet.deleteAll(db)
-            try SnippetFolder.deleteAll(db)
+        try dbQueue.writeWithoutTransaction { db in
+            try db.inTransaction {
+                try ClipItem.deleteAll(db)
+                try Snippet.deleteAll(db)
+                try SnippetFolder.deleteAll(db)
+                return .commit
+            }
+            // Commit succeeded, and we still own the serialized database queue:
+            // a queued restore cannot slip between erasure and invalidation.
+            undoGeneration = UUID()
         }
         notifyChange(.all)
+    }
+
+    /// Also guards late menu completions; failure to read means fail closed.
+    func isUndoCurrent(_ generation: UUID) -> Bool {
+        (try? dbQueue.read { _ in undoGeneration == generation }) ?? false
     }
 
     func vacuum() throws {
@@ -1055,24 +1098,30 @@ final class Storage: @unchecked Sendable {
             keyword: keyword
         )
         let snippet = try dbQueue.write { db -> Snippet in
-            if let folderID, try SnippetFolder.fetchOne(db, key: folderID) == nil {
-                throw SnippetStorageError.folderNotFound
+            try Self.insertSnippet(folderID: folderID, fields: fields, database: db)
+        }
+        notifyChange(.snippets)
+        return snippet
+    }
+
+    /// Reading and creating share one transaction so full erasure cannot fall
+    /// between them and resurrect clipboard content as a new snippet.
+    @discardableResult
+    func saveClipAsSnippet(id: Int64) throws -> Snippet {
+        let snippet = try dbQueue.write { db -> Snippet in
+            guard let row = try Row.fetchOne(
+                db, sql: "SELECT kind, title, text FROM clip WHERE id = ?", arguments: [id]
+            ) else { throw ClipStorageError.clipNotFound }
+            let kind: String = row["kind"]
+            guard kind == ClipKind.text.rawValue,
+                  let content: String = row["text"], !content.isEmpty else {
+                throw ClipStorageError.snippetRequiresText
             }
-            try Self.validateUniqueSnippetKeyword(fields.keyword, database: db)
-            let maxIndex = try Int.fetchOne(
-                db,
-                sql: "SELECT COALESCE(MAX(sortIndex), -1) FROM snippet WHERE folderID IS ?",
-                arguments: [folderID]
-            ) ?? -1
-            var snippet = Snippet(
-                folderID: folderID,
-                title: fields.title,
-                content: fields.content,
-                sortIndex: maxIndex + 1,
-                keyword: fields.keyword
+            let title: String = row["title"]
+            let fields = try Self.validatedSnippetFields(
+                title: String(title.prefix(60)), content: content, keyword: nil
             )
-            try snippet.insert(db)
-            return snippet
+            return try Self.insertSnippet(folderID: nil, fields: fields, database: db)
         }
         notifyChange(.snippets)
         return snippet
@@ -1226,7 +1275,7 @@ final class Storage: @unchecked Sendable {
         let removed = try dbQueue.write { db -> RemovedSnippet? in
             guard let item = try Snippet.fetchOne(db, key: id) else { return nil }
             try Snippet.deleteOne(db, key: id)
-            return RemovedSnippet(item: item)
+            return RemovedSnippet(item: item, undoGeneration: undoGeneration)
         }
         if removed != nil { notifyChange(.snippets) }
         return removed
@@ -1235,6 +1284,9 @@ final class Storage: @unchecked Sendable {
     func restoreSnippet(_ removed: RemovedSnippet) throws {
         var item = removed.item
         try dbQueue.write { db in
+            guard removed.undoGeneration == undoGeneration else {
+                throw UndoRestorationError.invalidatedByErasure
+            }
             if let folderID = item.folderID,
                try SnippetFolder.fetchOne(db, key: folderID) == nil {
                 item.folderID = nil
@@ -1447,6 +1499,24 @@ final class Storage: @unchecked Sendable {
     }
 
     // MARK: - Internals
+
+    private static func insertSnippet(
+        folderID: Int64?,
+        fields: (title: String, content: String, keyword: String?),
+        database db: Database
+    ) throws -> Snippet {
+        if let folderID, try SnippetFolder.fetchOne(db, key: folderID) == nil {
+            throw SnippetStorageError.folderNotFound
+        }
+        try validateUniqueSnippetKeyword(fields.keyword, database: db)
+        var snippet = Snippet(
+            folderID: folderID, title: fields.title, content: fields.content,
+            sortIndex: try nextSnippetSortIndex(inFolder: folderID, database: db),
+            keyword: fields.keyword
+        )
+        try snippet.insert(db)
+        return snippet
+    }
 
     private static func validateUniqueSnippetKeyword(
         _ keyword: String?, excluding id: Int64? = nil, database db: Database

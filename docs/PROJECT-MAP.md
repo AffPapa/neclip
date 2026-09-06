@@ -11,6 +11,13 @@ Artifact source: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
 Developer ID, notarization, stapling, CodeQL and independent public-DMG
 verification passed. Evidence: `RELEASE-1.9.1-STATUS.md`.
 
+Local development after 1.9.1: `20260906-fresh-pass` in
+`artifacts/neclip/looper-goals/`. This is not another published release.
+The bounded pass adds transaction-scoped erasure invalidation for undo,
+atomic history-to-snippet conversion, an OCR-only projection, lazy append
+fallback payloads and small editor/Settings clarity changes. Public feeds and
+the installed 1.9.1 remain separate from these source changes.
+
 The prior evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
 19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements
 are in `RESEARCH-2026-09-05.md`. Older reports remain historical evidence, not

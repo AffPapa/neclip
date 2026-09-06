@@ -4,6 +4,19 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Local development after 1.9.1 — not published
+
+- Invalidate deferred deletion undo after full erasure, inside storage transactions.
+- Convert history to snippets atomically across the full-erasure boundary.
+- Fetch OCR text without materializing original image/RTF payloads.
+- Skip standalone text allocation/hash when append succeeds.
+- Distinguish snippet save actions from status; bound row subtitles and clarify history limits.
+
+Scoped plan and verification: `artifacts/neclip/looper-goals/20260906-fresh-pass/`.
+Follow-up candidates, not completed in this pass: selective menu snapshot refresh,
+measured fuzzy-search allocation reductions, and conflict/discard UX for a dirty
+snippet concurrently changed or removed elsewhere.
+
 ## Done in 1.3.0
 
 - Native menu-bar history and snippet sections

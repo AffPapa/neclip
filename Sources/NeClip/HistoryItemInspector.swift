@@ -358,17 +358,19 @@ private struct HistoryItemInspectorView: View {
                 }
             }
 
+            if let feedback = model.feedback {
+                Text(feedback)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: 12) {
                 Text(metadata)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer()
-                if let feedback = model.feedback {
-                    Text(feedback)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
                 if model.canOpen {
                     Button("Открыть", action: model.open)
                 }
