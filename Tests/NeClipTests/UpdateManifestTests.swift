@@ -15,12 +15,25 @@ final class UpdateManifestTests: XCTestCase {
         let validated = try XCTUnwrap(UpdateManifestPolicy.validatedManifest(from: data))
 
         XCTAssertEqual(UpdateManifestPolicy.manifestURL.absoluteString, "https://affpapa.github.io/neclip/version.json")
-        XCTAssertEqual(validated.manifest.version, "1.4.0")
+        XCTAssertTrue(UpdateManifestPolicy.isValidVersion(validated.manifest.version))
+        XCTAssertGreaterThan(validated.manifest.build, 0)
         XCTAssertEqual(validated.downloadURL.host, "github.com")
         XCTAssertEqual(
             validated.downloadURL.path,
-            "/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg"
+            "/AffPapa/neclip/releases/download/v\(validated.manifest.version)/NeClip-\(validated.manifest.version).dmg"
         )
+    }
+
+    func testReleaseVersionCanAdvanceButDownloadMustMatchIt() {
+        for version in ["1.4.0", "1.8.0", "2.0.0"] {
+            let valid = manifest(version: version, sha256: String(repeating: "a", count: 64))
+            XCTAssertNotNil(UpdateManifestPolicy.validatedManifest(from: Data(valid.utf8)))
+        }
+        let mismatch = manifest(
+            version: "1.8.0", sha256: String(repeating: "a", count: 64),
+            release: "https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg"
+        )
+        XCTAssertNil(UpdateManifestPolicy.validatedManifest(from: Data(mismatch.utf8)))
     }
 
     func testDownloadPolicyRejectsLookalikesAndUnexpectedPaths() {

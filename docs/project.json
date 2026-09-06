@@ -18,8 +18,8 @@
   "sourceCandidate": {
     "version": "1.8.0",
     "build": 14,
-    "status": "local-source-candidate",
-    "publicVersion": "1.4.0"
+    "status": "released",
+    "publicVersion": "1.8.0"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
