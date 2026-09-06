@@ -1,16 +1,19 @@
 import AppKit
+import Combine
 import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 
 @MainActor
-final class PreferencesWindowController {
+final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDelegate {
     static let shared = PreferencesWindowController()
     private var window: NSWindow?
+    let navigation = PreferencesNavigation()
 
     func show() {
         if window == nil {
             let hosting = NSHostingController(rootView: PreferencesView(
+                navigation: navigation,
                 onClose: { [weak self] in self?.window?.performClose(nil) },
                 onEscape: { [weak self] in
                     guard let window = self?.window,
@@ -24,12 +27,60 @@ final class PreferencesWindowController {
             window.minSize = NSSize(width: 600, height: 500)
             window.setContentSize(NSSize(width: 640, height: 600))
             window.isReleasedWhenClosed = false
+            window.delegate = self
+            let toolbar = NSToolbar(identifier: "NeClip.Settings")
+            toolbar.delegate = self
+            toolbar.allowsUserCustomization = false
+            if #available(macOS 15.0, *) { toolbar.allowsDisplayModeCustomization = false }
+            toolbar.displayMode = .iconAndLabel
+            toolbar.selectedItemIdentifier = navigation.selected.identifier
+            window.toolbarStyle = .preference
+            window.toolbar = toolbar
             RuntimeIdentity.configurePreviewWindow(window)
             window.center()
             self.window = window
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        commitPendingEdits()
+        return true
+    }
+
+    func commitPendingEdits() {
+        navigation.commitEdits.send()
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        PreferencesSection.allCases.map(\.identifier)
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        guard let section = PreferencesSection(rawValue: identifier.rawValue) else { return nil }
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.label = section.title
+        item.paletteLabel = section.title
+        item.image = NSImage(systemSymbolName: section.symbol, accessibilityDescription: section.title)
+        item.target = self
+        item.action = #selector(selectSection(_:))
+        return item
+    }
+
+    @objc private func selectSection(_ sender: NSToolbarItem) {
+        guard let section = PreferencesSection(rawValue: sender.itemIdentifier.rawValue) else { return }
+        navigation.select(section)
+        window?.toolbar?.selectedItemIdentifier = section.identifier
     }
 
     static func allowsEscapeClose(firstResponder: NSResponder?) -> Bool {
@@ -41,13 +92,50 @@ final class PreferencesWindowController {
     }
 }
 
+enum PreferencesSection: String, CaseIterable {
+    case general, shortcuts, privacy, layout, data
+
+    var identifier: NSToolbarItem.Identifier { .init(rawValue) }
+    var title: String {
+        switch self {
+        case .general: "Основные"
+        case .shortcuts: "Клавиши"
+        case .privacy: "Приватность"
+        case .layout: "Раскладка"
+        case .data: "Данные"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .shortcuts: "keyboard"
+        case .privacy: "hand.raised"
+        case .layout: "character.cursor.ibeam"
+        case .data: "externaldrive"
+        }
+    }
+}
+
+@MainActor
+final class PreferencesNavigation: ObservableObject {
+    @Published private(set) var selected = PreferencesSection.general
+    let commitEdits = PassthroughSubject<Void, Never>()
+
+    func select(_ section: PreferencesSection) {
+        commitEdits.send()
+        selected = section
+    }
+}
+
 private struct NumericPreferenceRow: View {
+    @EnvironmentObject private var navigation: PreferencesNavigation
     let title: String
     @Binding var value: Int
     let range: ClosedRange<Int>
     let step: Int
     let unit: String
     let accessibilityLabel: String
+    let onCommit: (Int) -> Void
 
     @State private var text: String
     @FocusState private var isEditing: Bool
@@ -58,7 +146,8 @@ private struct NumericPreferenceRow: View {
         range: ClosedRange<Int>,
         step: Int,
         unit: String,
-        accessibilityLabel: String
+        accessibilityLabel: String,
+        onCommit: @escaping (Int) -> Void
     ) {
         self.title = title
         _value = value
@@ -66,6 +155,7 @@ private struct NumericPreferenceRow: View {
         self.step = step
         self.unit = unit
         self.accessibilityLabel = accessibilityLabel
+        self.onCommit = onCommit
         _text = State(initialValue: String(value.wrappedValue))
     }
 
@@ -89,7 +179,7 @@ private struct NumericPreferenceRow: View {
             Text(unit)
                 .foregroundStyle(.secondary)
                 .frame(width: 84, alignment: .leading)
-            Stepper("", value: $value, in: range, step: step)
+            Stepper("", value: Binding(get: { value }, set: apply), in: range, step: step)
                 .labelsHidden()
                 .accessibilityLabel("Изменить: \(accessibilityLabel.lowercased())")
         }
@@ -99,29 +189,26 @@ private struct NumericPreferenceRow: View {
         .onChange(of: isEditing) { _, editing in
             if !editing { commitText() }
         }
+        .onReceive(navigation.commitEdits) { commitText() }
     }
 
     private func commitText() {
-        let requested = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? value
-        let normalized = min(range.upperBound, max(range.lowerBound, requested))
-        value = normalized
+        apply(NumericPreferenceInput.normalized(text, current: value, range: range))
+    }
+
+    private func apply(_ normalized: Int) {
         text = String(normalized)
+        guard value != normalized else { return }
+        value = normalized
+        onCommit(normalized)
     }
 }
 
 private struct PreferencesView: View {
+    @ObservedObject var navigation: PreferencesNavigation
     let onClose: () -> Void
     let onEscape: () -> Void
 
-    private enum PreferencesTab: Hashable {
-        case general
-        case shortcuts
-        case privacy
-        case layout
-        case data
-    }
-
-    @State private var selectedTab = PreferencesTab.general
     @State private var historyLimit = Settings.historyLimit
     @State private var menuTitleLength = Settings.menuTitleLength
     @State private var maximumTextCaptureKilobytes = Settings.maximumTextCaptureKilobytes
@@ -153,17 +240,6 @@ private struct PreferencesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Раздел настроек", selection: $selectedTab) {
-                Text("Основные").tag(PreferencesTab.general)
-                Text("Клавиши").tag(PreferencesTab.shortcuts)
-                Text("Приватность").tag(PreferencesTab.privacy)
-                Text("Раскладка").tag(PreferencesTab.layout)
-                Text("Данные").tag(PreferencesTab.data)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(14)
-            Divider()
             selectedTabContent
             if feedback != nil || dataOperationRunning {
                 Divider()
@@ -191,7 +267,8 @@ private struct PreferencesView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .frame(minWidth: 600, minHeight: 500)
+        .frame(minWidth: 600, minHeight: 420)
+        .environmentObject(navigation)
         .onExitCommand(perform: onEscape)
         .onAppear { loginItemStatus = SMAppService.mainApp.status }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -248,7 +325,7 @@ private struct PreferencesView: View {
 
     @ViewBuilder
     private var selectedTabContent: some View {
-        switch selectedTab {
+        switch navigation.selected {
         case .general: generalTab
         case .shortcuts: shortcutsTab
         case .privacy: privacyTab
@@ -266,18 +343,9 @@ private struct PreferencesView: View {
                     range: 10...1_000,
                     step: 10,
                     unit: "элементов",
-                    accessibilityLabel: "Количество элементов истории"
+                    accessibilityLabel: "Количество элементов истории",
+                    onCommit: applyHistoryLimit
                 )
-                    .onChange(of: historyLimit) { _, value in applyHistoryLimit(value) }
-                NumericPreferenceRow(
-                    "Длина строки в меню",
-                    value: $menuTitleLength,
-                    range: MenuTitleFormatter.validLengthRange,
-                    step: 1,
-                    unit: "символов",
-                    accessibilityLabel: "Количество символов в строке меню"
-                )
-                    .onChange(of: menuTitleLength) { _, value in applyMenuTitleLength(value) }
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
                 Picker("Удалять незакреплённое", selection: $retentionDays) {
@@ -289,7 +357,7 @@ private struct PreferencesView: View {
                 }
                 .onChange(of: retentionDays) { _, value in
                     Settings.retentionDays = value
-                    DispatchQueue.global(qos: .utility).async { try? Storage.shared.trimToLimits() }
+                    trimHistoryToLimits()
                 }
                 if retentionDays > 0 {
                     Text("Срок проверяется при запуске, новом копировании и изменении лимитов. На паузе очистка по сроку откладывается.")
@@ -305,11 +373,9 @@ private struct PreferencesView: View {
                         range: Settings.maximumTextCaptureKilobytesRange,
                         step: 64,
                         unit: "КБ",
-                        accessibilityLabel: "Максимальный размер текста одной записи"
+                        accessibilityLabel: "Максимальный размер текста одной записи",
+                        onCommit: { Settings.maximumTextCaptureKilobytes = $0 }
                     )
-                        .onChange(of: maximumTextCaptureKilobytes) { _, value in
-                            Settings.maximumTextCaptureKilobytes = value
-                        }
                     Text("Текст больше этого лимита не сохраняется. Уже сохранённый текст не сокращается.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -319,12 +385,24 @@ private struct PreferencesView: View {
                 }
             }
 
-            Section("Вставка") {
+            Section("Меню и вставка") {
+                NumericPreferenceRow(
+                    "Длина строки в меню",
+                    value: $menuTitleLength,
+                    range: MenuTitleFormatter.validLengthRange,
+                    step: 1,
+                    unit: "символов",
+                    accessibilityLabel: "Количество символов в строке меню",
+                    onCommit: applyMenuTitleLength
+                )
+                Text("Длинные строки заканчиваются многоточием. Полный текст сохраняется.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("По умолчанию вставлять без форматирования", isOn: $preferPlainText)
                     .onChange(of: preferPlainText) { _, value in Settings.preferPlainText = value }
             }
 
-            Section("Система") {
+            Section("Запуск") {
                 let login = LoginItemPresentation(status: loginItemStatus)
                 Toggle("Запускать при входе в систему", isOn: Binding(
                     get: { login.isRequested },
@@ -421,20 +499,20 @@ private struct PreferencesView: View {
                     }
                     Spacer()
                     if clipboardAccess == .denied || clipboardAccess == .needsChoice {
-                        Button("Открыть…") { ClipboardAccess.openPrivacySettings() }
+                        Button("Настройки macOS…") { ClipboardAccess.openPrivacySettings() }
                     }
                 }
                 HStack {
                     Image(systemName: axTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
                         .foregroundStyle(axTrusted ? .green : .orange)
-                    Text(axTrusted ? "Автовставка разрешена" : "Без Универсального доступа NeClip только копирует")
+                    Text(axTrusted ? "Автовставка разрешена" : "Автовставка выключена")
                     Spacer()
                     if !axTrusted {
-                        Button("Разрешить…") { PasteService.requestAccessibility() }
+                        Button("Разрешить вставку…") { PasteService.requestAccessibility() }
                     }
                 }
                 if !axTrusted {
-                    Text("Если NeClip уже есть в списке macOS, просто включите переключатель. Кнопка + не нужна.")
+                    Text("Без Универсального доступа NeClip только копирует. Если программа уже есть в списке macOS, включите её переключатель — кнопка + не нужна.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -457,14 +535,6 @@ private struct PreferencesView: View {
                         }
                         capturePaused = Settings.isCapturePaused
                     }
-                }
-                Button("Не сохранять следующее копирование") {
-                    Settings.ignoreNextCopy = true
-                    feedback = "Следующее копирование будет пропущено"
-                }
-                Button("Объединить следующий текст с предыдущим") {
-                    Settings.appendNextCopy = true
-                    feedback = "Следующий допустимый текст будет добавлен к предыдущему"
                 }
                 DisclosureGroup("Не сохранять текст с указанными фразами") {
                     let rules = SensitiveRulesPresentation(text: sensitiveRulesText)
@@ -529,7 +599,7 @@ private struct PreferencesView: View {
                     Text("Закреплено вручную: \(fixedApplicationCount)")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Снять все") {
+                    Button("Сбросить закреплённые") {
                         Settings.clearFixedApplicationLayouts()
                         feedback = "Закреплённые раскладки сброшены"
                     }
@@ -544,11 +614,11 @@ private struct PreferencesView: View {
             }
 
             Section("Автоматическое исправление") {
-                Toggle("Автоматически исправлять (бета)", isOn: Binding(
+                Toggle("Исправлять раскладку автоматически", isOn: Binding(
                     get: { automaticLayoutCorrection },
                     set: { updateAutomaticLayoutCorrection($0) }
                 ))
-                Text("Срабатывает только по пробелу и только при высокой уверенности. Текст обрабатывается локально, не сохраняется и не отправляется в сеть.")
+                Text("Бета: английская и русская раскладки, только по пробелу и при высокой уверенности. Текст обрабатывается локально и не сохраняется.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -708,13 +778,15 @@ private struct PreferencesView: View {
         buttonTitle: String,
         openSettings: @escaping () -> Void
     ) -> some View {
-        HStack {
-            Label(title, systemImage: granted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .foregroundStyle(granted ? .green : .orange)
-            Spacer()
-            Text(granted ? "Разрешено" : requiredFor)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(title, systemImage: granted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundStyle(granted ? .green : .orange)
+                Spacer()
+                Text(granted ? "Разрешено" : requiredFor)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if !granted {
                 Button(buttonTitle, action: openSettings)
             }
@@ -768,11 +840,12 @@ private struct PreferencesView: View {
 
     private func applyHistoryLimit(_ requested: Int) {
         let normalized = min(1_000, max(10, requested))
-        if historyLimit != normalized {
-            historyLimit = normalized
-            return
-        }
+        historyLimit = normalized
         Settings.historyLimit = normalized
+        trimHistoryToLimits()
+    }
+
+    private func trimHistoryToLimits() {
         DispatchQueue.global(qos: .utility).async {
             do {
                 try Storage.shared.trimToLimits()
@@ -784,10 +857,7 @@ private struct PreferencesView: View {
 
     private func applyMenuTitleLength(_ requested: Int) {
         let normalized = MenuTitleFormatter.normalizedLimit(requested)
-        if menuTitleLength != normalized {
-            menuTitleLength = normalized
-            return
-        }
+        menuTitleLength = normalized
         Settings.menuTitleLength = normalized
         feedback = "В меню будет показано до \(normalized) символов"
     }
@@ -892,10 +962,17 @@ private struct PreferencesView: View {
         if panel.runModal() == .OK,
            let url = panel.url,
            let bundle = Bundle(url: url),
-           let identifier = bundle.bundleIdentifier,
-           !excludedApps.contains(identifier) {
-            excludedApps.append(identifier)
-            Settings.excludedApps = excludedApps
+           let identifier = bundle.bundleIdentifier {
+            switch ApplicationExclusionPolicy.adding(identifier, to: excludedApps) {
+            case .added(let updated):
+                Settings.excludedApps = updated
+                excludedApps = Settings.excludedApps
+                feedback = "Приложение добавлено в исключения записи"
+            case .alreadyExcluded:
+                feedback = "Приложение уже есть в исключениях записи"
+            case .invalidIdentifier:
+                feedback = "Не удалось определить идентификатор приложения"
+            }
         }
     }
 

@@ -1,6 +1,9 @@
 # NeClip project map
 
 Updated: 6 September 2026. Public release: **1.9.0/build 15**.
+Local candidate: **1.9.1/build 16**, native Settings toolbar, safe history
+editing, standard application/Edit menus and bounded local artifact cleanup.
+Current evidence and remaining delivery gates: `AUDIT-1.9.1-2026-09-06.md`.
 Current simplification evidence:
 `AUDIT-1.9.0-2026-09-06.md`; focused product decisions:
 `RESEARCH-1.9.0-SIMPLIFICATION.md`. No new dependencies or database migration.
@@ -76,6 +79,8 @@ local history and snippet bodies are fetched only for the chosen action.
   separately undoable action because event dispatch cannot prove target-app
   acceptance.
 - `HistoryItemInspector.swift`: preview, rename/edit, safe open and OCR paste.
+  Its session guards dirty drafts on close/replacement/quit, rejects stale loads
+  and drops retained drafts/previews after full data erasure.
 - `TextTransform.swift`: deterministic local transforms.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.
 
@@ -134,6 +139,8 @@ ignore list until restart.
 - `ShortcutDescriptor.swift`, `ShortcutRecorder.swift`, `GlobalHotKey.swift`,
   `HotKeyCoordinator.swift`: five transactional, conflict-safe native hotkeys.
 - `PreferencesWindow.swift`: General, Keys, Privacy, Layout and Data.
+  AppKit owns the noncustomizable toolbar; `PreferencesNavigation` commits numeric
+  drafts before navigation/close/quit without applying partial typed numbers.
 - `OnboardingWindow.swift`: permission explanation and recovery.
 - `AppMetadata.swift`: human-readable source application metadata.
 - `UpdateChecker.swift`: explicit-only, GitHub-bound update check.

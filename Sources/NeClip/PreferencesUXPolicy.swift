@@ -1,6 +1,13 @@
 import Foundation
 import ServiceManagement
 
+enum NumericPreferenceInput {
+    static func normalized(_ text: String, current: Int, range: ClosedRange<Int>) -> Int {
+        let requested = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? current
+        return min(range.upperBound, max(range.lowerBound, requested))
+    }
+}
+
 struct LoginItemPresentation {
     let isRequested: Bool
     let needsApproval: Bool
