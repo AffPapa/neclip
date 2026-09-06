@@ -4,6 +4,28 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.9.0 / build 15 — source candidate, 2026-09-06
+
+- Consolidated history/snippet query construction, bounded layout preferences,
+  shortcut persistence and native menu pagination without changing stored keys,
+  ordering, search limits or migration behavior.
+- OCR and pin changes no longer materialize or rebind full image/RTF payloads
+  in Swift. Empty privacy-rule lists return immediately; oversized text is
+  rejected before normalization and UTF-8 buffer allocation.
+- Cancelled queued menu searches do not start SQL work; running reads still
+  use the existing generation checks before presenting results.
+- Common settings stay visible, rare explanations use disclosures, and folder
+  creation is a visible button. Russian labels distinguish duplication,
+  search keys and history retention. Clean editor refresh avoids a second
+  full-body fetch while retaining dirty-draft protection.
+- Added regression coverage for metadata-only writes, byte quotas, Unicode
+  bounds, settings compatibility, pagination and queued-search cancellation.
+- Measured runtime reduction is 99 lines (0.85%), not the requested 30%.
+  Safety checks, tests, migrations and existing functions were not removed to
+  meet a cosmetic target. See `docs/AUDIT-1.9.0-2026-09-06.md` for measurements.
+- Public download stays on 1.8.0 until the exact 1.9.0 artifact passes the
+  signing, notarization, CI and public-download verification gates.
+
 ## 1.8.0 / build 14 — 2026-09-05
 
 - Released with Developer ID signing, Apple notarization, stapling and

@@ -89,36 +89,16 @@ final class StatusBarController: NSObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.toolTip = "NeClip — \(Settings.historyShortcut.displayString)"
         }
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(captureControlsChanged),
-            name: .neClipCaptureControlsDidChange,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(captureDidFail(_:)),
-            name: .neClipCaptureDidFail,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(captureDidSkip(_:)),
-            name: .neClipCaptureDidSkip,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(captureDidAppend),
-            name: .neClipCaptureDidAppend,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(storageDidChange(_:)),
-            name: .neClipStorageDidChange,
-            object: nil
-        )
+        let observations: [(Notification.Name, Selector)] = [
+            (.neClipCaptureControlsDidChange, #selector(captureControlsChanged)),
+            (.neClipCaptureDidFail, #selector(captureDidFail(_:))),
+            (.neClipCaptureDidSkip, #selector(captureDidSkip(_:))),
+            (.neClipCaptureDidAppend, #selector(captureDidAppend)),
+            (.neClipStorageDidChange, #selector(storageDidChange(_:)))
+        ]
+        for (name, selector) in observations {
+            NotificationCenter.default.addObserver(self, selector: selector, name: name, object: nil)
+        }
         refreshIcon()
         statusItem.isVisible = true
         refreshSnapshot()
@@ -303,9 +283,7 @@ final class StatusBarController: NSObject {
 
     private func appendHistoryContents(to menu: NSMenu) {
         if let transientStatus {
-            let status = NSMenuItem(title: transientStatus, action: nil, keyEquivalent: "")
-            status.image = symbol("info.circle", description: nil)
-            menu.addItem(status)
+            menu.addItem(item(transientStatus, nil, symbol: "info.circle"))
             menu.addItem(.separator())
         }
         if Storage.shared.startupError != nil {
@@ -328,13 +306,7 @@ final class StatusBarController: NSObject {
             ))
             menu.addItem(.separator())
         case .needsChoice:
-            let warning = NSMenuItem(
-                title: "Для непрерывной истории выберите «Всегда разрешать»",
-                action: nil,
-                keyEquivalent: ""
-            )
-            warning.image = symbol("info.circle", description: nil)
-            menu.addItem(warning)
+            menu.addItem(item("Для непрерывной истории выберите «Всегда разрешать»", nil, symbol: "info.circle"))
             menu.addItem(item(
                 "Настроить доступ к буферу…",
                 #selector(openClipboardPrivacy),
@@ -358,30 +330,12 @@ final class StatusBarController: NSObject {
             for (index, clip) in pinned.prefix(10).enumerated() {
                 pinnedMenu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: nil, showNumber: false))
             }
-            if pinned.count > 10 {
-                for start in stride(from: 10, to: pinned.count, by: 10) {
-                    let end = min(start + 10, pinned.count)
-                    let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
-                    let submenu = makeMenu(title: "Закреплённые \(start + 1)–\(end)")
-                    for index in start..<end {
-                        submenu.addItem(clipMenuItem(
-                            pinned[index],
-                            absoluteIndex: index,
-                            quickKey: nil,
-                            showNumber: false
-                        ))
-                    }
-                    rangeItem.submenu = submenu
-                    pinnedMenu.addItem(rangeItem)
-                }
-            }
+            MenuPagination.appendPages(count: pinned.count, to: pinnedMenu,
+                makeMenu: { self.makeMenu(title: "Закреплённые \($0)") },
+                makeItem: { self.clipMenuItem(pinned[$0], absoluteIndex: $0, quickKey: nil, showNumber: false) })
             if snapshot.hasMorePinned {
                 pinnedMenu.addItem(.separator())
-                pinnedMenu.addItem(NSMenuItem(
-                    title: "Остальные — через поиск is:pinned",
-                    action: nil,
-                    keyEquivalent: ""
-                ))
+                pinnedMenu.addItem(item("Остальные — через поиск is:pinned", nil))
             }
             pinnedItem.submenu = pinnedMenu
             menu.addItem(pinnedItem)
@@ -399,9 +353,7 @@ final class StatusBarController: NSObject {
             let emptyTitle = Settings.isCapturePaused
                 ? "История пуста — запись приостановлена"
                 : "История пуста — скопируйте текст, изображение или файл"
-            let empty = NSMenuItem(title: emptyTitle, action: nil, keyEquivalent: "")
-            empty.image = symbol("doc.on.clipboard", description: nil)
-            menu.addItem(empty)
+            menu.addItem(item(emptyTitle, nil, symbol: "doc.on.clipboard"))
         } else {
             for (index, clip) in firstPage.enumerated() {
                 menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: quickKey(for: index), showNumber: true))
@@ -411,25 +363,14 @@ final class StatusBarController: NSObject {
         if history.count > 10 {
             let moreItem = item("Ещё из истории", nil, symbol: "clock.arrow.circlepath")
             let moreMenu = makeMenu(title: "Ещё из истории")
-            for start in stride(from: 10, to: history.count, by: 10) {
-                let end = min(start + 10, history.count)
-                let rangeItem = item("\(start + 1)–\(end)", nil, symbol: "folder")
-                let submenu = makeMenu(title: "\(start + 1)–\(end)")
-                for index in start..<end {
-                    submenu.addItem(clipMenuItem(history[index], absoluteIndex: index, quickKey: nil, showNumber: true))
-                }
-                rangeItem.submenu = submenu
-                moreMenu.addItem(rangeItem)
-            }
+            MenuPagination.appendPages(count: history.count, to: moreMenu,
+                makeMenu: { self.makeMenu(title: $0) },
+                makeItem: { self.clipMenuItem(history[$0], absoluteIndex: $0, quickKey: nil, showNumber: true) })
             moreItem.submenu = moreMenu
             menu.addItem(moreItem)
         }
         if snapshot.hasMoreHistory {
-            menu.addItem(NSMenuItem(
-                title: "Более старые элементы — через поиск выше",
-                action: nil,
-                keyEquivalent: ""
-            ))
+            menu.addItem(item("Более старые элементы — через поиск выше", nil))
         }
         if !firstPage.isEmpty || undoDeletion != nil {
             menu.addItem(firstResultActionsItem())
@@ -502,11 +443,7 @@ final class StatusBarController: NSObject {
             menu.addItem(NSMenuItem(title: "Сниппетов пока нет", action: nil, keyEquivalent: ""))
         }
         if snapshot.hasMoreSnippets {
-            menu.addItem(NSMenuItem(
-                title: "Остальные сниппеты — через поиск",
-                action: nil,
-                keyEquivalent: ""
-            ))
+            menu.addItem(item("Остальные сниппеты — через поиск", nil))
         }
 
         if showHeader {
@@ -619,15 +556,10 @@ final class StatusBarController: NSObject {
             ("Только история", "is:history")
         ]
         for filter in filters {
-            let item = NSMenuItem(
-                title: filter.title,
-                action: #selector(insertSearchFilter(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.representedObject = filter.token
-            item.toolTip = filter.token
-            menu.addItem(item)
+            let filterItem = item(filter.title, #selector(insertSearchFilter(_:)))
+            filterItem.representedObject = filter.token
+            filterItem.toolTip = filter.token
+            menu.addItem(filterItem)
         }
         var seenBundleIDs = Set<String>()
         let recentBundleIDs = snapshot.clips.compactMap(\.appBundleID).filter { bundleID in
@@ -639,12 +571,8 @@ final class StatusBarController: NSObject {
             let applicationMenu = makeMenu(title: "Приложение")
             for bundleID in recentBundleIDs.prefix(12) {
                 let metadata = AppMetadataStore.shared.metadata(for: bundleID)
-                let application = NSMenuItem(
-                    title: MenuTitleFormatter.format(metadata.name, limit: 48),
-                    action: #selector(insertSearchFilter(_:)),
-                    keyEquivalent: ""
-                )
-                application.target = self
+                let application = item(
+                    MenuTitleFormatter.format(metadata.name, limit: 48), #selector(insertSearchFilter(_:)))
                 application.representedObject = "app:\(bundleID)"
                 application.toolTip = bundleID
                 applicationMenu.addItem(application)
@@ -698,7 +626,7 @@ final class StatusBarController: NSObject {
             guard let self,
                   generation == self.searchGeneration,
                   self.activeMenu != nil else { return }
-            self.dataQueue.async { [weak self] in
+            self.searchWorkItem = MenuSearchWork.enqueue(on: self.dataQueue) { [weak self] in
                 guard let self else { return }
                 do {
                     let request = MenuSearchRequest(query, snippetsOnly: kind == .snippets)
@@ -1344,9 +1272,7 @@ final class StatusBarController: NSObject {
             modifiers: manualShortcut.nsEventModifiers
         ))
         submenu.addItem(.separator())
-        let hint = NSMenuItem(title: "⌃↩ — исправить выбранную запись истории и вставить", action: nil, keyEquivalent: "")
-        hint.image = symbol("info.circle", description: nil)
-        submenu.addItem(hint)
+        submenu.addItem(item("⌃↩ — исправить выбранную запись истории и вставить", nil, symbol: "info.circle"))
         root.submenu = submenu
         return root
     }
@@ -1364,9 +1290,7 @@ final class StatusBarController: NSObject {
 
     private func addCaptureControls(to menu: NSMenu) {
         if ClipboardAccess.current == .denied {
-            let status = NSMenuItem(title: "Запись истории недоступна", action: nil, keyEquivalent: "")
-            status.image = symbol("exclamationmark.shield", description: nil)
-            menu.addItem(status)
+            menu.addItem(item("Запись истории недоступна", nil, symbol: "exclamationmark.shield"))
         } else if Settings.isCapturePaused {
             let status = NSMenuItem(title: "Запись истории приостановлена", action: nil, keyEquivalent: "")
             status.state = .on

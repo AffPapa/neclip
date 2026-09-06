@@ -24,6 +24,7 @@ final class PreferencesWindowController {
             window.minSize = NSSize(width: 600, height: 500)
             window.setContentSize(NSSize(width: 640, height: 600))
             window.isReleasedWhenClosed = false
+            RuntimeIdentity.configurePreviewWindow(window)
             window.center()
             self.window = window
         }
@@ -260,7 +261,7 @@ private struct PreferencesView: View {
         Form {
             Section("История") {
                 NumericPreferenceRow(
-                    "Размер истории",
+                    "Хранить в истории",
                     value: $historyLimit,
                     range: 10...1_000,
                     step: 10,
@@ -277,24 +278,10 @@ private struct PreferencesView: View {
                     accessibilityLabel: "Количество символов в строке меню"
                 )
                     .onChange(of: menuTitleLength) { _, value in applyMenuTitleLength(value) }
-                NumericPreferenceRow(
-                    "Размер текста одной записи",
-                    value: $maximumTextCaptureKilobytes,
-                    range: Settings.maximumTextCaptureKilobytesRange,
-                    step: 64,
-                    unit: "КБ",
-                    accessibilityLabel: "Максимальный размер текста одной записи"
-                )
-                    .onChange(of: maximumTextCaptureKilobytes) { _, value in
-                        Settings.maximumTextCaptureKilobytes = value
-                    }
-                Text("Число можно ввести или изменить стрелками. Полный текст записи не сокращается: слишком большой новый текст просто не попадёт в историю.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
                 Picker("Удалять незакреплённое", selection: $retentionDays) {
-                    Text("Только по лимиту").tag(0)
+                    Text("Без ограничения по сроку").tag(0)
                     Text("Через 1 день").tag(1)
                     Text("Через 7 дней").tag(7)
                     Text("Через 30 дней").tag(30)
@@ -311,18 +298,30 @@ private struct PreferencesView: View {
                 }
                 Toggle("Очищать незакреплённую историю при выходе", isOn: $clearHistoryOnQuit)
                     .onChange(of: clearHistoryOnQuit) { _, value in Settings.clearHistoryOnQuit = value }
-
+                DisclosureGroup("Дополнительно") {
+                    NumericPreferenceRow(
+                        "Размер текста одной записи",
+                        value: $maximumTextCaptureKilobytes,
+                        range: Settings.maximumTextCaptureKilobytesRange,
+                        step: 64,
+                        unit: "КБ",
+                        accessibilityLabel: "Максимальный размер текста одной записи"
+                    )
+                        .onChange(of: maximumTextCaptureKilobytes) { _, value in
+                            Settings.maximumTextCaptureKilobytes = value
+                        }
+                    Text("Текст больше этого лимита не сохраняется. Уже сохранённый текст не сокращается.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Незакреплённая история ограничена количеством записей и общим объёмом хранилища, даже без ограничения по сроку.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Вставка") {
                 Toggle("По умолчанию вставлять без форматирования", isOn: $preferPlainText)
                     .onChange(of: preferPlainText) { _, value in Settings.preferPlainText = value }
-                Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — без форматирования, ⌥ — изменить режим форматирования, ⌃ — исправить раскладку текста.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section("Система") {
@@ -390,6 +389,14 @@ private struct PreferencesView: View {
             }
 
             Section {
+                DisclosureGroup("Работа в меню") {
+                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — без форматирования, ⌥ — изменить режим форматирования, ⌃ — исправить раскладку текста.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Button("Вернуть стандартные сочетания") { resetAllShortcuts() }
                 Text("Нажмите сочетание в рамке и введите новое. Escape отменяет. NeClip не применит занятое сочетание и сохранит предыдущее.")
                     .font(.caption)
@@ -528,7 +535,7 @@ private struct PreferencesView: View {
                     }
                     .disabled(fixedApplicationCount == 0)
                 }
-                Text("Закрепить текущую раскладку можно в меню NeClip → «Управление» → «Раскладка». Она будет выбрана при следующем открытии этого приложения.")
+                Text("Закрепить текущую раскладку можно в меню NeClip → «Управление» → «Раскладка». Она будет выбрана, когда вы снова переключитесь на приложение.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text("Следит только за активным приложением и выбранной системной раскладкой. Текст и нажатия клавиш не читаются; «Мониторинг ввода» не нужен.")

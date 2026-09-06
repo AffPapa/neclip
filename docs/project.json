@@ -16,9 +16,9 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "1.8.0",
-    "build": 14,
-    "status": "released",
+    "version": "1.9.0",
+    "build": 15,
+    "status": "inDevelopment",
     "publicVersion": "1.8.0"
   },
   "canonical": {
@@ -29,9 +29,9 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.8.0-2026-09-05.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.0-2026-09-06.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
-    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-2026-09-05.md",
+    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.9.0-SIMPLIFICATION.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"

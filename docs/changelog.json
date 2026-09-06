@@ -1,6 +1,18 @@
 {
   "versions": [
     {
+      "version": "1.9.0",
+      "status": "inDevelopment",
+      "highlights": [
+        "Shared query construction, bounded settings writes, shortcut persistence and menu pagination",
+        "OCR and pin operations avoid materializing image/RTF payloads in Swift",
+        "Empty privacy rules skip normalization; oversized text is rejected before expensive processing",
+        "Cancelled queued menu searches skip SQL while generation guards protect running results",
+        "Visible folder creation, clearer Russian settings and duplicate/search-key labels",
+        "Measured runtime reduction: 99 lines (0.85%); no safety, migration or test deletion"
+      ]
+    },
+    {
       "version": "1.8.0",
       "status": "released",
       "highlights": [

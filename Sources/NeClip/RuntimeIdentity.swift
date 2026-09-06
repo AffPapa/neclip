@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 /// Isolated developer copies must never masquerade as the installed app.
 enum RuntimeIdentity {
@@ -21,4 +21,13 @@ enum RuntimeIdentity {
     static var isIsolatedPreview: Bool { previewDataDirectory != nil }
 
     static var displayName: String { isIsolatedPreview ? "NeClip Preview" : "NeClip" }
+
+    @MainActor
+    static func configurePreviewWindow(_ window: NSWindow) {
+#if DEBUG
+        guard isIsolatedPreview,
+              ProcessInfo.processInfo.environment["NECLIP_UI_TEST_MINIMUM_WINDOWS"] == "1" else { return }
+        window.setFrame(NSRect(origin: window.frame.origin, size: window.minSize), display: false)
+#endif
+    }
 }

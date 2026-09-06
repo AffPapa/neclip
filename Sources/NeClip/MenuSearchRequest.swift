@@ -1,5 +1,15 @@
 import Foundation
 
+enum MenuSearchWork {
+    /// Keep the queued SQL work cancellable, not just its preceding debounce.
+    /// Running reads may finish; existing generation checks reject stale output.
+    static func enqueue(on queue: DispatchQueue, execute: @escaping @Sendable () -> Void) -> DispatchWorkItem {
+        let work = DispatchWorkItem(block: execute)
+        queue.async(execute: work)
+        return work
+    }
+}
+
 /// Snippet keywords and template bodies are literal text, not history filters.
 struct MenuSearchRequest: Equatable, Sendable {
     let history: ClipboardSearchQuery?

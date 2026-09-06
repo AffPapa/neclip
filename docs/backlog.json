@@ -14,10 +14,9 @@
     "Unified system appearance for status-item and hotkey menus",
     "Configurable Unicode-safe menu label length",
     "Configurable manual-correction and off-only safety shortcuts",
-    "Visible snippet folders, folder CRUD, moves and draft-safe editing"
-  ],
-  "inDevelopment": [
-    "Source 1.8.0 build 14 while public release metadata remains on 1.4.0",
+    "Visible snippet folders, folder CRUD, moves and draft-safe editing",
+    "Published 1.8.0 build 14 with matching public update manifest and download; website PR #7 merged",
+    "Earlier 1.7 and 1.6 source milestones included in the published 1.8.0 release",
     "27 selected refinements documented in RESEARCH-2026-09-05.md",
     "Folder-first snippets, direct edit, duplicate, undo and safe full erasure",
     "Folder-aware exact-keyword search with stable menu footer and pending-result protection",
@@ -59,6 +58,14 @@
     "Atomic erasure of history, snippets and snippet folders",
     "Human-readable source application names in the item inspector",
     "Simpler search and top-item action wording"
+  ],
+  "inDevelopment": [
+    "1.9.0 source improvements; not included in the published 1.8.0 release",
+    "Metadata-only OCR and pin updates without loading or rebinding original image and RTF payloads, preserving byte accounting and capacity checks",
+    "Text-capture fast path when no sensitive-phrase rules are configured",
+    "Shared history and snippet SQL, shortcut and layout preference persistence, and menu pagination helpers",
+    "Cancellation of superseded pending menu searches before database work starts",
+    "Simpler Settings wording and an explicit folder-edit button"
   ],
   "next": [
     "Verify first-run permission wording across supported macOS releases",

@@ -570,12 +570,12 @@ final class Storage: @unchecked Sendable {
                 existing.createdAt = item.createdAt
                 existing.contentBytes = Self.payloadBytes(existing)
                 existing.contentHash = item.contentHash
-                try ensureCapacityForItem(existing, replacing: existing.id, in: db)
+                try ensureCapacityForBytes(existing.contentBytes, replacing: existing.id, in: db)
                 try existing.update(db)
                 try trim(db)
                 return existing.id
             }
-            try ensureCapacityForItem(item, replacing: nil, in: db)
+            try ensureCapacityForBytes(item.contentBytes, replacing: nil, in: db)
             try item.insert(db)
             try trim(db)
             return item.id
@@ -631,14 +631,14 @@ final class Storage: @unchecked Sendable {
                 replacement.id = duplicateID
                 replacement.isPinned = duplicate.isPinned
                 replacement.pinnedAt = duplicate.pinnedAt
-                try ensureCapacityForItem(replacement, replacing: duplicateID, in: db)
+                try ensureCapacityForBytes(replacement.contentBytes, replacing: duplicateID, in: db)
                 try replacement.update(db)
                 try db.execute(sql: "DELETE FROM clip WHERE id = ?", arguments: [latestID])
                 try trim(db)
                 return .appended(duplicateID)
             }
 
-            try ensureCapacityForItem(latest, replacing: latestID, in: db)
+            try ensureCapacityForBytes(latest.contentBytes, replacing: latestID, in: db)
             try latest.update(db)
             try trim(db)
             return .appended(latestID)
@@ -694,9 +694,9 @@ final class Storage: @unchecked Sendable {
         requestedMatches: Int
     ) throws -> [ClipSummary] {
         guard query.needsPostFiltering else {
-            return try fetchSearchSummaries(
+            return try fetchSummaries(
+                search: includeTerms ? query.terms : nil,
                 query: query,
-                includeTerms: includeTerms,
                 limit: requestedMatches
             )
         }
@@ -705,9 +705,9 @@ final class Storage: @unchecked Sendable {
         var offset = 0
         var matches: [ClipSummary] = []
         while matches.count < requestedMatches {
-            let batch = try fetchSearchSummaries(
+            let batch = try fetchSummaries(
+                search: includeTerms ? query.terms : nil,
                 query: query,
-                includeTerms: includeTerms,
                 limit: batchSize,
                 offset: offset
             )
@@ -727,37 +727,10 @@ final class Storage: @unchecked Sendable {
         unpinnedOnly: Bool = false,
         offset: Int = 0
     ) throws -> [ClipSummary] {
-        try dbQueue.read { db in
-            var sql = """
-                SELECT c.id, c.kind, c.title,
-                       substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
-                       c.appBundleID, c.createdAt, c.isPinned
-                FROM clip c
-                """
-            var conditions: [String] = []
-            var arguments = StatementArguments()
-            if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if let match = Self.ftsMatch(search) {
-                    sql += " JOIN clipSearch ON clipSearch.rowid = c.id"
-                    conditions.append("clipSearch MATCH ?")
-                    arguments += [match]
-                } else {
-                    conditions.append("""
-                        (c.title LIKE ? ESCAPE '\\' OR c.text LIKE ? ESCAPE '\\'
-                         OR c.ocrText LIKE ? ESCAPE '\\' OR c.appBundleID LIKE ? ESCAPE '\\')
-                        """)
-                    let pattern = Self.likePattern(search)
-                    arguments += [pattern, pattern, pattern, pattern]
-                }
-            }
-            if pinnedOnly { conditions.append("c.isPinned = 1") }
-            if unpinnedOnly { conditions.append("c.isPinned = 0") }
-            if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
-            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC LIMIT ? OFFSET ?"
-            arguments += [max(1, limit), max(0, offset)]
-            let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
-            return rows.compactMap(Self.summary(from:))
-        }
+        try fetchSummaries(
+            search: search, pinnedOnly: pinnedOnly, unpinnedOnly: unpinnedOnly,
+            limit: limit, offset: offset
+        )
     }
 
     /// Physical recency order for sequential paste. Pins affect menu grouping,
@@ -772,9 +745,11 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    private func fetchSearchSummaries(
-        query: ClipboardSearchQuery,
-        includeTerms: Bool,
+    private func fetchSummaries(
+        search: String?,
+        query: ClipboardSearchQuery? = nil,
+        pinnedOnly: Bool = false,
+        unpinnedOnly: Bool = false,
         limit: Int,
         offset: Int = 0
     ) throws -> [ClipSummary] {
@@ -788,13 +763,13 @@ final class Storage: @unchecked Sendable {
             var conditions: [String] = []
             var arguments = StatementArguments()
 
-            if includeTerms, !query.terms.isEmpty {
-                if let match = Self.ftsMatch(query.terms) {
+            if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if let match = Self.ftsMatch(search) {
                     sql += " JOIN clipSearch ON clipSearch.rowid = c.id"
                     conditions.append("clipSearch MATCH ?")
                     arguments += [match]
                 } else {
-                    let pattern = Self.likePattern(query.terms)
+                    let pattern = Self.likePattern(search)
                     conditions.append("""
                         (c.title LIKE ? ESCAPE '\\' OR c.text LIKE ? ESCAPE '\\'
                          OR c.ocrText LIKE ? ESCAPE '\\' OR c.appBundleID LIKE ? ESCAPE '\\')
@@ -802,23 +777,25 @@ final class Storage: @unchecked Sendable {
                     arguments += [pattern, pattern, pattern, pattern]
                 }
             }
-            if let kind = query.kind {
+            if let kind = query?.kind {
                 conditions.append("c.kind = ?")
                 arguments += [kind.rawValue]
             }
-            if let app = query.appFragment {
+            if let app = query?.appFragment {
                 conditions.append("lower(COALESCE(c.appBundleID, '')) LIKE ? ESCAPE '\\'")
                 arguments += [Self.likePattern(app.lowercased())]
             }
-            if let since = query.since {
+            if let since = query?.since {
                 conditions.append("c.createdAt >= ?")
                 arguments += [since]
             }
-            switch query.pinFilter {
+            switch query?.pinFilter {
             case .pinned?: conditions.append("c.isPinned = 1")
             case .history?: conditions.append("c.isPinned = 0")
             case nil: break
             }
+            if pinnedOnly { conditions.append("c.isPinned = 1") }
+            if unpinnedOnly { conditions.append("c.isPinned = 0") }
             if !conditions.isEmpty {
                 sql += " WHERE " + conditions.joined(separator: " AND ")
             }
@@ -835,11 +812,19 @@ final class Storage: @unchecked Sendable {
 
     func setOCRText(_ text: String, forClipID id: Int64) throws {
         try dbQueue.write { db in
-            guard var item = try ClipItem.fetchOne(db, key: id) else { return }
-            item.ocrText = text
-            item.contentBytes = Self.payloadBytes(item)
-            try ensureCapacityForItem(item, replacing: id, in: db)
-            try item.update(db)
+            // Recount the original representations without materializing them
+            // in Swift. Replacing OCR must not fetch/rebind a large image BLOB.
+            guard let contentBytes = try Int64.fetchOne(db, sql: """
+                SELECT COALESCE(length(CAST(text AS BLOB)), 0)
+                     + COALESCE(length(data), 0)
+                     + COALESCE(length(rtf), 0) + ?
+                FROM clip WHERE id = ?
+                """, arguments: [text.utf8.count, id]) else { return }
+            try ensureCapacityForBytes(contentBytes, replacing: id, in: db)
+            try db.execute(
+                sql: "UPDATE clip SET ocrText = ?, contentBytes = ? WHERE id = ?",
+                arguments: [text, contentBytes, id]
+            )
             try trim(db)
         }
         notifyChange(.clips)
@@ -847,8 +832,13 @@ final class Storage: @unchecked Sendable {
 
     func setPinned(id: Int64, pinned: Bool) throws {
         try dbQueue.write { db in
-            if pinned, let item = try ClipItem.fetchOne(db, key: id) {
-                try ensureCapacityForItem(item, replacing: item.isPinned ? id : nil, in: db)
+            if pinned, let row = try Row.fetchOne(
+                db, sql: "SELECT isPinned, contentBytes FROM clip WHERE id = ?", arguments: [id]
+            ) {
+                let isPinned: Bool = row["isPinned"]
+                try ensureCapacityForBytes(
+                    row["contentBytes"], replacing: isPinned ? id : nil, in: db
+                )
             }
             try db.execute(
                 sql: "UPDATE clip SET isPinned = ?, pinnedAt = ? WHERE id = ?",
@@ -881,7 +871,7 @@ final class Storage: @unchecked Sendable {
                 item.title = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(200))
             }
             item.contentBytes = Self.payloadBytes(item)
-            try ensureCapacityForItem(item, replacing: id, in: db)
+            try ensureCapacityForBytes(item.contentBytes, replacing: id, in: db)
             try item.update(db)
             try trim(db)
             return item
@@ -903,7 +893,7 @@ final class Storage: @unchecked Sendable {
     func restoreClip(_ removed: RemovedClip) throws {
         var item = removed.item
         try dbQueue.write { db in
-            try ensureCapacityForItem(item, replacing: item.isPinned ? item.id : nil, in: db)
+            try ensureCapacityForBytes(item.contentBytes, replacing: item.isPinned ? item.id : nil, in: db)
             try item.insert(db, onConflict: .replace)
             try trim(db)
         }
@@ -984,31 +974,8 @@ final class Storage: @unchecked Sendable {
         limit: Int? = nil
     ) throws -> [Snippet] {
         try dbQueue.read { db in
-            var sql = "SELECT s.* FROM snippet s"
-            var conditions: [String] = []
-            var arguments = StatementArguments()
-            if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                try Self.appendSnippetSearch(
-                    search, database: db, conditions: &conditions, arguments: &arguments
-                )
-            }
-            if pinnedOnly { conditions.append("s.isPinned = 1") }
-            if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
-            if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                sql += """
-                     ORDER BY
-                        CASE WHEN lower(COALESCE(s.keyword, '')) = lower(?) THEN 0 ELSE 1 END,
-                        s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC
-                    """
-                arguments += [Self.normalizedKeyword(search) ?? search]
-            } else {
-                sql += " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
-            }
-            if let limit {
-                sql += " LIMIT ?"
-                arguments += [max(1, limit)]
-            }
-            return try Snippet.fetchAll(db, sql: sql, arguments: arguments)
+            let tail = try Self.snippetQueryTail(database: db, search: search, pinnedOnly: pinnedOnly, limit: limit)
+            return try Snippet.fetchAll(db, sql: "SELECT s.* FROM snippet s" + tail.sql, arguments: tail.arguments)
         }
     }
 
@@ -1520,7 +1487,7 @@ final class Storage: @unchecked Sendable {
         pinnedOnly: Bool,
         limit: Int?
     ) throws -> [SnippetSummary] {
-        var sql = """
+        let sql = """
             SELECT s.id, s.folderID, f.title AS folderTitle, s.title,
                    substr(s.content, 1, \(snippetPreviewCharacterLimit)) AS contentPreview,
                    substr(s.content, \(snippetPreviewCharacterLimit + 1), 1) != '' AS contentIsTruncated,
@@ -1528,6 +1495,14 @@ final class Storage: @unchecked Sendable {
             FROM snippet s
             LEFT JOIN snippetFolder f ON f.id = s.folderID
             """
+        let tail = try snippetQueryTail(database: db, search: search, pinnedOnly: pinnedOnly, limit: limit)
+        return try SnippetSummary.fetchAll(db, sql: sql + tail.sql, arguments: tail.arguments)
+    }
+
+    private static func snippetQueryTail(
+        database db: Database, search: String?, pinnedOnly: Bool, limit: Int?
+    ) throws -> (sql: String, arguments: StatementArguments) {
+        var sql = ""
         var conditions: [String] = []
         var arguments = StatementArguments()
         let trimmedSearch = search?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -1552,7 +1527,7 @@ final class Storage: @unchecked Sendable {
             sql += " LIMIT ?"
             arguments += [max(1, limit)]
         }
-        return try SnippetSummary.fetchAll(db, sql: sql, arguments: arguments)
+        return (sql, arguments)
     }
 
     private static func appendSnippetSearch(
@@ -1644,8 +1619,8 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    private func ensureCapacityForItem(
-        _ item: ClipItem,
+    private func ensureCapacityForBytes(
+        _ contentBytes: Int64,
         replacing replacedID: Int64?,
         in db: Database
     ) throws {
@@ -1656,7 +1631,7 @@ final class Storage: @unchecked Sendable {
             arguments += [replacedID]
         }
         let pinnedBytes = try Int64.fetchOne(db, sql: sql, arguments: arguments) ?? 0
-        guard pinnedBytes + item.contentBytes <= Self.maximumStorageBytes else {
+        guard pinnedBytes + contentBytes <= Self.maximumStorageBytes else {
             throw StorageCapacityError.pinnedItemsUseAllAvailableSpace
         }
     }

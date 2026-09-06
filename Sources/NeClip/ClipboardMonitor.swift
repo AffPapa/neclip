@@ -26,6 +26,25 @@ enum ClipboardCapturePolicy {
         return textBytes + rtfBytes <= effectiveTextPayloadLimit(userLimit: userLimit)
     }
 
+    /// Bounds work before whitespace/Unicode normalization or a UTF-8 Data
+    /// copy. This is also the complete text rejection order used by capture.
+    static func textRejectionReason(
+        _ text: String,
+        userLimit: Int,
+        sensitiveRules: [String]
+    ) -> ClipboardCaptureSkipReason? {
+        guard text.utf8.count <= effectiveTextPayloadLimit(userLimit: userLimit) else {
+            return .tooLarge
+        }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return .empty
+        }
+        guard !SensitiveContentPolicy.matches(text, normalizedRules: sensitiveRules) else {
+            return .sensitiveContent
+        }
+        return nil
+    }
+
     static func shouldRejectSource(
         bundleID: String?,
         excludedTransitionActive: Bool,
@@ -333,31 +352,16 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     private func processText(_ text: String, snapshot: Snapshot) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            notifySkipped(.empty)
-            return
-        }
-        guard !SensitiveContentPolicy.matches(
-            text,
-            normalizedRules: Settings.sensitiveContentRules
-        ) else {
-            notifySkipped(.sensitiveContent)
-            return
-        }
-
-        let textData = Data(text.utf8)
         let payloadLimit = ClipboardCapturePolicy.effectiveTextPayloadLimit(
             userLimit: Settings.maximumTextCaptureBytes
         )
-        guard ClipboardCapturePolicy.acceptsTextPayload(
-            textBytes: textData.count,
-            rtfBytes: 0,
-            userLimit: payloadLimit
-        ) else {
-            notifySkipped(.tooLarge)
+        if let reason = ClipboardCapturePolicy.textRejectionReason(
+            text, userLimit: payloadLimit, sensitiveRules: Settings.sensitiveContentRules
+        ) {
+            notifySkipped(reason)
             return
         }
+        let textData = Data(text.utf8)
         let safeRTF = snapshot.rtf.flatMap {
             $0.count <= ClipboardCapturePolicy.maxRTFBytes
                 && ClipboardCapturePolicy.acceptsTextPayload(

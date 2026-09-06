@@ -1,5 +1,26 @@
 import AppKit
 
+@MainActor
+enum MenuPagination {
+    /// First ten entries belong to the parent; later pages keep absolute indices.
+    static func appendPages(count: Int, to menu: NSMenu,
+                            makeMenu: (String) -> NSMenu,
+                            makeItem: (Int) -> NSMenuItem) {
+        for start in stride(from: 10, to: count, by: 10) {
+            let end = min(start + 10, count)
+            let title = "\(start + 1)–\(end)"
+            let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            parent.keyEquivalentModifierMask = []
+            parent.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+            parent.image?.isTemplate = true
+            let page = makeMenu(title)
+            for index in start..<end { page.addItem(makeItem(index)) }
+            parent.submenu = page
+            menu.addItem(parent)
+        }
+    }
+}
+
 enum SnippetMenuOrder {
     /// Browsing a folder must match the editor, independent of recent use.
     static func lessThan(_ lhs: SnippetSummary, _ rhs: SnippetSummary) -> Bool {

@@ -45,9 +45,13 @@ not planned.
 - Draft-safe autosave that flushes before navigation and window close and keeps
   failed edits available for retry
 
-## Done in current unreleased source
+## Done in 1.8.0 / build 14
 
-- Source 1.8.0/build 14: [100 recommendations and 27 selected refinements](docs/RESEARCH-2026-09-05.md)
+Published 5 September 2026. The public update manifest and download point to
+1.8.0/build 14; the website update in PR #7 is merged. Earlier 1.7 and 1.6 source
+milestones below are included in this release, not separate pending releases.
+
+- [100 recommendations and 27 selected refinements](docs/RESEARCH-2026-09-05.md)
 - Folder-first shortcut, right-click access, direct editing and stable folder context
 - Duplicate, deletion undo, keyboard-first creation/search and full-erasure draft cleanup
 - Literal/folder-aware search, exact-key priority before LIMIT and safe pending results
@@ -58,7 +62,9 @@ not planned.
 - Bounded nonrecursive placeholders with ISO formats/literal escaping
 - CRLF-aware line cleanup and correctly scoped URL component encoding
 
-- Source 1.7.0/build 13 separated from the still-public signed 1.4.0 release
+### Earlier source milestones included in 1.8.0
+
+- Source 1.7.0/build 13 improvements, now shipped in 1.8.0
 - Native snippet-list selection and visible-order arrow navigation, debounced
   search and a query-aware empty state
 - A shorter root menu with low-frequency actions under **Management**, plus
@@ -74,6 +80,7 @@ not planned.
   pipeline with pull-request ref secret scanning
 - Self-verifying secret scanning with generated canaries plus explicit HEAD and
   side-ref-only history scans
+- Source 1.6.0–1.6.2/builds 10–12 improvements, now shipped in 1.8.0
 - Lightweight 280-character snippet projections in menus, search and editor;
   complete bodies load only for the chosen snippet
 - Local snippet field limits matching portable import, without loading JSON or
@@ -110,6 +117,18 @@ not planned.
 - One-transaction erasure of history, snippets and their folders
 - Human-readable source application names in the item inspector
 - Simpler search/action labels and removal of obsolete paste compatibility code
+
+## In development for 1.9.0
+
+These changes are in development and are not part of the published 1.8.0 release.
+
+- Metadata-only OCR and pin updates that avoid loading or rebinding original
+  image and RTF payloads while preserving byte accounting and capacity checks
+- Fast path for text capture when no sensitive-phrase rules are configured
+- Shared history/snippet SQL, shortcut and layout preference persistence, and
+  menu pagination helpers
+- Cancellation of superseded pending menu searches before database work starts
+- Simpler Settings wording and an explicit folder-edit button
 
 ## Next
 
