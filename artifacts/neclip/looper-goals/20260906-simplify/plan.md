@@ -47,5 +47,10 @@ structural improvements, unverified UI scenarios and deferred opportunities.
 - Synthetic baseline/after fixture matches; results and limits recorded in
   `docs/AUDIT-1.9.0-2026-09-06.md`.
 - Minimum-size isolated Settings/editor QA passed the documented scenarios.
-- Remaining in progress: final sanitizer/security gates and step 7, including
-  publication, public-download verification, website and safe installation.
+- ASan/TSan, repeated full-ref security scan and required GitHub CI/CodeQL passed.
+- Exact source d168d1015c3933221c718633e9a4dfbdc4362729 was signed, notarized,
+  published as immutable v1.9.0 and independently downloaded/verified.
+- Installed 1.9.0 with fresh app/database/preferences backups. All 11 snippets
+  and folder fields retained; the native-launcher process was verified alive.
+- Remaining in progress: protected website/metadata PR, fresh Pages and browser
+  checks, then independent final delivery audit. Goal is not complete yet.

@@ -47,8 +47,8 @@ not planned.
 
 ## Done in 1.8.0 / build 14
 
-Published 5 September 2026. The public update manifest and download point to
-1.8.0/build 14; the website update in PR #7 is merged. Earlier 1.7 and 1.6 source
+Published 5 September 2026. Its matching public manifest and website update
+were delivered in PR #7. Earlier 1.7 and 1.6 source
 milestones below are included in this release, not separate pending releases.
 
 - [100 recommendations and 27 selected refinements](docs/RESEARCH-2026-09-05.md)
@@ -118,9 +118,10 @@ milestones below are included in this release, not separate pending releases.
 - Human-readable source application names in the item inspector
 - Simpler search/action labels and removal of obsolete paste compatibility code
 
-## In development for 1.9.0
+## Done in 1.9.0 / build 15
 
-These changes are in development and are not part of the published 1.8.0 release.
+Published 6 September 2026 after CI/CodeQL, notarization and independent
+public-download verification. [Release evidence](docs/RELEASE-1.9.0-STATUS.md).
 
 - Metadata-only OCR and pin updates that avoid loading or rebinding original
   image and RTF payloads while preserving byte accounting and capacity checks
@@ -128,7 +129,7 @@ These changes are in development and are not part of the published 1.8.0 release
 - Shared history/snippet SQL, shortcut and layout preference persistence, and
   menu pagination helpers
 - Cancellation of superseded pending menu searches before database work starts
-- Simpler Settings wording and an explicit folder-edit button
+- Simpler Settings wording and an explicit folder-creation button
 
 ## Next
 

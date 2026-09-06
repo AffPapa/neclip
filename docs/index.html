@@ -13,24 +13,25 @@
   <header class="wrap">
     <nav aria-label="Основная навигация">
       <a class="brand" href="#top"><span class="mark" aria-hidden="true">⌘</span>NeClip</a>
-      <div class="navlinks"><a href="#features">Возможности</a><a href="#versions">Версии</a><a href="#backlog">Backlog</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
+      <div class="navlinks"><a href="#features">Возможности</a><a href="#versions">Версии</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>1.8.0 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>1.9.0 · выпущена</span>
       <h1>Скопировал.<br>Нашёл. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v1.8.0/NeClip-1.8.0.dmg">Скачать NeClip 1.8.0</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v1.9.0/NeClip-1.9.0.dmg">Скачать NeClip 1.9.0</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
+      <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
     </div>
   </header>
 
   <main>
     <section class="wrap" id="features">
       <h2>Только то, что ускоряет работу</h2>
-      <p class="section-lead">NeClip не открывает постоянное большое окно: живёт в menu bar, не занимает Dock и вызывается одной комбинацией.</p>
+      <p class="section-lead">NeClip живёт в строке меню, не занимает Dock и вызывается одной комбинацией. Отдельные окна нужны только для настроек и редактирования.</p>
       <div class="grid">
         <article class="card"><h3>История</h3><p>Текст, изображения и файлы. Быстрый локальный поиск, закрепление, превью и лимиты без бесконечного роста базы.</p></article>
         <article class="card"><h3>Сниппеты</h3><p>Редактируемые папки, «Без папки», поиск по разделам и локальные подстановки даты, времени и текущего буфера.</p></article>
@@ -42,7 +43,7 @@
       <h2>Клавиатура прежде всего</h2>
       <div class="card" role="list" aria-label="Горячие клавиши">
         <div class="shortcut" role="listitem"><span>Открыть историю</span><kbd>⌘ ⇧ V</kbd></div>
-        <div class="shortcut" role="listitem"><span>Открыть сниппеты</span><kbd>⌘ ⇧ B</kbd></div>
+        <div class="shortcut" role="listitem"><span>Открыть папки сниппетов</span><kbd>⌘ ⇧ B</kbd></div>
         <div class="shortcut" role="listitem"><span>Исправить раскладку</span><kbd>⌥ ⇧ L</kbd></div>
         <div class="shortcut" role="listitem"><span>Выключить автоисправление</span><kbd>⌃ ⌥ A</kbd></div>
         <div class="shortcut" role="listitem"><span>Закрепить первый результат</span><kbd>⌘ P</kbd></div>
@@ -51,39 +52,41 @@
         <div class="shortcut" role="listitem"><span>Вставить без форматирования</span><kbd>⇧ ↩</kbd></div>
         <div class="shortcut" role="listitem"><span>Только копировать</span><kbd>⌘ ↩</kbd></div>
       </div>
+      <p class="fine">Основные сочетания можно изменить в настройках. Папки сниппетов также открываются правым кликом по значку NeClip.</p>
     </section>
 
     <section class="wrap">
       <h2>Приватность видна, а не спрятана</h2>
-      <p class="section-lead">История остаётся в SQLite на этом Mac. На новых macOS NeClip заранее объясняет системный доступ к буферу и не читает содержимое, если выбрано «Всегда запрещать».</p>
+      <p class="section-lead">История хранится только на этом Mac. NeClip объясняет, зачем macOS запрашивает доступ к буферу, и не читает его, если доступ запрещён.</p>
       <div class="grid">
         <article class="card"><h3>0 аккаунтов</h3><p>Нет регистрации, подписки и облачной синхронизации.</p></article>
         <article class="card"><h3>0 телеметрии</h3><p>Нет аналитики и фоновых сетевых запросов. Проверка обновлений запускается вручную.</p></article>
-        <article class="card"><h3>Защита по умолчанию</h3><p>Парольные приложения, concealed/transient данные и неизвестный источник отклоняются.</p></article>
+        <article class="card"><h3>Защита по умолчанию</h3><p>Записи из защищённых менеджеров паролей, данные с системными пометками «скрытое» или «временное» и копирования с неизвестным источником не сохраняются.</p></article>
       </div>
     </section>
 
     <section class="wrap" id="versions">
       <h2>Версии</h2>
-      <p class="section-lead">Публичная история без маркетинговых пропусков: что сделано и какой статус проверки у бинарника.</p>
+      <p class="section-lead">Что изменилось и какие проверки прошла каждая опубликованная версия.</p>
       <div class="timeline">
+        <article class="card release"><div><strong>1.9.0</strong><br><span class="status">выпущена</span></div><div><b>Меньше лишней работы.</b><ul><li>Распознавание текста и закрепление без лишней загрузки больших изображений</li><li>Отмена устаревшего поиска и быстрая проверка текста</li><li>Понятные подписи настроек и видимая кнопка создания папки</li><li>222 успешных теста; CodeQL, проверки памяти и гонок без ошибок</li></ul><a href="https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.0-2026-09-06.md">Замеры и результаты проверок</a></div></article>
         <article class="card release"><div><strong>1.8.0</strong><br><span class="status">выпущена</span></div><div><b>Быстрее, понятнее и безопаснее.</b><ul><li>Папки сниппетов по ⌘⇧B, прямое редактирование, дублирование и отмена удаления</li><li>Исправлены закрытие настроек, обработка горячих клавиш и состояния записи</li><li>Ускорены поиск, изображения, OCR и работа с локальными данными</li><li>206 проверок, CodeQL, подпись Apple и проверка публичного DMG</li></ul></div></article>
         <article class="card release"><div><strong>1.4.0</strong><br><span class="status">выпущена</span></div><div><b>Единое меню и понятные сниппеты.</b><ul><li>Одинаковая системная тема и компактные подписи 16–96 символов</li><li>Переназначаемые безопасные клавиши исправления раскладки</li><li>Папки, «Без папки», перемещение и сохранение черновиков</li><li>Подписана, нотарифицирована и проверена из публичного DMG</li></ul></div></article>
-        <article class="card release"><div><strong>1.3.2</strong><br><span class="status">предыдущая</span></div><div><b>Быстрее и полнее прямо в menu bar.</b><ul><li>Закрепление, сохранение в сниппеты, удаление и точная отмена</li><li>Один refresh меню на копирование, без старого большого окна</li></ul></div></article>
+        <article class="card release"><div><strong>1.3.2</strong><br><span class="status">предыдущая</span></div><div><b>Быстрее и полнее в строке меню.</b><ul><li>Закрепление, сохранение в сниппеты, удаление и точная отмена</li><li>Одно обновление меню при копировании, без старого большого окна</li></ul></div></article>
       </div>
     </section>
 
     <section class="wrap" id="backlog">
-      <h2>Открытый backlog</h2>
+      <h2>Сделано и запланировано</h2>
       <p class="section-lead">Приоритет — надёжность и скорость, а не количество функций.</p>
       <div class="backlog">
-        <article class="card"><h3>Сделано</h3><ul><li>Menu bar без Dock</li><li>История, поиск, pins, OCR</li><li>Редактируемые папки сниппетов</li><li>Настраиваемые клавиши и длина меню</li><li>Swift 6 и privacy gate</li></ul></article>
-        <article class="card"><h3>Дальше</h3><ul><li>QA разрешений на поддерживаемых macOS</li><li>Больше раскладок только с тестами</li><li>Drag-сортировка папок только при реальной необходимости</li></ul></article>
-        <article class="card"><h3>Не планируется</h3><ul><li>Аккаунты и облако</li><li>Телеметрия и реклама</li><li>AI для содержимого буфера</li><li>Большое постоянное окно</li></ul></article>
+        <article class="card"><h3>Сделано</h3><ul><li>Строка меню без значка в Dock</li><li>История, поиск, закрепление и распознавание текста</li><li>Редактируемые папки сниппетов</li><li>Настраиваемые клавиши и длина строк</li><li>Защита приватных копирований</li></ul></article>
+        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на поддерживаемых macOS</li><li>Новые раскладки после проверки точности</li><li>Перетаскивание папок — если оно упростит работу</li></ul></article>
+        <article class="card"><h3>Не планируется</h3><ul><li>Аккаунты и облако</li><li>Телеметрия и реклама</li><li>ИИ для содержимого буфера</li><li>Большое постоянное окно</li></ul></article>
       </div>
     </section>
   </main>
 
-  <footer><div class="wrap">NeClip · MIT · <a href="https://github.com/AffPapa/neclip">GitHub</a> · <a href="project.json">данные JSON</a> · <a href="https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md">полный changelog</a> · <a href="https://github.com/AffPapa/neclip/blob/main/BACKLOG.md">backlog</a> · <a href="https://github.com/AffPapa/neclip/blob/main/SECURITY.md">security</a></div></footer>
+  <footer><div class="wrap">NeClip · MIT · <a href="https://github.com/AffPapa/neclip">GitHub</a> · <a href="project.json">данные для интеграций</a> · <a href="https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md">история изменений</a> · <a href="https://github.com/AffPapa/neclip/blob/main/BACKLOG.md">планы</a> · <a href="https://github.com/AffPapa/neclip/blob/main/SECURITY.md">безопасность</a></div></footer>
 </body>
 </html>

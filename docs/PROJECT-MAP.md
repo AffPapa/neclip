@@ -1,14 +1,14 @@
 # NeClip project map
 
-Updated: 6 September 2026. Public release: **1.8.0/build 14**.
-Source candidate: **1.9.0/build 15**. Current simplification evidence:
+Updated: 6 September 2026. Public release: **1.9.0/build 15**.
+Current simplification evidence:
 `AUDIT-1.9.0-2026-09-06.md`; focused product decisions:
 `RESEARCH-1.9.0-SIMPLIFICATION.md`. No new dependencies or database migration.
-Artifact source: `24ebd53d15efa540d944823431c59524b9ae3afa`.
+Artifact source: `d168d1015c3933221c718633e9a4dfbdc4362729`.
 Developer ID, notarization, stapling, CodeQL and independent public-DMG
-verification passed. Evidence: `RELEASE-1.8.0-STATUS.md`.
+verification passed. Evidence: `RELEASE-1.9.0-STATUS.md`.
 
-The matching evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
+The prior evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
 19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements
 are in `RESEARCH-2026-09-05.md`. Older reports remain historical evidence, not
 current feature or release claims.
