@@ -77,7 +77,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
         XCTAssertTrue(editor.contains("windowShouldClose"))
         XCTAssertTrue(editor.contains("prepareForTermination"))
-        XCTAssertTrue(editor.contains("Button(\"Очистить поиск\")"))
+        XCTAssertFalse(editor.contains("Button(\"Очистить поиск\")"))
         XCTAssertTrue(editor.contains("Label(\"Папка…\", systemImage: \"folder.badge.plus\")"))
         XCTAssertTrue(editor.contains("Button(action: model.requestNewFolder)"))
     }

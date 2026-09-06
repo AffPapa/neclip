@@ -2,19 +2,37 @@ import XCTest
 @testable import NeClip
 
 final class SnippetsEditorPresentationTests: XCTestCase {
-    func testRowContextKeepsFullUnicodeNamesForHelpAndAccessibility() {
-        let keyword = String(repeating: "я", count: 100)
-        let folder = String(repeating: "👩🏽‍💻", count: 200)
-        XCTAssertEqual(
-            SnippetRowContext.description(keyword: keyword, folder: folder),
-            "\(keyword) · \(folder)"
-        )
+    func testEditorHasNoSearchControlsOrDeferredSearchWork() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: root.appendingPathComponent("Sources/NeClip/SnippetsEditor.swift"), encoding: .utf8)
+        for removed in ["@Published var query", "queryTask", "searchIsFocused", "scheduleQueryReload",
+                        "noSearchResults", "showsFolder", "folderSubtitle", "SnippetRowContext",
+                        "magnifyingglass", "keyboardShortcut(\"f\""] {
+            XCTAssertFalse(source.contains(removed), "Editor search must stay removed: \(removed)")
+        }
     }
 
-    func testRowContextOmitsEmptyPartsWithoutDanglingSeparators() {
-        XCTAssertEqual(SnippetRowContext.description(keyword: nil, folder: nil), "")
-        XCTAssertEqual(SnippetRowContext.description(keyword: "", folder: "Без папки"), "Без папки")
-        XCTAssertEqual(SnippetRowContext.description(keyword: ";thanks", folder: ""), ";thanks")
+    @MainActor
+    func testEditorAlwaysShowsFoldersAndUnfiledWithoutFiltering() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let firstFolder = try XCTUnwrap(storage.addFolder(title: "Первая"))
+        let emptyFolder = try XCTUnwrap(storage.addFolder(title: "Пустая"))
+        let firstID = try XCTUnwrap(firstFolder.id)
+        let emptyID = try XCTUnwrap(emptyFolder.id)
+        let first = try XCTUnwrap(storage.addSnippet(folderID: firstID, title: "Первый", content: "A", keyword: ";first"))
+        let unfiled = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Без папки", content: "B"))
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload()
+        XCTAssertEqual(Set(model.folders.compactMap(\.id)), Set([firstID, emptyID]))
+        XCTAssertEqual(model.snippets(in: firstID).map(\.id), [first.id])
+        XCTAssertTrue(model.snippets(in: emptyID).isEmpty)
+        XCTAssertEqual(model.snippets(in: nil).map(\.id), [unfiled.id])
+        XCTAssertEqual(model.selectedSnippetID, first.id)
+        XCTAssertTrue(model.openSnippet(id: try XCTUnwrap(unfiled.id)))
+        XCTAssertEqual(model.snippets.count, 2, "Direct opening must not hide other snippets")
+        XCTAssertEqual(model.selectedSnippetID, unfiled.id)
+        XCTAssertEqual(try storage.fetchSnippet(id: XCTUnwrap(first.id))?.keyword, ";first")
     }
 
     @MainActor

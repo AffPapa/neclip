@@ -99,7 +99,7 @@ separate quick list follows pin/usage. Counts describe displayed items; search
 results carry projected folder names even outside the bounded menu snapshot.
 Command-E opens exactly the first matching snippet by ID after flushing drafts.
 
-`SnippetsEditor` reads lightweight summaries for folders, search, empty folders
+`SnippetsEditor` reads lightweight summaries for folders, empty folders
 and **Unfiled**, then fetches one full body when selected. Selection, navigation
 and termination flush pending drafts; failed saves remain visible. Local writes
 and imports share title, keyword and 2 MB content bounds. `SnippetRenderer`
@@ -111,10 +111,12 @@ indices rather than counting the entire stored body. `Storage` provides versione
 JSON export and atomic merge-only import without history or usage metadata;
 empty and over-16 MB import files are rejected before JSON decoding.
 
-Editor creation/search/duplicate use Command-N/F/D and visible buttons. Duplicate
+The editor always shows the folder library: its search field, Command-F,
+filtering and debounce task have been removed. Menu search and snippet keywords
+remain independent. Editor creation/duplicate use Command-N/D and visible buttons. Duplicate
 preserves editable content/folder/pin but not keyword/usage. A one-item deletion
 undo survives ordinary refresh but not explicit full-data erasure. Clean editors
-refresh external pin/move changes; dirty drafts are not replaced. Folder search
+refresh external pin/move changes; dirty drafts are not replaced. Menu folder search
 matches Unicode names; exact keyword normalization occurs before SQL LIMIT.
 
 ### Keyboard layout correction

@@ -6,6 +6,8 @@ not planned.
 
 ## Local development after 1.9.1 — not published
 
+- Remove the snippet editor's search controls, Command-F, filtering/debounce,
+  results-only layout and unused folder-context helper. Keep menu search intact.
 - Invalidate deferred deletion undo after full erasure, inside storage transactions.
 - Convert history to snippets atomically across the full-erasure boundary.
 - Fetch OCR text without materializing original image/RTF payloads.
