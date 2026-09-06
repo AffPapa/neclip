@@ -215,6 +215,7 @@ private struct PreferencesView: View {
     @State private var clipboardAccess = ClipboardAccess.current
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
+    @State private var historyAdvancedExpanded = false
     @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
     @State private var preferPlainText = Settings.preferPlainText
     @State private var loginItemStatus = SMAppService.mainApp.status
@@ -348,28 +349,28 @@ private struct PreferencesView: View {
                 )
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
-                Picker("Срок хранения", selection: $retentionDays) {
-                    Text("Без ограничения по сроку").tag(0)
-                    Text("1 день").tag(1)
-                    Text("7 дней").tag(7)
-                    Text("30 дней").tag(30)
-                    Text("90 дней").tag(90)
-                }
-                .onChange(of: retentionDays) { _, value in
-                    Settings.retentionDays = value
-                    trimHistoryToLimits()
-                }
                 Text("Лимиты применяются только к незакреплённым записям. Сниппеты сохраняются отдельно.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if retentionDays > 0 {
-                    Text("Срок проверяется при запуске, новом копировании и изменении лимитов. На паузе очистка по сроку откладывается.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Toggle("Очищать незакреплённую историю при выходе", isOn: $clearHistoryOnQuit)
-                    .onChange(of: clearHistoryOnQuit) { _, value in Settings.clearHistoryOnQuit = value }
-                DisclosureGroup("Дополнительно") {
+                DisclosureGroup(isExpanded: $historyAdvancedExpanded) {
+                    Picker("Срок хранения", selection: $retentionDays) {
+                        Text("Без ограничения по сроку").tag(0)
+                        Text("1 день").tag(1)
+                        Text("7 дней").tag(7)
+                        Text("30 дней").tag(30)
+                        Text("90 дней").tag(90)
+                    }
+                    .onChange(of: retentionDays) { _, value in
+                        Settings.retentionDays = value
+                        trimHistoryToLimits()
+                    }
+                    if retentionDays > 0 {
+                        Text("Срок проверяется при запуске, новом копировании и изменении лимитов. На паузе очистка по сроку откладывается.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Toggle("Очищать незакреплённую историю при выходе", isOn: $clearHistoryOnQuit)
+                        .onChange(of: clearHistoryOnQuit) { _, value in Settings.clearHistoryOnQuit = value }
                     NumericPreferenceRow(
                         "Размер текста одной записи",
                         value: $maximumTextCaptureKilobytes,
@@ -385,6 +386,12 @@ private struct PreferencesView: View {
                     Text("Без ограничения по сроку действуют лимит записей и общий объём хранилища.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                } label: {
+                    Text(retentionDays > 0 || clearHistoryOnQuit
+                         ? "Дополнительно · автоочистка включена" : "Дополнительно")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { historyAdvancedExpanded.toggle() }
                 }
             }
 

@@ -19,7 +19,7 @@ final class AppMetadataStore {
 
     private let cache = NSCache<NSString, Box>()
 
-    private init() {}
+    private init() { cache.countLimit = 200 }
 
     func metadata(for bundleIdentifier: String?) -> AppMetadata {
         guard let bundleIdentifier, !bundleIdentifier.isEmpty else {
@@ -48,12 +48,12 @@ final class AppMetadataStore {
         return value
     }
 
-    private var fallback: AppMetadata {
+    private lazy var fallback: AppMetadata = {
         let icon = NSImage(systemSymbolName: "app", accessibilityDescription: "Неизвестное приложение")
             ?? NSImage(size: NSSize(width: 24, height: 24))
         icon.size = NSSize(width: 24, height: 24)
         return AppMetadata(name: "Неизвестное приложение", icon: icon)
-    }
+    }()
 
     private func readableFallbackName(_ bundleIdentifier: String) -> String {
         guard let last = bundleIdentifier.split(separator: ".").last, !last.isEmpty else {

@@ -49,7 +49,7 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private struct MenuSnapshot {
+    private struct MenuSnapshot: Sendable {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
         let snippets: [SnippetSummary]
@@ -69,7 +69,7 @@ final class StatusBarController: NSObject {
         hasMoreSnippets: false
     )
     private var snapshotIsReady = false
-    private var refreshGeneration = 0
+    private var refreshState = MenuRefreshState()
     private var pendingPresentation: (kind: MenuKind, anchoredToStatusItem: Bool)?
     private var targetPID: pid_t?
     private var targetBundleID: String?
@@ -138,11 +138,12 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func storageDidChange(_ notification: Notification) {
-        if StorageChangeDomain.from(notification) == .all {
+        let domain = StorageChangeDomain.from(notification)
+        refreshState.invalidate(domain)
+        if domain == .all {
             undoDeletion = nil
             topEntry = nil
             activeMenu?.cancelTracking()
-            refreshGeneration += 1
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
                                     hasMorePinned: false, hasMoreHistory: false, hasMoreSnippets: false)
             snapshotIsReady = false
@@ -200,30 +201,33 @@ final class StatusBarController: NSObject {
     private func refreshSnapshot() {
         snapshotRefreshWorkItem?.cancel()
         snapshotRefreshWorkItem = nil
-        refreshGeneration += 1
-        let generation = refreshGeneration
+        let generation = refreshState.begin()
+        let domains = refreshState.domains
+        let previous = snapshot
         dataQueue.async { [weak self] in
             do {
-                let pinned = try Storage.shared.summaries(
-                    limit: 101,
-                    pinnedOnly: true
-                )
-                let recent = try Storage.shared.summaries(
-                    limit: 101,
-                    pinnedOnly: false,
-                    unpinnedOnly: true
-                )
-                let snippetSnapshot = try Storage.shared.menuSnippetSnapshot()
+                var clips = previous.clips
+                var hasMorePinned = previous.hasMorePinned
+                var hasMoreHistory = previous.hasMoreHistory
+                if domains.contains(.clips) {
+                    let pinned = try Storage.shared.summaries(limit: 101, pinnedOnly: true)
+                    let recent = try Storage.shared.summaries(limit: 101, pinnedOnly: false, unpinnedOnly: true)
+                    clips = Array(pinned.prefix(100)) + Array(recent.prefix(100))
+                    hasMorePinned = pinned.count > 100
+                    hasMoreHistory = recent.count > 100
+                }
+                let snippetSnapshot = try domains.contains(.snippets)
+                    ? Storage.shared.menuSnippetSnapshot() : nil
                 let loaded = MenuSnapshot(
-                    clips: Array(pinned.prefix(100)) + Array(recent.prefix(100)),
-                    folders: snippetSnapshot.folders,
-                    snippets: snippetSnapshot.snippets,
-                    hasMorePinned: pinned.count > 100,
-                    hasMoreHistory: recent.count > 100,
-                    hasMoreSnippets: snippetSnapshot.hasMore
+                    clips: clips,
+                    folders: snippetSnapshot?.folders ?? previous.folders,
+                    snippets: snippetSnapshot?.snippets ?? previous.snippets,
+                    hasMorePinned: hasMorePinned,
+                    hasMoreHistory: hasMoreHistory,
+                    hasMoreSnippets: snippetSnapshot?.hasMore ?? previous.hasMoreSnippets
                 )
                 DispatchQueue.main.async {
-                    guard let self, generation == self.refreshGeneration else { return }
+                    guard let self, self.refreshState.accept(generation) else { return }
                     self.snapshot = loaded
                     self.snapshotIsReady = true
                     if let pending = self.pendingPresentation {
@@ -233,7 +237,7 @@ final class StatusBarController: NSObject {
                 }
             } catch {
                 DispatchQueue.main.async {
-                    guard let self, generation == self.refreshGeneration else { return }
+                    guard let self, generation == self.refreshState.generation else { return }
                     self.snapshotIsReady = true
                     self.showFeedback("Не удалось обновить меню")
                     if let pending = self.pendingPresentation {

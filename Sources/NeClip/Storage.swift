@@ -891,23 +891,6 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    func snippets(inFolder folderID: Int64) -> [Snippet] {
-        (try? dbQueue.read { db in
-            try Snippet.filter(Column("folderID") == folderID)
-                .order(Column("sortIndex"), Column("id")).fetchAll(db)
-        }) ?? []
-    }
-
-    func allSnippets(
-        pinnedOnly: Bool = false,
-        limit: Int? = nil
-    ) throws -> [Snippet] {
-        try dbQueue.read { db in
-            let tail = Self.snippetQueryTail(pinnedOnly: pinnedOnly, limit: limit)
-            return try Snippet.fetchAll(db, sql: "SELECT s.* FROM snippet s" + tail.sql, arguments: tail.arguments)
-        }
-    }
-
     func snippetSummaries(
         pinnedOnly: Bool = false,
         limit: Int? = nil

@@ -36,6 +36,9 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 The source branch removes search everywhere. The public 1.9.1 download above
 still has the previous interface; no new release or installed-app update is
 implied. The app is for immediate reuse, not managing a searchable archive.
+The next [local optimization report](docs/OPTIMIZATION-2026-09-06.md) compares
+eight products and records selective menu refresh, simpler retention settings,
+distribution-symbol stripping and measured results. No new dependency is added.
 
 - `Command-Shift-V` — open the native history menu at the pointer (customizable)
 - `Command-Shift-B` — open snippet folders directly (customizable)

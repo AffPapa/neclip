@@ -31,6 +31,9 @@ The next settings/editor usability audit is `UX-SETTINGS-2026-09-05.md`
 capture barrier for explicit bulk deletion; `PreferencesUXPolicy` describes
 effective settings states. The later local no-search pass retires all search UI
 and execution; see `NO-SEARCH-2026-09-06.md` for the current scope and checks.
+The next local optimization pass is `OPTIMIZATION-2026-09-06.md`: selective
+menu invalidation, bounded app metadata, smaller distribution binaries and
+progressive disclosure of retention controls. This is still not a public release.
 
 ## Product boundary
 
@@ -76,6 +79,8 @@ local history and snippet bodies are fetched only for the chosen action.
 
 - `MenuPresentation.swift`: single-line, grapheme-safe menu titles and shared
   ten-item pagination with stable absolute indices.
+- `MenuRefreshState.swift`: dirty-domain/generation tracking; unchanged history
+  or snippets are reused, obsolete reads cannot restore erased snapshots.
 - `PasteService.swift`: direct/plain/copy-only paste and lossless,
   compare-and-swap restoration of a temporary pasteboard; an unreadable
   advertised representation aborts before clearing. Deletion is an explicit,

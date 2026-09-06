@@ -515,7 +515,8 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(moved.isPinned, before.isPinned)
         XCTAssertEqual(moved.useCount, before.useCount)
         XCTAssertEqual(moved.lastUsedAt, before.lastUsedAt)
-        XCTAssertEqual(storage.snippets(inFolder: destinationID).map(\.id), [existingID, id])
+        XCTAssertEqual(try storage.allSnippets().filter { $0.folderID == destinationID }
+            .sorted { $0.sortIndex < $1.sortIndex }.map(\.id), [existingID, id])
 
         let unfiled = try storage.moveSnippet(id: id, toFolderID: nil)
         XCTAssertNil(unfiled.folderID)

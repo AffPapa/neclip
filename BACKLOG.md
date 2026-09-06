@@ -6,6 +6,12 @@ not planned.
 
 ## Local development after 1.9.1 — not published
 
+- Refresh only changed menu domains; retain dirty work after failed/stale reads.
+- Strip local/debug symbols from distribution copies, keep UUID-matched dSYM
+  outside the shipped app, before signing. Bound application metadata caching.
+- Group retention/exit cleanup under Additional without resetting preferences.
+- Remove two production storage wrappers used only by tests.
+- Evidence and eight-product comparison: `docs/OPTIMIZATION-2026-09-06.md`.
 - Retire search throughout NeClip: menu/editor fields, snippet keywords,
   filter syntax, fuzzy ranking, query tasks and FTS indexing. Native menu
   selection and folder snippets define the new immediate-use workflow.
@@ -18,8 +24,7 @@ not planned.
 - Distinguish snippet save actions from status; bound row subtitles and clarify history limits.
 
 Scoped plan and verification: `artifacts/neclip/looper-goals/20260906-fresh-pass/`.
-Follow-up candidates, not completed in this pass: selective menu snapshot refresh,
-and conflict/discard UX for a dirty
+Follow-up candidate, not completed in this pass: conflict/discard UX for a dirty
 snippet concurrently changed or removed elsewhere.
 
 The sections below describe historical releases. Search/FTS entries are

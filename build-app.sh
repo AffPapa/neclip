@@ -117,6 +117,16 @@ BIN_DIR=$(swift build --disable-sandbox -c release --show-bin-path)
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/NeClip" "$APP/Contents/MacOS/NeClip"
+# Keep crash-symbolication data outside the shipped app. Strip only local and
+# debug symbols; preserve global symbols, Swift metadata and runtime behavior.
+xcrun dsymutil "$BIN_DIR/NeClip" -o "$WORK_DIR/NeClip.dSYM"
+APP_UUID=$(xcrun dwarfdump --uuid "$APP/Contents/MacOS/NeClip" | awk '{print $2}')
+DSYM_UUID=$(xcrun dwarfdump --uuid "$WORK_DIR/NeClip.dSYM" | awk '{print $2}')
+[[ -n "$APP_UUID" && "$APP_UUID" == "$DSYM_UUID" ]] || {
+  echo "Debug symbols do not match the release binary." >&2
+  exit 1
+}
+xcrun strip -S -x "$APP/Contents/MacOS/NeClip"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp LICENSE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
@@ -177,6 +187,7 @@ DIST_RELEASE="dist/releases/${VERSION}-${BUILD}-${SOURCE_COMMIT}"
   exit 1
 }
 cp -R "$APP" "$DIST_STAGE/NeClip.app"
+cp -R "$WORK_DIR/NeClip.dSYM" "$DIST_STAGE/NeClip.dSYM"
 cp "$DMG" "$DIST_STAGE/NeClip-${VERSION}.dmg"
 cp "$DMG.sha256" "$DIST_STAGE/NeClip-${VERSION}.dmg.sha256"
 cp "$WORK_DIR/NeClip-${VERSION}.release.json" "$DIST_STAGE/"
