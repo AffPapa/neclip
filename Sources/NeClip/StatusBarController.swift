@@ -1763,7 +1763,7 @@ extension StatusBarController: NSSearchFieldDelegate {
 }
 
 @MainActor
-private final class MenuSearchField: NSSearchField {
+final class MenuSearchField: NSSearchField {
     var onEscape: (() -> Void)?
     var onSubmit: ((NSEvent.ModifierFlags) -> Void)?
     var onQuickSelect: ((Int, NSEvent.ModifierFlags) -> Void)?
@@ -1780,8 +1780,27 @@ private final class MenuSearchField: NSSearchField {
     }
 
     override func keyDown(with event: NSEvent) {
+        if handleCommand(event) { return }
+        super.keyDown(with: event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // AppKit may route Command combinations before keyDown. Only the
+        // focused search (or its field editor) owns these menu commands.
+        if event.modifierFlags.contains(.command), let window,
+           window.firstResponder === self || (currentEditor() != nil && window.firstResponder === currentEditor()),
+           handleCommand(event) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    @discardableResult
+    func handleCommand(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
-        let character = event.charactersIgnoringModifiers ?? ""
+        // Match the same physical positions as configurable global shortcuts.
+        // Translated characters would turn ⌘E into «⌘у» on a Russian layout.
+        let character = ShortcutDescriptor(keyCode: UInt32(event.keyCode), modifiers: []).keyEquivalent ?? ""
         if MenuSearchKeyPolicy.shouldPreviewOnSpace(
             keyCode: event.keyCode,
             modifiers: modifiers,
@@ -1789,47 +1808,47 @@ private final class MenuSearchField: NSSearchField {
             isRepeat: event.isARepeat
         ) {
             onPreviewFirst?()
-            return
+            return true
         }
         if modifiers.contains(.command), let number = Int(character), (1...9).contains(number) {
             onQuickSelect?(number - 1, modifiers)
-            return
+            return true
         }
         if modifiers == .command, !event.isARepeat {
             switch character.lowercased() {
             case "p":
                 onTogglePinFirst?()
-                return
+                return true
             case "s":
                 onSaveFirstAsSnippet?()
-                return
+                return true
             case "z":
                 if MenuSearchKeyPolicy.allowsHistoryMutation(searchText: stringValue) {
                     onUndo?()
-                    return
+                    return true
                 }
             case "e":
                 onPreviewFirst?()
-                return
+                return true
             case "o":
                 onOpenFirst?()
-                return
+                return true
             default:
                 if event.keyCode == 51, MenuSearchKeyPolicy.allowsHistoryMutation(searchText: stringValue) {
                     onDeleteFirst?()
-                    return
+                    return true
                 }
             }
         }
         if event.keyCode == 36 || event.keyCode == 76 {
             onSubmit?(modifiers)
-            return
+            return true
         }
         if MenuSearchKeyPolicy.shouldNavigateToMenu(keyCode: event.keyCode, modifiers: modifiers) {
             onNavigateToMenu?()
-            return
+            return true
         }
-        super.keyDown(with: event)
+        return false
     }
 }
 

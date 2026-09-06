@@ -57,11 +57,25 @@ enum HistoryItemActionResolver {
 }
 
 @MainActor
-final class HistoryItemInspectorWindowController {
+final class HistoryItemInspectorWindowController: NSObject, NSWindowDelegate {
     static let shared = HistoryItemInspectorWindowController()
+    private let session = HistoryItemInspectorSession()
     private var window: NSWindow?
 
+    override init() {
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(storageDidChange),
+                                               name: .neClipStorageDidChange, object: Storage.shared)
+    }
+
     func show(clipID: Int64) {
+        if session.model?.id == clipID {
+            session.invalidateRequests()
+            NSApp.activate(ignoringOtherApps: true)
+            window?.makeKeyAndOrderFront(nil)
+            return
+        }
+        let request = session.beginRequest()
         Task { [weak self] in
             do {
                 let payload = try await Task.detached {
@@ -71,31 +85,76 @@ final class HistoryItemInspectorWindowController {
                     }
                     return (item, preview)
                 }.value
+                guard let self, self.session.isCurrent(request) else { return }
                 guard let item = payload.0 else {
-                    self?.showError("Элемент истории уже удалён")
+                    self.showError("Элемент истории уже удалён")
                     return
                 }
-                self?.present(item, imagePreviewData: payload.1)
+                guard self.prepareToLeave(), self.session.isCurrent(request),
+                      self.session.accept(item, imagePreviewData: payload.1, request: request) else { return }
+                self.present()
             } catch {
-                self?.showError("Не удалось открыть элемент")
+                guard let self, self.session.isCurrent(request) else { return }
+                self.showError("Не удалось открыть элемент")
             }
         }
     }
 
-    private func present(_ item: ClipItem, imagePreviewData: Data?) {
-        let model = HistoryItemInspectorModel(item: item, imagePreviewData: imagePreviewData)
+    private func present() {
+        guard let model = session.model else { return }
         let hosting = NSHostingController(rootView: HistoryItemInspectorView(model: model))
         let window = NSWindow(contentViewController: hosting)
-        window.title = "NeClip — Просмотр"
+        window.title = "\(RuntimeIdentity.displayName) — Просмотр"
         window.styleMask = [.titled, .closable, .resizable]
         window.minSize = NSSize(width: 500, height: 360)
         window.setContentSize(NSSize(width: 620, height: 500))
         window.isReleasedWhenClosed = false
+        window.delegate = self
+        RuntimeIdentity.configurePreviewWindow(window)
         window.center()
+        self.window?.delegate = nil
         self.window?.close()
         self.window = window
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard prepareToLeave() else { return false }
+        session.invalidate()
+        return true
+    }
+
+    func prepareForTermination() -> Bool {
+        guard prepareToLeave() else { return false }
+        session.invalidateRequests()
+        return true
+    }
+
+    private func prepareToLeave() -> Bool {
+        session.prepareToLeave { [weak self] in
+            NSApp.activate(ignoringOtherApps: true)
+            self?.window?.makeKeyAndOrderFront(nil)
+            let alert = NSAlert()
+            alert.messageText = "Сохранить изменения в элементе истории?"
+            alert.informativeText = "Без сохранения изменения названия и текста будут потеряны."
+            alert.addButton(withTitle: "Сохранить")
+            alert.addButton(withTitle: "Не сохранять")
+            alert.addButton(withTitle: "Отмена")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn: return .save
+            case .alertSecondButtonReturn: return .discard
+            default: return .cancel
+            }
+        }
+    }
+
+    @objc private func storageDidChange(_ notification: Notification) {
+        guard StorageChangeDomain.from(notification) == .all else { return }
+        session.invalidate()
+        window?.delegate = nil
+        window?.close()
+        window = nil
     }
 
     private func showError(_ message: String) {
@@ -108,20 +167,70 @@ final class HistoryItemInspectorWindowController {
 }
 
 @MainActor
-private final class HistoryItemInspectorModel: ObservableObject {
+final class HistoryItemInspectorSession {
+    enum Decision { case save, discard, cancel }
+    private(set) var model: HistoryItemInspectorModel?
+    private var generation: UInt64 = 0
+    private let storage: Storage
+
+    init(storage: Storage = .shared) { self.storage = storage }
+
+    func beginRequest() -> UInt64 {
+        invalidateRequests()
+        return generation
+    }
+
+    func invalidateRequests() { generation &+= 1 }
+    func isCurrent(_ request: UInt64) -> Bool { request == generation }
+
+    @discardableResult
+    func accept(_ item: ClipItem, imagePreviewData: Data? = nil, request: UInt64) -> Bool {
+        guard isCurrent(request) else { return false }
+        model = HistoryItemInspectorModel(item: item, imagePreviewData: imagePreviewData, storage: storage)
+        return true
+    }
+
+    func prepareToLeave(decide: () -> Decision) -> Bool {
+        guard let model, model.isDirty else { return true }
+        switch decide() {
+        case .save: return model.save()
+        case .discard: return true
+        case .cancel: return false
+        }
+    }
+
+    /// Full erasure must drop drafts as well as rejecting every in-flight load.
+    func invalidate() {
+        invalidateRequests()
+        model?.invalidate()
+        model = nil
+    }
+}
+
+@MainActor
+final class HistoryItemInspectorModel: ObservableObject {
     let id: Int64
     let kind: ClipKind
     let appBundleID: String?
     let createdAt: Date
-    let contentBytes: Int64
-    let imagePreview: NSImage?
-    let ocrText: String?
+    @Published private(set) var contentBytes: Int64
+    private(set) var imagePreview: NSImage?
+    private(set) var ocrText: String?
+    private let storage: Storage
+    private var savedTitle: String
+    private var savedText: String
+    private var isValid = true
 
-    @Published var title: String
-    @Published var text: String
-    @Published var feedback: String?
+    @Published var title: String {
+        didSet { if oldValue != title { feedback = nil } }
+    }
+    @Published var text: String {
+        didSet { if oldValue != text { feedback = nil } }
+    }
+    @Published private(set) var feedback: String?
 
-    init(item: ClipItem, imagePreviewData: Data?) {
+    init(item: ClipItem, imagePreviewData: Data?, storage: Storage = .shared) {
+        self.storage = storage
         id = item.id ?? 0
         kind = item.kind
         appBundleID = item.appBundleID
@@ -131,29 +240,53 @@ private final class HistoryItemInspectorModel: ObservableObject {
         ocrText = item.ocrText
         title = item.title
         text = item.text ?? ""
+        savedTitle = item.title
+        savedText = item.text ?? ""
     }
+
+    var isDirty: Bool { isValid && (title != savedTitle || (kind == .text && text != savedText)) }
 
     var canOpen: Bool {
-        HistoryItemActionResolver.openTarget(for: currentItem) != nil
+        isValid && HistoryItemActionResolver.openTarget(for: currentItem) != nil
     }
 
-    func save() {
+    @discardableResult
+    func save() -> Bool {
+        guard isValid else { return false }
         do {
-            let updated = try Storage.shared.updateClip(
+            let updated = try storage.updateClip(
                 id: id,
                 title: title,
                 text: kind == .text ? text : nil
             )
             title = updated.title
             text = updated.text ?? text
+            savedTitle = title
+            savedText = text
+            contentBytes = updated.contentBytes
             feedback = "Сохранено"
+            return true
         } catch {
-            feedback = error.localizedDescription
+            feedback = (error as? ClipStorageError)?.errorDescription
+                ?? "Не удалось сохранить. Изменения оставлены в окне — попробуйте ещё раз."
+            return false
         }
     }
 
+    func invalidate() {
+        isValid = false
+        title = ""
+        text = ""
+        savedTitle = ""
+        savedText = ""
+        imagePreview = nil
+        ocrText = nil
+        contentBytes = 0
+        feedback = nil
+    }
+
     func open() {
-        guard let url = HistoryItemActionResolver.openTarget(for: currentItem) else {
+        guard isValid, let url = HistoryItemActionResolver.openTarget(for: currentItem) else {
             feedback = "Открывать нечего"
             return
         }
@@ -239,8 +372,9 @@ private struct HistoryItemInspectorView: View {
                 if model.canOpen {
                     Button("Открыть", action: model.open)
                 }
-                Button("Сохранить", action: model.save)
-                    .keyboardShortcut(.defaultAction)
+                Button("Сохранить") { model.save() }
+                    .keyboardShortcut("s", modifiers: .command)
+                    .disabled(!model.isDirty)
             }
         }
         .padding(16)

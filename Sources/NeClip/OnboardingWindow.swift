@@ -46,9 +46,11 @@ final class OnboardingWindowController {
             let hosting = NSHostingController(rootView: view)
             let window = NSWindow(contentViewController: hosting)
             window.title = "Добро пожаловать в NeClip"
-            window.styleMask = [.titled]
+            window.styleMask = [.titled, .resizable]
+            window.contentMinSize = NSSize(width: 560, height: 420)
             window.setContentSize(NSSize(width: 560, height: 540))
             window.isReleasedWhenClosed = false
+            RuntimeIdentity.configurePreviewWindow(window)
             window.center()
             self.window = window
         }
@@ -75,11 +77,31 @@ private struct OnboardingView: View {
     @State private var clipboardAccess = ClipboardAccess.current
 
     var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                introduction
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(26)
+            }
+            Divider()
+            actions
+                .padding(.horizontal, 26)
+                .padding(.vertical, 16)
+        }
+        .frame(minWidth: 560, minHeight: 420)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            accessibilityTrusted = PasteService.isAccessibilityTrusted
+            clipboardAccess = ClipboardAccess.current
+        }
+    }
+
+    private var introduction: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: "doc.on.clipboard.fill")
                     .font(.system(size: 38))
                     .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 Text("История буфера — в строке меню")
                     .font(.title2.bold())
                 Text("NeClip хранит данные только на этом Mac. Аккаунт, облако и телеметрия не нужны.")
@@ -90,8 +112,6 @@ private struct OnboardingView: View {
                 shortcut(Settings.historyShortcut.displayString, "Открыть историю")
                 shortcut("Поиск → ↩", "Найти и вставить")
                 shortcut(Settings.snippetsShortcut.displayString, "Открыть папки сниппетов")
-                shortcut(Settings.manualLayoutShortcut.displayString, "Исправить неверную раскладку")
-                shortcut(Settings.disableAutomaticLayoutShortcut.displayString, "Быстро выключить автоисправление")
             }
             .padding(14)
             .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 12))
@@ -102,7 +122,6 @@ private struct OnboardingView: View {
                 symbol: clipboardPermissionSymbol,
                 color: clipboardPermissionColor
             )
-
             permissionBlock(
                 title: accessibilityTrusted ? "Автовставка уже разрешена" : "Автовставка — по желанию",
                 detail: accessibilityTrusted
@@ -112,22 +131,21 @@ private struct OnboardingView: View {
                 color: accessibilityTrusted ? .green : .secondary
             )
 
-            HStack(spacing: 10) {
-                if clipboardAccess == .denied || clipboardAccess == .needsChoice {
-                    Button("Открыть конфиденциальность…", action: openClipboardPrivacy)
-                } else if !accessibilityTrusted {
-                    Button("Разрешить автовставку…", action: requestAutoPaste)
-                }
-                Spacer()
-                Button(clipboardAccess == .denied ? "Продолжить без истории" : "Начать работу", action: complete)
-                    .keyboardShortcut(.defaultAction)
-            }
         }
-        .padding(26)
-        .frame(width: 560, height: 540)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            accessibilityTrusted = PasteService.isAccessibilityTrusted
-            clipboardAccess = ClipboardAccess.current
+    }
+
+    // Permission recovery and continuing without permission stay reachable even
+    // when the explanation scrolls in a short window.
+    private var actions: some View {
+        HStack(spacing: 10) {
+            if clipboardAccess == .denied || clipboardAccess == .needsChoice {
+                Button("Открыть конфиденциальность…", action: openClipboardPrivacy)
+            } else if !accessibilityTrusted {
+                Button("Разрешить автовставку…", action: requestAutoPaste)
+            }
+            Spacer()
+            Button(clipboardAccess == .denied ? "Продолжить без истории" : "Начать работу", action: complete)
+                .keyboardShortcut(.defaultAction)
         }
     }
 
@@ -170,6 +188,7 @@ private struct OnboardingView: View {
             Image(systemName: symbol)
                 .foregroundStyle(color)
                 .frame(width: 20)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.headline)
                 Text(detail)
@@ -178,6 +197,7 @@ private struct OnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     private func shortcut(_ keys: String, _ description: String) -> some View {
@@ -187,5 +207,6 @@ private struct OnboardingView: View {
                 .frame(width: 86, alignment: .leading)
             Text(description)
         }
+        .accessibilityElement(children: .combine)
     }
 }

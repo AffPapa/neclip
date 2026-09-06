@@ -77,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let qaEnvironment = ProcessInfo.processInfo.environment
         if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1"
             || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil
+            || qaEnvironment["NECLIP_UI_TEST_INSPECTOR"] == "1"
             || qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             // QA builds temporarily behave like a regular app so automated
             // accessibility inspection can address the panel by bundle ID.
@@ -87,7 +88,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             monitor.start()
         }
-        if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
+        if qaEnvironment["NECLIP_UI_TEST_ONBOARDING"] == "1", RuntimeIdentity.isIsolatedPreview {
+            DispatchQueue.main.async { OnboardingWindowController.shared.show() }
+        } else if qaEnvironment["NECLIP_UI_TEST_INSPECTOR"] == "1", RuntimeIdentity.isIsolatedPreview {
+            DispatchQueue.main.async {
+                if let id = try? Storage.shared.insert(ClipItem(
+                    kind: .text, title: "Пример для редактирования",
+                    text: "Это тестовый текст. Измените его и нажмите ⌘S, чтобы сохранить.", createdAt: Date()
+                )) {
+                    HistoryItemInspectorWindowController.shared.show(clipID: id)
+                }
+            }
+        } else if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             DispatchQueue.main.async {
                 SnippetsEditorWindowController.shared.show()
             }
@@ -117,7 +129,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard SnippetsEditorWindowController.shared.prepareForTermination() else {
+        PreferencesWindowController.shared.commitPendingEdits()
+        guard HistoryItemInspectorWindowController.shared.prepareForTermination(),
+              SnippetsEditorWindowController.shared.prepareForTermination() else {
             return .terminateCancel
         }
         guard Settings.clearHistoryOnQuit else { return .terminateNow }
@@ -145,16 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func configureApplicationMenu() {
         let mainMenu = NSMenu(title: "Main")
         let applicationItem = NSMenuItem()
-        let applicationMenu = NSMenu(title: "NeClip")
-        let quitItem = NSMenuItem(
-            title: "Выйти из NeClip",
-            action: #selector(quitFromApplicationMenu),
-            keyEquivalent: "q"
-        )
-        quitItem.keyEquivalentModifierMask = [.command]
-        quitItem.target = self
-        applicationMenu.addItem(quitItem)
-        applicationItem.submenu = applicationMenu
+        applicationItem.submenu = Self.makeApplicationMenu(target: self)
         mainMenu.addItem(applicationItem)
         let fileItem = NSMenuItem()
         fileItem.submenu = Self.makeFileMenu(
@@ -163,7 +168,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             target: self
         )
         mainMenu.addItem(fileItem)
+        let editItem = NSMenuItem()
+        editItem.submenu = Self.makeEditMenu()
+        mainMenu.addItem(editItem)
         NSApp.mainMenu = mainMenu
+    }
+
+    static func makeApplicationMenu(target: AnyObject) -> NSMenu {
+        let menu = NSMenu(title: RuntimeIdentity.displayName)
+        let commands: [(String, Selector, String)] = [
+            ("О NeClip", #selector(showAboutFromApplicationMenu), ""),
+            ("Настройки…", #selector(openSettingsFromApplicationMenu), ","),
+            ("Выйти из NeClip", #selector(quitFromApplicationMenu), "q")
+        ]
+        for (title, action, key) in commands {
+            if !menu.items.isEmpty { menu.addItem(.separator()) }
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = [.command]
+            item.target = target
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    static func makeEditMenu() -> NSMenu {
+        let menu = NSMenu(title: "Правка")
+        let commands: [(String, String, String, NSEvent.ModifierFlags)] = [
+            ("Отменить", "undo:", "z", [.command]),
+            ("Повторить", "redo:", "z", [.command, .shift]),
+            ("Вырезать", "cut:", "x", [.command]),
+            ("Копировать", "copy:", "c", [.command]),
+            ("Вставить", "paste:", "v", [.command]),
+            ("Выбрать всё", "selectAll:", "a", [.command])
+        ]
+        for (index, command) in commands.enumerated() {
+            if index == 2 || index == 5 { menu.addItem(.separator()) }
+            let item = NSMenuItem(title: command.0, action: NSSelectorFromString(command.1), keyEquivalent: command.2)
+            item.keyEquivalentModifierMask = command.3
+            // The focused native editor, not the clipboard monitor, owns these actions.
+            item.target = nil
+            menu.addItem(item)
+        }
+        return menu
     }
 
     static func makeFileMenu(
@@ -198,6 +244,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quitFromApplicationMenu() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func showAboutFromApplicationMenu() {
+        NSApp.activate(ignoringOtherApps: true)
+        // AppKit reads the installed bundle's version/build and app icon.
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
+
+    @objc private func openSettingsFromApplicationMenu() {
+        PreferencesWindowController.shared.show()
     }
 
     @objc private func openHistoryFromApplicationMenu() {

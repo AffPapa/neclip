@@ -25,9 +25,15 @@ enum RuntimeIdentity {
     @MainActor
     static func configurePreviewWindow(_ window: NSWindow) {
 #if DEBUG
-        guard isIsolatedPreview,
-              ProcessInfo.processInfo.environment["NECLIP_UI_TEST_MINIMUM_WINDOWS"] == "1" else { return }
-        window.setFrame(NSRect(origin: window.frame.origin, size: window.minSize), display: false)
+        guard isIsolatedPreview else { return }
+        let environment = ProcessInfo.processInfo.environment
+        if let appearance = environment["NECLIP_UI_TEST_APPEARANCE"],
+           appearance == "light" || appearance == "dark" {
+            window.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
+        }
+        if environment["NECLIP_UI_TEST_MINIMUM_WINDOWS"] == "1" {
+            window.setFrame(NSRect(origin: window.frame.origin, size: window.minSize), display: false)
+        }
 #endif
     }
 }
