@@ -60,11 +60,15 @@ enum Settings {
         static let applicationLayoutMemoryOrder = "applicationLayoutMemoryOrder.v1"
         static let fixedApplicationLayouts = "fixedApplicationLayouts.v1"
         static let fixedApplicationLayoutOrder = "fixedApplicationLayoutOrder.v1"
-        static let historyShortcut = "historyShortcut.v1"
-        static let snippetsShortcut = "snippetsShortcut.v1"
-        static let sequentialPasteShortcut = "sequentialPasteShortcut.v1"
-        static let manualLayoutShortcut = "manualLayoutShortcut.v1"
-        static let disableAutomaticLayoutShortcut = "disableAutomaticLayoutShortcut.v1"
+        static func shortcut(for action: NeClipShortcutAction) -> String {
+            switch action {
+            case .history: "historyShortcut.v1"
+            case .snippets: "snippetsShortcut.v1"
+            case .sequentialPaste: "sequentialPasteShortcut.v1"
+            case .manualCorrection: "manualLayoutShortcut.v1"
+            case .disableAutomaticCorrection: "disableAutomaticLayoutShortcut.v1"
+            }
+        }
     }
 
     static var historyLimit: Int {
@@ -153,43 +157,23 @@ enum Settings {
     }
 
     static var historyShortcut: ShortcutDescriptor {
-        decodedShortcut(forKey: Key.historyShortcut, fallback: .historyDefault)
+        shortcut(for: .history)
     }
 
     static var snippetsShortcut: ShortcutDescriptor {
-        decodedShortcut(forKey: Key.snippetsShortcut, fallback: .snippetsDefault)
+        shortcut(for: .snippets)
     }
 
     static var sequentialPasteShortcut: ShortcutDescriptor {
-        decodedShortcut(forKey: Key.sequentialPasteShortcut, fallback: .sequentialPasteDefault)
+        shortcut(for: .sequentialPaste)
     }
 
     static var manualLayoutShortcut: ShortcutDescriptor {
-        decodedShortcut(forKey: Key.manualLayoutShortcut, fallback: .defaultManualLayout)
+        shortcut(for: .manualCorrection)
     }
 
     static var disableAutomaticLayoutShortcut: ShortcutDescriptor {
-        decodedShortcut(forKey: Key.disableAutomaticLayoutShortcut, fallback: .defaultDisableAutomaticLayout)
-    }
-
-    static func storeHistoryShortcut(_ shortcut: ShortcutDescriptor) {
-        storeShortcut(shortcut, forKey: Key.historyShortcut)
-    }
-
-    static func storeSnippetsShortcut(_ shortcut: ShortcutDescriptor) {
-        storeShortcut(shortcut, forKey: Key.snippetsShortcut)
-    }
-
-    static func storeSequentialPasteShortcut(_ shortcut: ShortcutDescriptor) {
-        storeShortcut(shortcut, forKey: Key.sequentialPasteShortcut)
-    }
-
-    static func storeManualLayoutShortcut(_ shortcut: ShortcutDescriptor) {
-        storeShortcut(shortcut, forKey: Key.manualLayoutShortcut)
-    }
-
-    static func storeDisableAutomaticLayoutShortcut(_ shortcut: ShortcutDescriptor) {
-        storeShortcut(shortcut, forKey: Key.disableAutomaticLayoutShortcut)
+        shortcut(for: .disableAutomaticCorrection)
     }
 
     /// Global key listening is always explicit opt-in. Missing defaults and
@@ -233,21 +217,10 @@ enum Settings {
     }
 
     static func rememberLayoutSource(_ sourceID: String, for bundleID: String) {
-        let bundle = normalizedBundleID(bundleID)
-        let source = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !bundle.isEmpty, bundle.count <= 255, !source.isEmpty, source.count <= 512 else { return }
-
-        var mapping = applicationLayoutMemory()
-        var order = (d.stringArray(forKey: Key.applicationLayoutMemoryOrder) ?? [])
-            .map(normalizedBundleID)
-            .filter { !$0.isEmpty && mapping[$0] != nil && $0 != bundle }
-        mapping[bundle] = source
-        order.append(bundle)
-        while order.count > maximumRememberedApplications {
-            mapping.removeValue(forKey: order.removeFirst())
-        }
-        d.set(mapping, forKey: Key.applicationLayoutMemory)
-        d.set(order, forKey: Key.applicationLayoutMemoryOrder)
+        guard setApplicationLayoutSource(
+            sourceID, for: bundleID,
+            valueKey: Key.applicationLayoutMemory, orderKey: Key.applicationLayoutMemoryOrder
+        ) else { return }
         notifyApplicationLayoutMemoryChanged()
     }
 
@@ -273,26 +246,10 @@ enum Settings {
     }
 
     static func setFixedLayoutSource(_ sourceID: String?, for bundleID: String) {
-        let bundle = normalizedBundleID(bundleID)
-        guard !bundle.isEmpty, bundle.count <= 255 else { return }
-
-        var mapping = fixedApplicationLayouts
-        var order = (d.stringArray(forKey: Key.fixedApplicationLayoutOrder) ?? [])
-            .map(normalizedBundleID)
-            .filter { !$0.isEmpty && mapping[$0] != nil && $0 != bundle }
-        if let sourceID {
-            let source = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !source.isEmpty, source.count <= 512 else { return }
-            mapping[bundle] = source
-            order.append(bundle)
-        } else {
-            mapping.removeValue(forKey: bundle)
-        }
-        while order.count > maximumRememberedApplications {
-            mapping.removeValue(forKey: order.removeFirst())
-        }
-        d.set(mapping, forKey: Key.fixedApplicationLayouts)
-        d.set(order, forKey: Key.fixedApplicationLayoutOrder)
+        guard setApplicationLayoutSource(
+            sourceID, for: bundleID,
+            valueKey: Key.fixedApplicationLayouts, orderKey: Key.fixedApplicationLayoutOrder
+        ) else { return }
         notifyLayoutSettingsChanged()
         notifyApplicationLayoutMemoryChanged()
     }
@@ -473,6 +430,31 @@ enum Settings {
         return result
     }
 
+    private static func setApplicationLayoutSource(
+        _ sourceID: String?, for bundleID: String, valueKey: String, orderKey: String
+    ) -> Bool {
+        let bundle = normalizedBundleID(bundleID)
+        guard !bundle.isEmpty, bundle.count <= 255 else { return false }
+        var mapping = boundedApplicationMap(valueKey: valueKey, orderKey: orderKey)
+        var order = (d.stringArray(forKey: orderKey) ?? [])
+            .map(normalizedBundleID)
+            .filter { !$0.isEmpty && mapping[$0] != nil && $0 != bundle }
+        if let sourceID {
+            let source = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !source.isEmpty, source.count <= 512 else { return false }
+            mapping[bundle] = source
+            order.append(bundle)
+        } else {
+            mapping.removeValue(forKey: bundle)
+        }
+        while order.count > maximumRememberedApplications {
+            mapping.removeValue(forKey: order.removeFirst())
+        }
+        d.set(mapping, forKey: valueKey)
+        d.set(order, forKey: orderKey)
+        return true
+    }
+
     private static func normalizedBundleIDs(_ values: [String]) -> [String] {
         var seen = Set<String>()
         return values
@@ -485,22 +467,19 @@ enum Settings {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func decodedShortcut(
-        forKey key: String,
-        fallback: ShortcutDescriptor
-    ) -> ShortcutDescriptor {
-        guard let data = d.data(forKey: key),
+    static func shortcut(for action: NeClipShortcutAction) -> ShortcutDescriptor {
+        guard let data = d.data(forKey: Key.shortcut(for: action)),
               let decoded = try? JSONDecoder().decode(ShortcutDescriptor.self, from: data),
               ShortcutPolicy.validationError(for: decoded) == nil else {
-            return fallback
+            return action.defaultShortcut
         }
         return decoded
     }
 
-    private static func storeShortcut(_ shortcut: ShortcutDescriptor, forKey key: String) {
+    static func storeShortcut(_ shortcut: ShortcutDescriptor, for action: NeClipShortcutAction) {
         guard ShortcutPolicy.validationError(for: shortcut) == nil,
               let data = try? JSONEncoder().encode(shortcut) else { return }
-        d.set(data, forKey: key)
+        d.set(data, forKey: Key.shortcut(for: action))
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .neClipHotKeysDidChange, object: nil)
         }

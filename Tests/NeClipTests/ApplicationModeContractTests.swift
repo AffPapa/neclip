@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.8.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "14")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.9.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "15")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -78,7 +78,8 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("windowShouldClose"))
         XCTAssertTrue(editor.contains("prepareForTermination"))
         XCTAssertTrue(editor.contains("Button(\"Очистить поиск\")"))
-        XCTAssertTrue(editor.contains("Нажмите сниппет, чтобы изменить его справа"))
+        XCTAssertTrue(editor.contains("Label(\"Папка…\", systemImage: \"folder.badge.plus\")"))
+        XCTAssertTrue(editor.contains("Button(action: model.requestNewFolder)"))
     }
 
     func testSnippetListSelectionUsesConcreteIDsAndDefersModelMutation() throws {
@@ -128,12 +129,15 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
         XCTAssertTrue(preferences.contains("Открыть папки сниппетов"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
-        XCTAssertTrue(preferences.contains("\"Размер истории\""))
+        XCTAssertTrue(preferences.contains("\"Хранить в истории\""))
         XCTAssertTrue(preferences.contains("\"Длина строки в меню\""))
         XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
         XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
         XCTAssertTrue(preferences.contains("Storage.shared.deleteAllUserData()"))
         XCTAssertTrue(preferences.contains("Размер текста одной записи"))
+        XCTAssertTrue(preferences.contains("DisclosureGroup(\"Дополнительно\")"))
+        XCTAssertTrue(preferences.contains("DisclosureGroup(\"Работа в меню\")"))
+        XCTAssertTrue(statusBar.contains("self.searchWorkItem = MenuSearchWork.enqueue(on: self.dataQueue)"))
         XCTAssertTrue(preferences.contains("Очищать незакреплённую историю при выходе"))
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))

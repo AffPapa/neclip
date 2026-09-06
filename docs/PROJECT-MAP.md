@@ -1,6 +1,9 @@
 # NeClip project map
 
-Updated: 5 September 2026. Public release: **1.8.0/build 14**.
+Updated: 6 September 2026. Public release: **1.8.0/build 14**.
+Source candidate: **1.9.0/build 15**. Current simplification evidence:
+`AUDIT-1.9.0-2026-09-06.md`; focused product decisions:
+`RESEARCH-1.9.0-SIMPLIFICATION.md`. No new dependencies or database migration.
 Artifact source: `24ebd53d15efa540d944823431c59524b9ae3afa`.
 Developer ID, notarization, stapling, CodeQL and independent public-DMG
 verification passed. Evidence: `RELEASE-1.8.0-STATUS.md`.
@@ -46,7 +49,9 @@ Important owners:
   rejected by `ClipboardMonitor` before payload reads.
 - `OCRService.swift`: serialized local Vision OCR.
 - `Storage.swift`: migrations, SHA-256 deduplication, retention, byte quota,
-  FTS and atomic persistence.
+  FTS and atomic persistence. History queries share a bounded summary projection;
+  snippet queries share filtering/ranking. OCR and pin updates select metadata
+  only, preserve payloads and remain within the existing quota transaction.
 
 ### Menu and paste
 
@@ -57,9 +62,12 @@ The ordinary and pinned browse windows are capped at 100 each; the menu snippet
 projection is capped at 200 and every content preview at 280 characters. Full
 local history and snippet bodies are fetched only for the chosen action.
 
-- `MenuPresentation.swift`: single-line, grapheme-safe menu titles.
+- `MenuPresentation.swift`: single-line, grapheme-safe menu titles and shared
+  ten-item pagination with stable absolute indices.
 - `MenuSearchRequest.swift`: literal snippet search and mutually exclusive
   history-filter replacement. Snippet queries do not consume `app:`/`type:`.
+  `MenuSearchWork` retains the actual queued SQL work item for cancellation;
+  a running query can finish but cannot present an obsolete generation.
 - `ClipboardSearch.swift`: ordinary and structured search, smart categories,
   bounded fuzzy fallback.
 - `PasteService.swift`: direct/plain/copy-only paste and lossless,

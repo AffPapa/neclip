@@ -58,6 +58,7 @@ enum SensitiveContentPolicy {
     }
 
     static func matches(_ text: String, normalizedRules rules: [String]) -> Bool {
+        guard !rules.isEmpty else { return false }
         let normalizedText = text.folding(
             options: [.caseInsensitive, .diacriticInsensitive],
             locale: .current

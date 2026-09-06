@@ -9,6 +9,10 @@ NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
 Current public, signed and notarized version: **1.8.0 (build 14)**.
+Source candidate: **1.9.0 (build 15)**, a measured simplification and performance
+pass. Its [audit](docs/AUDIT-1.9.0-2026-09-06.md) distinguishes local checks from
+publication; its [design decisions](docs/RESEARCH-1.9.0-SIMPLIFICATION.md) explain
+which competitor workflows fit NeClip's deliberately small scope.
 The public DMG and its contained app passed checksum and Gatekeeper verification.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.

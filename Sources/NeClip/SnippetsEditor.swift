@@ -18,6 +18,7 @@ final class SnippetsEditorWindowController: NSObject, NSWindowDelegate {
             window.minSize = NSSize(width: 640, height: 420)
             window.isReleasedWhenClosed = false
             window.delegate = self
+            RuntimeIdentity.configurePreviewWindow(window)
             window.center()
             self.window = window
         }
@@ -445,22 +446,26 @@ final class SnippetsEditorModel: ObservableObject {
                 reload()
                 return
             }
-            isLoadingEditor = true
-            defer { isLoadingEditor = false }
-            editingSnippet = snippet
-            activeFolderID = snippet.folderID
-            editorTitle = snippet.title
-            editorKeyword = snippet.keyword ?? ""
-            editorContent = snippet.content
-            editorPinned = snippet.isPinned
-            editorFolderID = snippet.folderID
-            pendingDraft = nil
-            saveState = .saved
+            applyLoadedSnippet(snippet)
         } catch {
             selectedSnippetID = nil
             clearEditor()
             message = "Не удалось открыть сниппет"
         }
+    }
+
+    private func applyLoadedSnippet(_ snippet: Snippet) {
+        isLoadingEditor = true
+        defer { isLoadingEditor = false }
+        editingSnippet = snippet
+        activeFolderID = snippet.folderID
+        editorTitle = snippet.title
+        editorKeyword = snippet.keyword ?? ""
+        editorContent = snippet.content
+        editorPinned = snippet.isPinned
+        editorFolderID = snippet.folderID
+        pendingDraft = nil
+        saveState = .saved
     }
 
     private func refreshCleanEditor(id: Int64) {
@@ -474,7 +479,7 @@ final class SnippetsEditorModel: ObservableObject {
                 || latest.keyword != editingSnippet?.keyword
                 || latest.folderID != editingSnippet?.folderID
                 || latest.isPinned != editingSnippet?.isPinned {
-                loadEditor(id: id)
+                applyLoadedSnippet(latest)
             }
         } catch {
             message = "Не удалось обновить сниппет"
@@ -634,11 +639,6 @@ private struct SnippetsEditorView: View {
                 }
             }
 
-            Text("Нажмите сниппет, чтобы изменить его справа")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
             List(selection: Binding(
                 get: { model.selectedSnippetID },
                 set: { id in
@@ -665,19 +665,11 @@ private struct SnippetsEditorView: View {
                 }
                 .keyboardShortcut("n", modifiers: .command)
                 .help("Создать сниппет в текущей папке · ⌘N")
-                Menu {
-                    Button(
-                        model.activeFolderID.map {
-                            "Новый сниппет в «\(model.folderTitle(for: $0))»"
-                        } ?? "Новый сниппет без папки",
-                        action: model.createSnippetInActiveFolder
-                    )
-                    Button("Новая папка…", action: model.requestNewFolder)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+                Button(action: model.requestNewFolder) {
+                    Label("Папка…", systemImage: "folder.badge.plus")
                 }
-                .menuStyle(.borderlessButton)
-                .accessibilityLabel("Добавить папку или сниппет")
+                .help("Создать папку для сниппетов")
+                .accessibilityLabel("Создать папку для сниппетов")
 
                 Button(role: .destructive) {
                     model.showDeleteSnippetAlert = true
@@ -714,12 +706,7 @@ private struct SnippetsEditorView: View {
                 Text("Папка пуста")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(items) { snippet in
-                    if let id = snippet.id {
-                        snippetRow(snippet)
-                            .tag(id)
-                    }
-                }
+                snippetRows(items)
             }
         } header: {
             HStack(spacing: 6) {
@@ -748,12 +735,7 @@ private struct SnippetsEditorView: View {
                 Text("Сниппетов без папки нет")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(items) { snippet in
-                    if let id = snippet.id {
-                        snippetRow(snippet)
-                            .tag(id)
-                    }
-                }
+                snippetRows(items)
             }
         } header: {
             HStack {
@@ -778,12 +760,16 @@ private struct SnippetsEditorView: View {
                 Text("Ничего не найдено")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(model.snippets) { snippet in
-                    if let id = snippet.id {
-                        snippetRow(snippet, folderSubtitle: model.folderTitle(for: snippet.folderID))
-                            .tag(id)
-                    }
-                }
+                snippetRows(model.snippets, showsFolder: true)
+            }
+        }
+    }
+
+    private func snippetRows(_ snippets: [SnippetSummary], showsFolder: Bool = false) -> some View {
+        ForEach(snippets) { snippet in
+            if let id = snippet.id {
+                snippetRow(snippet, folderSubtitle: showsFolder ? model.folderTitle(for: snippet.folderID) : nil)
+                    .tag(id)
             }
         }
     }
@@ -839,7 +825,7 @@ private struct SnippetsEditorView: View {
                         .font(.headline)
                     Spacer()
                     Button(action: model.duplicateSelected) {
-                        Label("Копия", systemImage: "doc.on.doc")
+                        Label("Дублировать", systemImage: "doc.on.doc")
                     }
                     .keyboardShortcut("d", modifiers: .command)
                     .help("Создать копию без повторения ключа поиска · ⌘D")
@@ -868,6 +854,7 @@ private struct SnippetsEditorView: View {
                 LabeledContent("Ключ поиска") {
                     TextField("Например, ;thanks", text: $model.editorKeyword)
                         .textFieldStyle(.roundedBorder)
+                        .help("Для быстрого поиска в меню NeClip")
                 }
 
                 Toggle("Закрепить", isOn: $model.editorPinned)

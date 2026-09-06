@@ -18,13 +18,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
     }
 
     var persistedShortcut: ShortcutDescriptor {
-        switch self {
-        case .history: Settings.historyShortcut
-        case .snippets: Settings.snippetsShortcut
-        case .sequentialPaste: Settings.sequentialPasteShortcut
-        case .manualCorrection: Settings.manualLayoutShortcut
-        case .disableAutomaticCorrection: Settings.disableAutomaticLayoutShortcut
-        }
+        Settings.shortcut(for: self)
     }
 
     var fallbackTitle: String {
@@ -133,7 +127,7 @@ final class HotKeyCoordinator {
         registrations[action] = replacement
         shortcuts[action] = candidate
         failures[action] = nil
-        if persistsSettings { persist(candidate, for: action) }
+        if persistsSettings { Settings.storeShortcut(candidate, for: action) }
         onShortcutChanged?(action, candidate)
         publishWarnings()
         return .applied
@@ -165,7 +159,7 @@ final class HotKeyCoordinator {
             failures.removeAll()
             if persistsSettings {
                 for action in NeClipShortcutAction.allCases {
-                    persist(action.defaultShortcut, for: action)
+                    Settings.storeShortcut(action.defaultShortcut, for: action)
                 }
             }
             for action in NeClipShortcutAction.allCases {
@@ -211,16 +205,6 @@ final class HotKeyCoordinator {
             identifier: nextIdentifier,
             action: action
         )
-    }
-
-    private func persist(_ shortcut: ShortcutDescriptor, for action: NeClipShortcutAction) {
-        switch action {
-        case .history: Settings.storeHistoryShortcut(shortcut)
-        case .snippets: Settings.storeSnippetsShortcut(shortcut)
-        case .sequentialPaste: Settings.storeSequentialPasteShortcut(shortcut)
-        case .manualCorrection: Settings.storeManualLayoutShortcut(shortcut)
-        case .disableAutomaticCorrection: Settings.storeDisableAutomaticLayoutShortcut(shortcut)
-        }
     }
 
     private func failureMessage(for shortcut: ShortcutDescriptor?, error: Error) -> String {
