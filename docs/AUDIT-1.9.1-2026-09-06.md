@@ -1,7 +1,7 @@
 # NeClip 1.9.1 — native settings and safer editing
 
-Status: local release candidate, build16. Public release remains1.9.0 until
-the signed artifact, protected GitHub publication and download checks finish.
+Status: public release 1.9.1, build 16. The exact signed artifact and independent
+download evidence are recorded in `RELEASE-1.9.1-STATUS.md`.
 
 ## Scope and evidence
 
@@ -46,15 +46,23 @@ labels and standard responder commands preserve platform conventions.
 [Writing HIG](https://developer.apple.com/design/human-interface-guidelines/writing),
 [Buttons HIG](https://developer.apple.com/design/human-interface-guidelines/buttons).
 
-## Verification so far
+## Local verification and scope
 
-- Final full normal and strict Swift6 complete-concurrency/warnings-as-errors
-  suites:232 XCTest cases,2 optional skips,0 failures;11 Swift Testing checks
+- Full normal and strict Swift 6 complete-concurrency/warnings-as-errors
+  suites: 232 XCTest cases, 2 optional skips, 0 failures; 11 Swift Testing checks
   passed (241 successful checks total).
-- Final full ASan and TSan suites completed with exit0, the same test count and
-  no sanitizer error after the menu command and isolated first-run test changes.
-- Isolated Settings: all five categories rendered at600px width; native toolbar
-  and Close remained visible (actual constrained height554px). All five shortcut
+- Swift 6.3.3 CI exposed an IRGen compiler crash when a Binding setter used a
+  direct method reference. An explicit setter closure preserves behavior and
+  fixes the crash. Repeat strict build/tests passed in
+  [CI run 34019002501](https://github.com/AffPapa/neclip/actions/runs/34019002501).
+- The first local source `f6c4a9f663b33eee741fce49a83c93f78c988bf2` was
+  superseded before publication. The final artifact source is
+  `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
+- Final-source normal, strict, ASan and TSan suites each completed with
+  232 XCTest cases, 2 optional skips, 0 failures and 11 Swift Testing checks:
+  241 successful checks per suite, with no sanitizer error.
+- Isolated Settings: all five categories rendered at 600 px width; native toolbar
+  and Close remained visible (actual constrained height 554 px). All five shortcut
   recorders fit. Escape cancelled a shortcut recording and a numeric draft.
 - A numeric value persisted across section changes; another persisted after
   red-button close. Destructive history confirmation offered Cancel; cancelling
@@ -69,8 +77,9 @@ labels and standard responder commands preserve platform conventions.
   Command-E verification was interrupted by unrelated keyboard input; synthetic
   key events and focus-routing tests prove the new handler without posting events
   to other applications. The isolated QA app was stopped to avoid intercepting input.
-- Gitleaks canaries, publishable tree,44 HEAD commits and2 side-ref-only commits
-  passed before the release commit. Final fetched-ref scan remains required.
+- Gitleaks canaries, publishable tree, 46 HEAD commits and 1 side-ref-only commit
+  passed for the source scan. The final fetched-ref scan remains a separate
+  publication check.
 
 ## Local cleanup
 
@@ -81,16 +90,21 @@ destination present, with exact SHA256 matches for all19 regular files.
 The twentieth item is a retired application directory. Trash was not emptied.
 APFS physical free-space increase is not claimed from allocated-size measurements.
 
+Seven more stopped QA application bundles were moved to Trash in a separate
+allowlisted pass. Independent verification confirmed their source paths absent,
+Trash destinations present and content hashes unchanged. This is in addition
+to the 20 artifacts and four caches above, not a claim that final distribution
+cleanup or installation has finished. Trash was not emptied.
+
 Source Git ownership, active build files, all user databases/preferences and a
 separately restored/signed/notarized rollback were retained. Production database
 integrity and foreign keys passed;11 snippets,2 folders and100 history records
 were present. Private paths and data are not part of public release metadata.
 
-## Remaining delivery gate
+## Publication and installation evidence
 
-Complete final first-run/settings/menu visual checks; finalize source input,
-repeat release tests and secret scanning; sign/notarize/staple; pass protected
-CI; independently verify the public download; update website/machine feeds;
-install transactionally with fresh rollback and data verification; retire this
-task's QA bundles and obsolete executable rollback duplicates. A local build
-or an audit document is not evidence of publication or installation.
+Artifact source: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
+The public release record separates signing, protected CI and independent
+download verification from local tests. Installation, data preservation,
+rollback and final cleanup need their own observed results; a published DMG
+or this audit alone does not prove them. See `RELEASE-1.9.1-STATUS.md`.

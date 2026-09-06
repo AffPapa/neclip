@@ -131,6 +131,19 @@ public-download verification. [Release evidence](docs/RELEASE-1.9.0-STATUS.md).
 - Cancellation of superseded pending menu searches before database work starts
 - Simpler Settings wording and an explicit folder-creation button
 
+## Done in 1.9.1 / build 16
+
+[Release evidence](docs/RELEASE-1.9.1-STATUS.md) and
+[scoped verification](docs/AUDIT-1.9.1-2026-09-06.md).
+
+- Native five-section Settings toolbar and clearer preference grouping
+- Completed numeric drafts instead of applying partial keystrokes
+- Draft-safe history editing with explicit close choices and failure recovery
+- Full erasure invalidates inspector drafts and stale asynchronous loads
+- Standard application/Edit commands and EN/RU physical-key menu handling
+- Shorter first-run help, scrolling explanations and persistent actions
+- Allowlisted cleanup of obsolete local test artifacts, preserving user data
+
 ## Next
 
 - Verify first-run pasteboard wording across currently supported macOS releases

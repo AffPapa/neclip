@@ -8,11 +8,11 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current public, signed and notarized version: **1.9.0 (build 15)**,
-a measured simplification and performance pass.
-Its [audit](docs/AUDIT-1.9.0-2026-09-06.md) and
-[release evidence](docs/RELEASE-1.9.0-STATUS.md) distinguish local checks from
-publication; its [design decisions](docs/RESEARCH-1.9.0-SIMPLIFICATION.md) explain
+Current public, signed and notarized version: **1.9.1 (build 16)**,
+with native Settings navigation and safer text editing.
+Its [audit](docs/AUDIT-1.9.1-2026-09-06.md) and
+[release evidence](docs/RELEASE-1.9.1-STATUS.md) distinguish local checks from
+publication; the [design decisions](docs/RESEARCH-1.9.0-SIMPLIFICATION.md) explain
 which competitor workflows fit NeClip's deliberately small scope.
 The public DMG and its contained app passed checksum and Gatekeeper verification.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
@@ -21,14 +21,14 @@ for the intentionally small public roadmap.
 The current module ownership and invariants are in
 [docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
 audit, decisions and verification gates are in
-[docs/AUDIT-1.9.0-2026-09-06.md](docs/AUDIT-1.9.0-2026-09-06.md).
+[docs/AUDIT-1.9.1-2026-09-06.md](docs/AUDIT-1.9.1-2026-09-06.md).
 The refreshed comparison of 19 clipboard products, 11 layout tools, 100
 candidate improvements and 27 selected refinements is in
 [docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
 
-[Download the signed and notarized NeClip 1.9.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.9.0/NeClip-1.9.0.dmg).
+[Download the signed and notarized NeClip 1.9.1 DMG](https://github.com/AffPapa/neclip/releases/download/v1.9.1/NeClip-1.9.1.dmg).
 SHA-256:
-`a30180fd66c1742a641bb26c651db353eb70ff0703fa56eeb58ca5a867a2588e`.
+`4b1563a4b808a35e3dc6580f947f3ee598ca99fde899cb56fa322f345c166a95`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
 ## Keyboard workflow
