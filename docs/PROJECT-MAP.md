@@ -1,6 +1,9 @@
 # NeClip project map
 
 Updated: 6 September 2026. Public release: **1.9.1/build 16**.
+Current source candidate: **1.10.0/build 17**, not notarized or downloadable;
+see `RELEASE-1.10.0-STATUS.md`. Site/download consistency is checked by
+`scripts/verify-site.rb`; public download metadata stays on 1.9.1 until release.
 This release adds native Settings navigation, safe history
 editing, standard application/Edit menus and bounded local artifact cleanup.
 Current scoped evidence: `AUDIT-1.9.1-2026-09-06.md`.
@@ -10,6 +13,13 @@ Historical simplification measurements:
 Artifact source: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
 Developer ID, notarization, stapling, CodeQL and independent public-DMG
 verification passed. Evidence: `RELEASE-1.9.1-STATUS.md`.
+
+Local development after 1.9.1: `20260906-fresh-pass` in
+`artifacts/neclip/looper-goals/`. This is not another published release.
+The bounded pass adds transaction-scoped erasure invalidation for undo,
+atomic history-to-snippet conversion, an OCR-only projection, lazy append
+fallback payloads and small editor/Settings clarity changes. Public feeds and
+the installed 1.9.1 remain separate from these source changes.
 
 The prior evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
 19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements
@@ -22,11 +32,16 @@ in `BUGFIX-RUNTIME-2026-09-05.md` (185 checks passed, one opt-in skip).
 The next settings/editor usability audit is `UX-SETTINGS-2026-09-05.md`
 (206 checks passed, one opt-in skip). `HistoryCleanupCoordinator` now owns the
 capture barrier for explicit bulk deletion; `PreferencesUXPolicy` describes
-effective settings states and `MenuSearchPage` bounds visible search results.
+effective settings states. The later local no-search pass retires all search UI
+and execution; see `NO-SEARCH-2026-09-06.md` for the current scope and checks.
+The next local optimization pass is `OPTIMIZATION-2026-09-06.md`: selective
+menu invalidation, bounded app metadata, smaller distribution binaries and
+progressive disclosure of retention controls. This is still not a public release.
 
 ## Product boundary
 
 - Native macOS 14+ menu-bar utility; `LSUIElement=true`, no Dock icon.
+- Immediate reuse: recent copies and folder snippets, with no search or search keys.
 - Local SQLite history and snippets; no account, sync, telemetry, ads or AI.
 - Network is used only after the user chooses **Check for Updates**.
 - Accessibility is optional for direct paste and selected-text replacement.
@@ -52,8 +67,8 @@ Important owners:
   rejected by `ClipboardMonitor` before payload reads.
 - `OCRService.swift`: serialized local Vision OCR.
 - `Storage.swift`: migrations, SHA-256 deduplication, retention, byte quota,
-  FTS and atomic persistence. History queries share a bounded summary projection;
-  snippet queries share filtering/ranking. OCR and pin updates select metadata
+  atomic persistence and v7 retirement of derived FTS tables/triggers/indexes.
+  History reads use one bounded summary API; snippets retain bounded projections. OCR and pin updates select metadata
   only, preserve payloads and remain within the existing quota transaction.
 
 ### Menu and paste
@@ -67,12 +82,8 @@ local history and snippet bodies are fetched only for the chosen action.
 
 - `MenuPresentation.swift`: single-line, grapheme-safe menu titles and shared
   ten-item pagination with stable absolute indices.
-- `MenuSearchRequest.swift`: literal snippet search and mutually exclusive
-  history-filter replacement. Snippet queries do not consume `app:`/`type:`.
-  `MenuSearchWork` retains the actual queued SQL work item for cancellation;
-  a running query can finish but cannot present an obsolete generation.
-- `ClipboardSearch.swift`: ordinary and structured search, smart categories,
-  bounded fuzzy fallback.
+- `MenuRefreshState.swift`: dirty-domain/generation tracking; unchanged history
+  or snippets are reused, obsolete reads cannot restore erased snapshots.
 - `PasteService.swift`: direct/plain/copy-only paste and lossless,
   compare-and-swap restoration of a temporary pasteboard; an unreadable
   advertised representation aborts before clearing. Deletion is an explicit,
@@ -88,14 +99,14 @@ local history and snippet bodies are fetched only for the chosen action.
 
 The dedicated shortcut opens folders first; right-clicking the status item is
 an alternative. Folder browse order matches editor sortIndex/ID, while the
-separate quick list follows pin/usage. Counts describe displayed items; search
-results carry projected folder names even outside the bounded menu snapshot.
-Command-E opens exactly the first matching snippet by ID after flushing drafts.
+separate quick list follows pin/usage. Counts describe displayed items. Overflow
+opens the complete editor. Command-E opens the top quick snippet by ID after
+flushing drafts; native arrows and Return own selection.
 
-`SnippetsEditor` reads lightweight summaries for folders, search, empty folders
+`SnippetsEditor` reads lightweight summaries for folders, empty folders
 and **Unfiled**, then fetches one full body when selected. Selection, navigation
 and termination flush pending drafts; failed saves remain visible. Local writes
-and imports share title, keyword and 2 MB content bounds. `SnippetRenderer`
+and imports share title and 2 MB content bounds. `SnippetRenderer`
 expands local `{date}`, `{time}`, `{clipboard}`, `{date:iso}` and `{time:iso}`
 placeholders in a single bounded pass. `{{date}}` escapes a literal token;
 inserted clipboard text is never reinterpreted. Formatters are lazy, expanded
@@ -104,11 +115,16 @@ indices rather than counting the entire stored body. `Storage` provides versione
 JSON export and atomic merge-only import without history or usage metadata;
 empty and over-16 MB import files are rejected before JSON decoding.
 
-Editor creation/search/duplicate use Command-N/F/D and visible buttons. Duplicate
-preserves editable content/folder/pin but not keyword/usage. A one-item deletion
-undo survives ordinary refresh but not explicit full-data erasure. Clean editors
-refresh external pin/move changes; dirty drafts are not replaced. Folder search
-matches Unicode names; exact keyword normalization occurs before SQL LIMIT.
+The editor always shows the folder library. Search fields, Command-F, queries,
+filtering, debounce tasks and keyword fields are gone throughout the app.
+Creation/duplicate use Command-N/D and visible buttons. Duplicate preserves
+content/folder/pin but not usage. One-item undo survives ordinary refresh but not
+explicit full-data erasure. Clean editors refresh external pin/move changes;
+dirty drafts remain protected. Legacy keyword data is inert in SQLite and
+ignored when importing old JSON; exports contain no keys. Historical migrations
+are retained for upgrades, followed by v7 derived-index retirement. A database
+backup is required before installing this schema on a production database;
+older binaries cannot consume the retired FTS schema.
 
 ### Keyboard layout correction
 
@@ -169,8 +185,8 @@ ignore list until restart.
     fetch exactly one full snippet by identifier.
 16. Secret scanning must first detect generated GitHub, AWS and Slack canaries,
     then scan the publishable tree, HEAD history and side-ref-only commits.
-17. Search invalidates old keyboard results immediately, before debounce/DB
-    work; Settings/Quit remain present during loading, errors and empty results.
+17. Menu selection is native, with no custom search field or query tasks;
+    Settings/Quit remain reachable in empty menus and normal browsing.
 18. Deferred keyboard activation captures the destination with the selected
     item, never reads a later menu's target; old completions do not clear it.
 19. Full data erasure drops editor drafts, undo payloads, menu snapshots and
@@ -180,7 +196,7 @@ ignore list until restart.
 
 ## Verification map
 
-- Storage/search/performance: `StorageTests`, `ClipboardSearchTests`.
+- Storage/migration/performance: `StorageTests`, `SearchRetirementTests`.
 - Privacy/pasteboard: `PrivacyLogicTests`, `CapturePreferencesTests`.
 - Layout: `LayoutCorrectionTests`.
 - Hotkeys: `ShortcutDescriptorTests`, `HotKeyCoordinatorTests`.
@@ -188,7 +204,7 @@ ignore list until restart.
   `MenuPresentationTests`.
 - Snippets/transforms/actions: `SnippetTransferTests`, `TextTransformTests`,
   `HistoryItemActionsTests`, `SnippetsEditorTests`, `StorageSnippetDiscoveryTests`,
-  `SnippetRenderingBehaviorTests` and `MenuSearchRequestTests`.
+  `SnippetRenderingBehaviorTests`.
 - Release/update/security: `UpdateManifestTests`,
   `SecretScanningContractTests`, `scripts/secret-scan.sh`, `build-app.sh`.
 

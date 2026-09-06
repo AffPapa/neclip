@@ -12,55 +12,13 @@ final class StorageSnippetDiscoveryTests: XCTestCase {
         XCTAssertFalse(SnippetSummary(snippet: short, previewLimit: 1).contentIsTruncated)
     }
 
-    func testExactKeywordWithoutSemicolonPrecedesNewerBodyMatchesBeforeLimit() throws {
-        let storage = try Storage(inMemory: true, installStarterContent: false)
-        let exact = try XCTUnwrap(storage.addSnippet(
-            folderID: nil, title: "Answer", content: "Ready", keyword: "hello"
-        ))
-        for index in 0..<25 {
-            _ = try storage.addSnippet(folderID: nil, title: "hello \(index)", content: "hello body")
-        }
-        for query in ["hello", ";hello", "HELLO"] {
-            XCTAssertEqual(try storage.snippetSummaries(search: query, limit: 1).first?.id, exact.id)
-            XCTAssertEqual(try storage.allSnippets(search: query, limit: 1).first?.id, exact.id)
-        }
-    }
-
-    func testFolderSearchFindsItsSnippetsInBothProjectionsAndTracksRename() throws {
-        let storage = try Storage(inMemory: true, installStarterContent: false)
-        var folder = try XCTUnwrap(storage.addFolder(title: "Быстрые ответы"))
-        let snippet = try XCTUnwrap(storage.addSnippet(
-            folderID: folder.id, title: "Приветствие", content: "Здравствуйте!"
-        ))
-        _ = try storage.addSnippet(folderID: nil, title: "Другое", content: "Не подходит")
-        XCTAssertEqual(try storage.snippetSummaries(search: "ОТВЕТЫ").map(\.id), [snippet.id])
-        XCTAssertEqual(try storage.snippetSummaries(search: "ОТВЕТЫ").first?.folderTitle, "Быстрые ответы")
-        XCTAssertEqual(try storage.allSnippets(search: "ОТВЕТЫ").map(\.id), [snippet.id])
-        folder.title = "Письма"
-        _ = try storage.update(folder)
-        XCTAssertTrue(try storage.snippetSummaries(search: "ответы").isEmpty)
-        XCTAssertEqual(try storage.snippetSummaries(search: "письма").first?.id, snippet.id)
-    }
-
-    func testFolderSearchTreatsPunctuationLiterallyAndUnionsWithoutDuplicates() throws {
-        let storage = try Storage(inMemory: true, installStarterContent: false)
-        let folder = try XCTUnwrap(storage.addFolder(title: "100%_ ответы"))
-        let snippet = try XCTUnwrap(storage.addSnippet(
-            folderID: folder.id, title: "ответы", content: "100%_ literal"
-        ))
-        _ = try storage.addSnippet(folderID: nil, title: "Other", content: "anything")
-        XCTAssertEqual(try storage.snippetSummaries(search: "%_").map(\.id), [snippet.id])
-        XCTAssertEqual(try storage.snippetSummaries(search: "ответы").map(\.id), [snippet.id])
-        XCTAssertTrue(try storage.snippetSummaries(search: "' OR 1=1 --").isEmpty)
-    }
-
-    func testDuplicatePreservesContentFolderPinButNotKeywordOrUsage() throws {
+    func testDuplicatePreservesContentFolderPinButNotUsage() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let folder = try XCTUnwrap(storage.addFolder(title: "Work"))
         let original = try XCTUnwrap(storage.addSnippet(
             folderID: folder.id,
             title: String(repeating: "🙂", count: Storage.maximumSnippetTitleCharacters),
-            content: "{date}\nExact content", keyword: "only-one"
+            content: "{date}\nExact content"
         ))
         let id = try XCTUnwrap(original.id)
         try storage.setSnippetPinned(id: id, pinned: true)
@@ -70,13 +28,11 @@ final class StorageSnippetDiscoveryTests: XCTestCase {
         XCTAssertEqual(duplicate.folderID, folder.id)
         XCTAssertEqual(duplicate.content, original.content)
         XCTAssertTrue(duplicate.isPinned)
-        XCTAssertNil(duplicate.keyword)
         XCTAssertEqual(duplicate.useCount, 0)
         XCTAssertNil(duplicate.lastUsedAt)
         XCTAssertLessThanOrEqual(duplicate.title.count, Storage.maximumSnippetTitleCharacters)
         XCTAssertTrue(duplicate.title.hasSuffix(" — копия"))
         XCTAssertGreaterThan(duplicate.sortIndex, original.sortIndex)
-        XCTAssertEqual(try storage.fetchSnippet(id: id)?.keyword, ";only-one")
     }
 
     func testMarkUsedNotifiesSnippetObserversAndChangesQuickOrder() async throws {

@@ -5,6 +5,36 @@ import XCTest
 /// Opt-in synthetic benchmark. Setup and full-payload verification are excluded
 /// from timings; this never opens the user's database or pasteboard.
 final class HotPathBenchmarks: XCTestCase {
+    func testSyntheticMenuRefreshReadLatency() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in synthetic menu read benchmark")
+        }
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let folderID = try XCTUnwrap(storage.addFolder(title: "Synthetic")?.id)
+        for index in 0..<200 {
+            _ = try storage.addSnippet(folderID: folderID, title: "Snippet \(index)",
+                                      content: String(repeating: "Synthetic body ", count: 150))
+            _ = try storage.insert(ClipItem(kind: .text, title: "Clip \(index)",
+                                           text: "Unique synthetic \(index)", createdAt: Date()))
+        }
+        let readClips = {
+            _ = try storage.summaries(limit: 101, pinnedOnly: true)
+            _ = try storage.summaries(limit: 101, pinnedOnly: false, unpinnedOnly: true)
+        }
+        // Same fixture and warmed cache. Only DB/projection work is timed,
+        // not native menu rendering, writes, capture, or application startup.
+        try readClips()
+        _ = try storage.menuSnippetSnapshot()
+        try record("menu-full", iterations: 100) { _ in
+            try readClips()
+            _ = try storage.menuSnippetSnapshot()
+        }
+        try record("menu-clips-only", iterations: 100) { _ in try readClips() }
+        try record("menu-snippets-only", iterations: 100) { _ in
+            _ = try storage.menuSnippetSnapshot()
+        }
+    }
+
     func testSyntheticMetadataAndEmptyRuleLatency() throws {
         guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
             throw XCTSkip("Set NECLIP_RUN_HOT_PATH_BENCHMARKS=1 for synthetic latency measurements")
@@ -28,6 +58,17 @@ final class HotPathBenchmarks: XCTestCase {
             }
             try record("pin-\(megabytes)MB", iterations: 12) { _ in
                 try storage.setPinned(id: id, pinned: true)
+            }
+            let expectedOCR = "Synthetic OCR Привет 11"
+            try record("ocr-full-fetch-\(megabytes)MB", iterations: 20) { _ in
+                let item = try storage.fetchClip(id: id)
+                XCTAssertEqual(item?.ocrText, expectedOCR)
+                XCTAssertEqual(item?.data?.count, payload.count)
+            }
+            try record("ocr-projected-fetch-\(megabytes)MB", iterations: 20) { _ in
+                let item = try storage.fetchOCRTextItem(id: id)
+                XCTAssertEqual(item?.text, expectedOCR)
+                XCTAssertNil(item?.data)
             }
             XCTAssertEqual(try storage.fetchClip(id: id)?.data, payload)
         }

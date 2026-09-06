@@ -31,18 +31,22 @@ enum HistoryImagePreview {
 }
 
 enum HistoryItemActionResolver {
+    static func webURL(_ text: String) -> URL? {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.contains(where: \.isWhitespace),
+              let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host != nil else { return nil }
+        return url
+    }
+
     static func openTarget(for item: ClipItem, fileExists: (String) -> Bool = {
         FileManager.default.fileExists(atPath: $0)
     }) -> URL? {
         switch item.kind {
         case .text:
-            guard let value = item.text?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !value.contains(where: \.isWhitespace),
-                  let url = URL(string: value),
-                  let scheme = url.scheme?.lowercased(),
-                  scheme == "http" || scheme == "https",
-                  url.host != nil else { return nil }
-            return url
+            return item.text.flatMap(webURL)
         case .file:
             guard let firstPath = item.text?
                 .split(separator: "\n", omittingEmptySubsequences: true)
@@ -358,17 +362,19 @@ private struct HistoryItemInspectorView: View {
                 }
             }
 
+            if let feedback = model.feedback {
+                Text(feedback)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: 12) {
                 Text(metadata)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer()
-                if let feedback = model.feedback {
-                    Text(feedback)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
                 if model.canOpen {
                     Button("Открыть", action: model.open)
                 }

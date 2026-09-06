@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.9.1")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "16")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.10.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "17")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -45,7 +45,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
         XCTAssertTrue(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
-        XCTAssertTrue(statusBar.contains("MenuSearchKeyPolicy.shouldPreviewOnSpace"))
+        XCTAssertFalse(statusBar.contains("MenuSearchKeyPolicy"))
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: repositoryRoot
@@ -77,7 +77,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(editor.contains("Text(\"Без папки\")"))
         XCTAssertTrue(editor.contains("windowShouldClose"))
         XCTAssertTrue(editor.contains("prepareForTermination"))
-        XCTAssertTrue(editor.contains("Button(\"Очистить поиск\")"))
+        XCTAssertFalse(editor.contains("Button(\"Очистить поиск\")"))
         XCTAssertTrue(editor.contains("Label(\"Папка…\", systemImage: \"folder.badge.plus\")"))
         XCTAssertTrue(editor.contains("Button(action: model.requestNewFolder)"))
     }
@@ -110,14 +110,14 @@ final class ApplicationModeContractTests: XCTestCase {
 
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)"))
         XCTAssertTrue(statusBar.contains("let displayTitle = cleanTitle(title)"))
-        XCTAssertTrue(statusBar.contains("cleanTitle(snippet.title + keyword)"))
+        XCTAssertTrue(statusBar.contains("cleanTitle(snippet.title)"))
         XCTAssertTrue(statusBar.contains("cleanTitle(clip.title)"))
         XCTAssertEqual(statusBar.components(separatedBy: "NSMenu(title:").count - 1, 1)
         XCTAssertTrue(statusBar.contains("private func makeMenu(title: String) -> NSMenu"))
-        XCTAssertTrue(statusBar.contains("searchField.searchMenuTemplate = historySearchMenu()"))
-        XCTAssertTrue(statusBar.contains("#selector(insertSearchFilter(_:))"))
+        XCTAssertFalse(statusBar.contains("NSSearchField"))
+        XCTAssertFalse(statusBar.contains("insertSearchFilter"))
         XCTAssertTrue(statusBar.contains("Storage.shared.menuSnippetSnapshot()"))
-        XCTAssertTrue(statusBar.contains("Storage.shared.snippetSummaries("))
+        XCTAssertFalse(statusBar.contains("Storage.shared.searchSummaries("))
         XCTAssertTrue(statusBar.contains("Storage.shared.fetchSnippet(id: id)"))
         XCTAssertFalse(statusBar.contains("Storage.shared.allSnippets("))
         XCTAssertTrue(statusBar.contains("NSApp.currentEvent?.type == .rightMouseUp ? .snippets : .history"))
@@ -129,20 +129,22 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
         XCTAssertTrue(preferences.contains("Открыть папки сниппетов"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
-        XCTAssertTrue(preferences.contains("\"Хранить в истории\""))
+        XCTAssertTrue(preferences.contains("\"Лимит истории\""))
         XCTAssertTrue(preferences.contains("\"Длина строки в меню\""))
         XCTAssertTrue(preferences.contains("MenuTitleFormatter.normalizedLimit(requested)"))
         XCTAssertTrue(preferences.contains("Settings.menuTitleLength = normalized"))
         XCTAssertTrue(preferences.contains("Storage.shared.deleteAllUserData()"))
         XCTAssertTrue(preferences.contains("Размер текста одной записи"))
-        XCTAssertTrue(preferences.contains("DisclosureGroup(\"Дополнительно\")"))
+        XCTAssertTrue(preferences.contains("DisclosureGroup(isExpanded: $historyAdvancedExpanded)"))
+        XCTAssertTrue(preferences.contains(".onTapGesture { historyAdvancedExpanded.toggle() }"))
+        XCTAssertTrue(preferences.contains("Дополнительно · автоочистка включена"))
         XCTAssertTrue(preferences.contains("DisclosureGroup(\"Работа в меню\")"))
-        XCTAssertTrue(statusBar.contains("self.searchWorkItem = MenuSearchWork.enqueue(on: self.dataQueue)"))
+        XCTAssertFalse(statusBar.contains("searchWorkItem"))
         XCTAssertTrue(preferences.contains("Очищать незакреплённую историю при выходе"))
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
-        XCTAssertTrue(statusBar.contains("folderID: nil"))
+        XCTAssertTrue(statusBar.contains("Storage.shared.saveClipAsSnippet(id: summary.id)"))
     }
 
     func testPackageUsesSwift6AndNoHotKeyDependency() throws {

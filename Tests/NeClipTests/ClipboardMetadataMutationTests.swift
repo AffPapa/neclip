@@ -36,16 +36,15 @@ final class ClipboardMetadataMutationTests: XCTestCase {
         }
     }
 
-    func testOCRRemainsSearchableAndDeletedClipDoesNotReappear() throws {
+    func testOCRSummaryRefreshesAndDeletedClipDoesNotReappear() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let id = try XCTUnwrap(storage.insert(ClipItem(
             kind: .image, title: "Image", data: Data([1]), createdAt: Date()
         )))
         try storage.setOCRText("uniquefirstocr", forClipID: id)
-        XCTAssertEqual(try storage.summaries(search: "uniquefirstocr").map(\.id), [id])
+        XCTAssertEqual(try storage.summaries().first?.text, "uniquefirstocr")
         try storage.setOCRText("uniquesecondocr", forClipID: id)
-        XCTAssertTrue(try storage.summaries(search: "uniquefirstocr").isEmpty)
-        XCTAssertEqual(try storage.summaries(search: "uniquesecondocr").map(\.id), [id])
+        XCTAssertEqual(try storage.summaries().first?.text, "uniquesecondocr")
         _ = try storage.removeClip(id: id)
         try storage.setOCRText("late OCR", forClipID: id)
         try storage.setPinned(id: id, pinned: true)

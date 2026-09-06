@@ -17,7 +17,7 @@ final class StorageTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSummarySearchFetchesRUENAndDigitsWithoutOriginalBlob() throws {
+    func testSummaryPreservesRUENAndDigitsWithoutOriginalBlob() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let payload = Data(repeating: 7, count: 128 * 1024)
         let id = try XCTUnwrap(storage.insert(ClipItem(
@@ -29,17 +29,13 @@ final class StorageTests: XCTestCase {
             createdAt: Date()
         )))
 
-        XCTAssertEqual(try storage.summaries(search: "прив").map(\.id), [id])
-        XCTAssertEqual(try storage.summaries(search: "NeCl").map(\.id), [id])
-        XCTAssertEqual(try storage.summaries(search: "2026").map(\.id), [id])
 
-        let literalID = try XCTUnwrap(storage.insert(ClipItem(
+        _ = try XCTUnwrap(storage.insert(ClipItem(
             kind: .text,
             title: "literal %_ marker",
             text: "percent and underscore",
             createdAt: Date().addingTimeInterval(1)
         )))
-        XCTAssertEqual(try storage.summaries(search: "%_").map(\.id), [literalID])
 
         let summary = try XCTUnwrap(storage.summaries().first { $0.id == id })
         XCTAssertEqual(summary.text, "Привет from NeClip 2026")
@@ -177,38 +173,6 @@ final class StorageTests: XCTestCase {
         XCTAssertNil(try DatabaseQueue(path: path).read { db in
             try Data.fetchOne(db, sql: "SELECT thumbnail FROM clip WHERE id = ?", arguments: [id])
         })
-    }
-
-    func testFTSUpdateTriggersIgnoreMetadataOnlyChanges() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("neclip-fts-trigger-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let path = directory.appendingPathComponent("fixture.sqlite").path
-        let storage = try Storage(path: path, installStarterContent: false)
-        var snippet = try XCTUnwrap(storage.addSnippet(
-            folderID: nil,
-            title: "FTS metadata guard",
-            content: "original searchable needle"
-        ))
-        let id = try XCTUnwrap(snippet.id)
-
-        let triggerSQL = try DatabaseQueue(path: path).read { db in
-            try String.fetchOne(
-                db,
-                sql: "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'snippetSearch_au'"
-            )
-        }
-        XCTAssertTrue(triggerSQL?.contains("AFTER UPDATE OF title, content, keyword") == true)
-        XCTAssertTrue(triggerSQL?.contains("old.content IS NOT new.content") == true)
-
-        try storage.markSnippetUsed(id: id)
-        XCTAssertEqual(try storage.allSnippets(search: "original").first?.id, id)
-
-        snippet.content = "replacement searchable value"
-        _ = try storage.update(snippet)
-        XCTAssertTrue(try storage.allSnippets(search: "original").isEmpty)
-        XCTAssertEqual(try storage.allSnippets(search: "replacement").first?.id, id)
     }
 
     func testPinSurvivesTrimAndClearThenUndoRestoresPayload() throws {
@@ -402,20 +366,21 @@ final class StorageTests: XCTestCase {
         XCTAssertNil(try storage.fetchClip(id: imageID)?.ocrText)
     }
 
-    func testStarterSnippetsAreIdempotentSearchableAndHaveNoFakeContacts() throws {
+    func testStarterSnippetsAreIdempotentAndHaveNoFakeContacts() throws {
         let storage = try Storage(inMemory: true, installStarterContent: true)
         try storage.installStarterSnippetsIfNeeded(force: false)
         try storage.installStarterSnippetsIfNeeded(force: false)
 
         let snippets = try storage.allSnippets()
         XCTAssertEqual(snippets.count, 6)
-        XCTAssertEqual(try storage.allSnippets(search: "thanks").count, 1)
+        try storage.installStarterSnippetsIfNeeded(force: true)
+        XCTAssertEqual(try storage.allSnippets().count, 6)
         XCTAssertFalse(snippets.contains { snippet in
             snippet.content.contains("@") || snippet.content.contains("+7")
         })
     }
 
-    func testSnippetSearchCanStopAtTheMenuResultLimit() throws {
+    func testSnippetReadsCanStopAtTheMenuLimit() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         for index in 0..<30 {
             _ = try storage.addSnippet(
@@ -425,11 +390,11 @@ final class StorageTests: XCTestCase {
             )
         }
 
-        XCTAssertEqual(try storage.allSnippets(search: "bulk", limit: 20).count, 20)
-        XCTAssertEqual(try storage.allSnippets(search: "bulk").count, 30)
+        XCTAssertEqual(try storage.allSnippets(limit: 20).count, 20)
+        XCTAssertEqual(try storage.allSnippets().count, 30)
     }
 
-    func testSnippetSummariesSearchFullContentButBoundTheReturnedPreview() throws {
+    func testSnippetSummariesBoundTheReturnedPreview() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let content = String(repeating: "a", count: 800) + " unique-needle"
         let created = try XCTUnwrap(storage.addSnippet(
@@ -439,7 +404,7 @@ final class StorageTests: XCTestCase {
         ))
         let id = try XCTUnwrap(created.id)
 
-        let summary = try XCTUnwrap(storage.snippetSummaries(search: "unique-needle").first)
+        let summary = try XCTUnwrap(storage.snippetSummaries().first)
         XCTAssertEqual(summary.id, id)
         XCTAssertEqual(summary.contentPreview.count, Storage.snippetPreviewCharacterLimit)
         XCTAssertTrue(summary.contentIsTruncated)
@@ -460,14 +425,6 @@ final class StorageTests: XCTestCase {
         XCTAssertThrowsError(try storage.addSnippet(
             folderID: nil,
             title: "Title",
-            content: "value",
-            keyword: String(repeating: "k", count: Storage.maximumSnippetKeywordCharacters + 1)
-        )) { error in
-            XCTAssertEqual(error as? SnippetStorageError, .snippetKeywordTooLong)
-        }
-        XCTAssertThrowsError(try storage.addSnippet(
-            folderID: nil,
-            title: "Title",
             content: String(repeating: "x", count: ClipboardCapturePolicy.maxTextBytes + 1)
         )) { error in
             XCTAssertEqual(error as? SnippetStorageError, .snippetContentTooLarge)
@@ -479,26 +436,24 @@ final class StorageTests: XCTestCase {
         }
     }
 
-    func testSnippetKeywordNormalizationPinAndUsage() throws {
+    func testSnippetPinAndUsage() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let snippet = try XCTUnwrap(storage.addSnippet(
             folderID: nil,
             title: "Invoice reply",
-            content: "Received {date}",
-            keyword: "invoice"
+            content: "Received {date}"
         ))
         let id = try XCTUnwrap(snippet.id)
-        XCTAssertEqual(snippet.keyword, ";invoice")
 
         try storage.setSnippetPinned(id: id, pinned: true)
         try storage.markSnippetUsed(id: id)
-        let fetched = try XCTUnwrap(storage.allSnippets(search: "invoice").first)
+        let fetched = try XCTUnwrap(storage.allSnippets().first)
         XCTAssertTrue(fetched.isPinned)
         XCTAssertEqual(fetched.useCount, 1)
         XCTAssertNotNil(fetched.lastUsedAt)
     }
 
-    func testPinnedSnippetRanksFirstWithoutSearchQuery() throws {
+    func testPinnedSnippetRanksFirst() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         _ = try storage.addSnippet(
             folderID: nil,
@@ -508,8 +463,7 @@ final class StorageTests: XCTestCase {
         let pinned = try XCTUnwrap(storage.addSnippet(
             folderID: nil,
             title: "Pinned with keyword",
-            content: "important content",
-            keyword: "important"
+            content: "important content"
         ))
         let pinnedID = try XCTUnwrap(pinned.id)
         try storage.setSnippetPinned(id: pinnedID, pinned: true)
@@ -546,24 +500,23 @@ final class StorageTests: XCTestCase {
         let snippet = try XCTUnwrap(storage.addSnippet(
             folderID: sourceID,
             title: "Move me",
-            content: "Body {date}",
-            keyword: "move"
+            content: "Body {date}"
         ))
         let id = try XCTUnwrap(snippet.id)
         try storage.setSnippetPinned(id: id, pinned: true)
         try storage.markSnippetUsed(id: id)
-        let before = try XCTUnwrap(storage.allSnippets(search: "move").first)
+        let before = try XCTUnwrap(storage.allSnippets().first)
 
         let moved = try storage.moveSnippet(id: id, toFolderID: destinationID)
         XCTAssertEqual(moved.folderID, destinationID)
         XCTAssertEqual(moved.sortIndex, 1)
         XCTAssertEqual(moved.title, before.title)
         XCTAssertEqual(moved.content, before.content)
-        XCTAssertEqual(moved.keyword, before.keyword)
         XCTAssertEqual(moved.isPinned, before.isPinned)
         XCTAssertEqual(moved.useCount, before.useCount)
         XCTAssertEqual(moved.lastUsedAt, before.lastUsedAt)
-        XCTAssertEqual(storage.snippets(inFolder: destinationID).map(\.id), [existingID, id])
+        XCTAssertEqual(try storage.allSnippets().filter { $0.folderID == destinationID }
+            .sorted { $0.sortIndex < $1.sortIndex }.map(\.id), [existingID, id])
 
         let unfiled = try storage.moveSnippet(id: id, toFolderID: nil)
         XCTAssertNil(unfiled.folderID)
@@ -594,23 +547,21 @@ final class StorageTests: XCTestCase {
         let snippet = try XCTUnwrap(storage.addSnippet(
             folderID: folderID,
             title: "Keep me",
-            content: "Preserved body",
-            keyword: "keep"
+            content: "Preserved body"
         ))
         let id = try XCTUnwrap(snippet.id)
         try storage.setSnippetPinned(id: id, pinned: true)
         try storage.markSnippetUsed(id: id)
-        let before = try XCTUnwrap(storage.allSnippets(search: "keep").first)
+        let before = try XCTUnwrap(storage.allSnippets().first)
 
         try storage.deleteFolder(id: folderID)
 
         XCTAssertTrue(try storage.snippetFolders().isEmpty)
-        let after = try XCTUnwrap(storage.allSnippets(search: "keep").first)
+        let after = try XCTUnwrap(storage.allSnippets().first)
         XCTAssertNil(after.folderID)
         XCTAssertEqual(after.id, before.id)
         XCTAssertEqual(after.title, before.title)
         XCTAssertEqual(after.content, before.content)
-        XCTAssertEqual(after.keyword, before.keyword)
         XCTAssertEqual(after.isPinned, before.isPinned)
         XCTAssertEqual(after.useCount, before.useCount)
         XCTAssertEqual(after.lastUsedAt, before.lastUsedAt)
@@ -626,8 +577,7 @@ final class StorageTests: XCTestCase {
         let first = try XCTUnwrap(storage.addSnippet(
             folderID: folderID,
             title: "Ready to edit",
-            content: "Visible immediately",
-            keyword: "edit"
+            content: "Visible immediately"
         ))
         _ = try storage.addSnippet(folderID: nil, title: "Second", content: "Later")
         let model = SnippetsEditorModel(storage: storage)
@@ -636,7 +586,6 @@ final class StorageTests: XCTestCase {
 
         XCTAssertEqual(model.selectedSnippetID, first.id)
         XCTAssertEqual(model.editorTitle, "Ready to edit")
-        XCTAssertEqual(model.editorKeyword, ";edit")
         XCTAssertEqual(model.editorContent, "Visible immediately")
         XCTAssertEqual(model.saveState, .saved)
     }
@@ -677,8 +626,7 @@ final class StorageTests: XCTestCase {
         let first = try XCTUnwrap(storage.addSnippet(
             folderID: nil,
             title: "First",
-            content: "first",
-            keyword: "reserved"
+            content: "first"
         ))
         let second = try XCTUnwrap(storage.addSnippet(
             folderID: nil,
@@ -691,24 +639,24 @@ final class StorageTests: XCTestCase {
         model.reload()
         model.selectSnippet(secondID)
 
-        model.editorKeyword = "reserved"
+        model.editorTitle = String(repeating: "x", count: 201)
         model.editorChanged()
         model.selectSnippet(firstID)
 
         XCTAssertEqual(model.selectedSnippetID, secondID)
-        XCTAssertEqual(model.editorKeyword, "reserved")
+        XCTAssertEqual(model.editorTitle, String(repeating: "x", count: 201))
         guard case .failed = model.saveState else {
             return XCTFail("A failed save must remain visible")
         }
 
-        model.editorKeyword = "available"
+        model.editorTitle = "Available"
         model.editorChanged()
         model.selectSnippet(firstID)
 
         XCTAssertEqual(model.selectedSnippetID, firstID)
         XCTAssertEqual(
-            try storage.allSnippets().first(where: { $0.id == secondID })?.keyword,
-            ";available"
+            try storage.allSnippets().first(where: { $0.id == secondID })?.title,
+            "Available"
         )
     }
 
@@ -745,8 +693,7 @@ final class StorageTests: XCTestCase {
         let first = try XCTUnwrap(storage.addSnippet(
             folderID: nil,
             title: "First",
-            content: "first",
-            keyword: "reserved"
+            content: "first"
         ))
         let second = try XCTUnwrap(storage.addSnippet(
             folderID: nil,
@@ -759,21 +706,21 @@ final class StorageTests: XCTestCase {
         model.reload()
         model.selectSnippet(secondID)
 
-        model.editorKeyword = "reserved"
+        model.editorTitle = String(repeating: "x", count: 201)
         model.editorChanged()
         model.selectSnippet(firstID)
         guard case .failed = model.saveState else {
-            return XCTFail("Duplicate keyword must fail before the revert")
+            return XCTFail("Oversized title must fail before the revert")
         }
 
-        model.editorKeyword = ""
+        model.editorTitle = "Second"
         model.editorChanged()
         model.selectSnippet(firstID)
 
         XCTAssertEqual(model.selectedSnippetID, firstID)
         XCTAssertEqual(
-            try storage.allSnippets().first(where: { $0.id == secondID })?.keyword,
-            nil
+            try storage.allSnippets().first(where: { $0.id == secondID })?.title,
+            "Second"
         )
     }
 
@@ -810,26 +757,24 @@ final class StorageTests: XCTestCase {
         let snippet = try XCTUnwrap(storage.addSnippet(
             folderID: folderID,
             title: "Exact undo",
-            content: "Preserve everything {date}",
-            keyword: "undo"
+            content: "Preserve everything {date}"
         ))
         let id = try XCTUnwrap(snippet.id)
         try storage.setSnippetPinned(id: id, pinned: true)
         try storage.markSnippetUsed(id: id)
-        let original = try XCTUnwrap(storage.allSnippets(search: "undo").first)
+        let original = try XCTUnwrap(storage.allSnippets().first)
 
         let removed = try XCTUnwrap(storage.removeSnippet(id: id))
-        XCTAssertTrue(try storage.allSnippets(search: "undo").isEmpty)
+        XCTAssertTrue(try storage.allSnippets().isEmpty)
         try storage.restoreSnippet(removed)
-        XCTAssertEqual(try storage.allSnippets(search: "undo").first, original)
+        XCTAssertEqual(try storage.allSnippets().first, original)
 
         let removedAgain = try XCTUnwrap(storage.removeSnippet(id: id))
         try storage.deleteFolder(id: folderID)
         try storage.restoreSnippet(removedAgain)
-        let restoredWithoutFolder = try XCTUnwrap(storage.allSnippets(search: "undo").first)
+        let restoredWithoutFolder = try XCTUnwrap(storage.allSnippets().first)
         XCTAssertNil(restoredWithoutFolder.folderID)
         XCTAssertEqual(restoredWithoutFolder.id, original.id)
-        XCTAssertEqual(restoredWithoutFolder.keyword, original.keyword)
         XCTAssertEqual(restoredWithoutFolder.isPinned, original.isPinned)
         XCTAssertEqual(restoredWithoutFolder.useCount, original.useCount)
         XCTAssertEqual(restoredWithoutFolder.lastUsedAt, original.lastUsedAt)
@@ -887,13 +832,13 @@ final class StorageTests: XCTestCase {
 
         let migrated = try Storage(path: path, installStarterContent: false)
         XCTAssertEqual(migrated.count, 1)
-        XCTAssertEqual(try migrated.summaries(search: "legacy").first?.title, "legacy clip")
-        let migratedClipID = try XCTUnwrap(try migrated.summaries(search: "legacy").first?.id)
+        XCTAssertEqual(try migrated.summaries().first?.title, "legacy clip")
+        let migratedClipID = try XCTUnwrap(try migrated.summaries().first?.id)
         XCTAssertEqual(
             try migrated.fetchClip(id: migratedClipID)?.contentBytes,
             Int64("legacy body Привет".utf8.count + "распознанный OCR".utf8.count)
         )
-        XCTAssertEqual(try migrated.allSnippets(search: "legacy").first?.title, "legacy snippet")
+        XCTAssertEqual(try migrated.allSnippets().first?.title, "legacy snippet")
         XCTAssertEqual(try migrated.allSnippets().first?.folderID, 1)
 
         let deduplicatedID = try migrated.insert(ClipItem(
@@ -907,7 +852,7 @@ final class StorageTests: XCTestCase {
         XCTAssertNotNil(try migrated.fetchClip(id: migratedClipID)?.contentHash)
     }
 
-    func testSearchAndMenuReadsStayFastAtMaximumHistoryAfterLargeMigration() throws {
+    func testMenuReadsStayFastAtMaximumHistoryAfterLargeMigration() throws {
         Settings.historyLimit = 1_000
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("neclip-10k-\(UUID().uuidString)", isDirectory: true)
@@ -951,10 +896,10 @@ final class StorageTests: XCTestCase {
         let storage = try Storage(path: path, installStarterContent: false)
         XCTAssertEqual(storage.count, 1_000)
         let started = Date()
-        let matches = try storage.summaries(limit: 40, search: "needle9999")
+        let matches = try storage.summaries(limit: 40)
         let elapsed = Date().timeIntervalSince(started)
-        XCTAssertEqual(matches.count, 1)
-        XCTAssertLessThan(elapsed, 0.05, "Maximum-history FTS search took \(elapsed) seconds")
+        XCTAssertEqual(matches.count, 40)
+        XCTAssertLessThan(elapsed, 0.05, "Bounded recent-item reads took \(elapsed) seconds")
 
         let menuStarted = Date()
         XCTAssertEqual(

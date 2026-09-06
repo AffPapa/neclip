@@ -44,10 +44,18 @@ struct ClipSummary: Identifiable, Hashable, Sendable {
 
 struct RemovedClip: Sendable {
     let item: ClipItem
+    let undoGeneration: UUID
 }
 
 struct RemovedSnippet: Sendable {
     let item: Snippet
+    let undoGeneration: UUID
+}
+
+enum UndoRestorationError: LocalizedError, Equatable {
+    case invalidatedByErasure
+
+    var errorDescription: String? { "После полной очистки восстановление недоступно" }
 }
 
 enum StorageCapacityError: LocalizedError, Equatable {
@@ -61,6 +69,7 @@ enum StorageCapacityError: LocalizedError, Equatable {
 enum ClipStorageError: LocalizedError, Equatable {
     case clipNotFound
     case emptyText
+    case snippetRequiresText
 
     var errorDescription: String? {
         switch self {
@@ -68,6 +77,8 @@ enum ClipStorageError: LocalizedError, Equatable {
             "Элемент истории больше не существует"
         case .emptyText:
             "Текст не может быть пустым"
+        case .snippetRequiresText:
+            "Сниппет можно создать только из текста"
         }
     }
 }
@@ -78,9 +89,7 @@ enum SnippetStorageError: LocalizedError, Equatable {
     case folderNotFound
     case snippetNotFound
     case snippetTitleTooLong
-    case snippetKeywordTooLong
     case snippetContentTooLarge
-    case keywordAlreadyExists
 
     var errorDescription: String? {
         switch self {
@@ -94,12 +103,8 @@ enum SnippetStorageError: LocalizedError, Equatable {
             "Сниппет больше не существует"
         case .snippetTitleTooLong:
             "Название сниппета не должно быть длиннее 200 символов"
-        case .snippetKeywordTooLong:
-            "Ключ сниппета не должен быть длиннее 100 символов"
         case .snippetContentTooLarge:
             "Текст сниппета не должен быть больше 2 МБ"
-        case .keywordAlreadyExists:
-            "Этот ключ поиска уже занят другим сниппетом. Выберите другой ключ."
         }
     }
 
@@ -130,7 +135,6 @@ struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable
     var title: String
     var content: String
     var sortIndex: Int = 0
-    var keyword: String? = nil
     var isPinned: Bool = false
     var useCount: Int = 0
     var lastUsedAt: Date? = nil
@@ -142,7 +146,7 @@ struct Snippet: Codable, FetchableRecord, MutablePersistableRecord, Identifiable
     }
 }
 
-/// Lightweight metadata used by menus, search and the editor sidebar. Full
+/// Lightweight metadata used by menus and the editor sidebar. Full
 /// snippet bodies are fetched only when the user opens or pastes one item.
 struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendable {
     let id: Int64?
@@ -152,7 +156,6 @@ struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendabl
     let contentPreview: String
     let contentIsTruncated: Bool
     let sortIndex: Int
-    let keyword: String?
     let isPinned: Bool
 
     init(snippet: Snippet, previewLimit: Int = Storage.snippetPreviewCharacterLimit, folderTitle: String? = nil) {
@@ -166,7 +169,6 @@ struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendabl
         // of a multi-megabyte body would defeat this lightweight projection.
         contentIsTruncated = preview.endIndex != snippet.content.endIndex
         sortIndex = snippet.sortIndex
-        keyword = snippet.keyword
         isPinned = snippet.isPinned
     }
 }
@@ -194,7 +196,6 @@ struct SnippetTransferRecord: Codable, Equatable, Sendable {
     let folder: String?
     let title: String
     let content: String
-    let keyword: String?
     let isPinned: Bool
 }
 
@@ -239,7 +240,6 @@ final class Storage: @unchecked Sendable {
     static let maximumStorageBytes: Int64 = 250 * 1024 * 1024
     static let maximumSnippetImportBytes = 16 * 1024 * 1024
     static let maximumSnippetTitleCharacters = 200
-    static let maximumSnippetKeywordCharacters = 100
     static let snippetPreviewCharacterLimit = 280
 
     static let shared: Storage = {
@@ -258,6 +258,9 @@ final class Storage: @unchecked Sendable {
     let startupError: Error?
     private let dbQueue: DatabaseQueue
     private let installStarterContent: Bool
+    // Access only inside dbQueue. Tokens belong to this storage instance and
+    // cannot survive full erasure, even in a queued undo or late UI completion.
+    private var undoGeneration = UUID()
 
     init(
         path: String? = nil,
@@ -499,6 +502,23 @@ final class Storage: @unchecked Sendable {
                 END;
                 """)
         }
+
+        // Search is retired. Remove derived indexes and their write overhead,
+        // not clips/snippets. Keep the legacy keyword column inert so this
+        // migration never discards user content or rewrites historical schemas.
+        migrator.registerMigration("v7-retire-search") { db in
+            try db.execute(sql: """
+                DROP TRIGGER IF EXISTS clipSearch_ai;
+                DROP TRIGGER IF EXISTS clipSearch_ad;
+                DROP TRIGGER IF EXISTS clipSearch_au;
+                DROP TRIGGER IF EXISTS snippetSearch_ai;
+                DROP TRIGGER IF EXISTS snippetSearch_ad;
+                DROP TRIGGER IF EXISTS snippetSearch_au;
+                DROP TABLE IF EXISTS clipSearch;
+                DROP TABLE IF EXISTS snippetSearch;
+                DROP INDEX IF EXISTS snippet_keyword_unique;
+                """)
+        }
         try migrator.migrate(dbQueue)
         // Apply retention immediately after a migration/recount. Only ordinary
         // history can be removed; pinned clips remain protected even if they
@@ -649,88 +669,30 @@ final class Storage: @unchecked Sendable {
 
     func summaries(
         limit: Int = 60,
-        search: String? = nil,
-        pinnedOnly: Bool = false,
-        unpinnedOnly: Bool = false
-    ) throws -> [ClipSummary] {
-        try recentSummaries(
-            limit: limit,
-            search: search,
-            pinnedOnly: pinnedOnly,
-            unpinnedOnly: unpinnedOnly
-        )
-    }
-
-    /// Structured search keeps all database work on lightweight summary rows.
-    /// Semantic categories are filtered after SQL because SQLite deliberately
-    /// has no custom regex or application code loaded into the database.
-    func searchSummaries(
-        query: ClipboardSearchQuery,
-        limit: Int = 20
-    ) throws -> [ClipSummary] {
-        let exact = try searchCandidates(
-            query: query,
-            includeTerms: true,
-            requestedMatches: limit
-        )
-        if !exact.isEmpty || query.terms.isEmpty {
-            return Array(exact.prefix(limit))
-        }
-
-        // Fuzzy ranking stays bounded to 300 lightweight summaries, but a
-        // semantic filter may page past many unrelated recent rows to collect
-        // those candidates. This keeps old links/emails/colors/code searchable.
-        let candidates = try searchCandidates(
-            query: query,
-            includeTerms: false,
-            requestedMatches: 300
-        )
-        return ClipboardFuzzySearch.ranked(candidates, query: query.terms, limit: limit)
-    }
-
-    private func searchCandidates(
-        query: ClipboardSearchQuery,
-        includeTerms: Bool,
-        requestedMatches: Int
-    ) throws -> [ClipSummary] {
-        guard query.needsPostFiltering else {
-            return try fetchSummaries(
-                search: includeTerms ? query.terms : nil,
-                query: query,
-                limit: requestedMatches
-            )
-        }
-
-        let batchSize = max(200, min(1_000, requestedMatches * 10))
-        var offset = 0
-        var matches: [ClipSummary] = []
-        while matches.count < requestedMatches {
-            let batch = try fetchSummaries(
-                search: includeTerms ? query.terms : nil,
-                query: query,
-                limit: batchSize,
-                offset: offset
-            )
-            matches.append(contentsOf: batch.filter {
-                SmartClipClassifier.matches($0, category: query.smartCategory)
-            })
-            guard batch.count == batchSize else { break }
-            offset += batch.count
-        }
-        return Array(matches.prefix(requestedMatches))
-    }
-
-    func recentSummaries(
-        limit: Int = 60,
-        search: String? = nil,
         pinnedOnly: Bool = false,
         unpinnedOnly: Bool = false,
         offset: Int = 0
     ) throws -> [ClipSummary] {
-        try fetchSummaries(
-            search: search, pinnedOnly: pinnedOnly, unpinnedOnly: unpinnedOnly,
-            limit: limit, offset: offset
-        )
+        try dbQueue.read { db in
+            var sql = """
+                SELECT c.id, c.kind, c.title,
+                       substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
+                       c.appBundleID, c.createdAt, c.isPinned
+                FROM clip c
+                """
+            var conditions: [String] = []
+            var arguments = StatementArguments()
+
+            if pinnedOnly { conditions.append("c.isPinned = 1") }
+            if unpinnedOnly { conditions.append("c.isPinned = 0") }
+            if !conditions.isEmpty {
+                sql += " WHERE " + conditions.joined(separator: " AND ")
+            }
+            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC, c.id DESC LIMIT ? OFFSET ?"
+            arguments += [max(1, limit), max(0, offset)]
+            let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
+            return rows.compactMap(Self.summary(from:))
+        }
     }
 
     /// Physical recency order for sequential paste. Pins affect menu grouping,
@@ -745,69 +707,23 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    private func fetchSummaries(
-        search: String?,
-        query: ClipboardSearchQuery? = nil,
-        pinnedOnly: Bool = false,
-        unpinnedOnly: Bool = false,
-        limit: Int,
-        offset: Int = 0
-    ) throws -> [ClipSummary] {
-        try dbQueue.read { db in
-            var sql = """
-                SELECT c.id, c.kind, c.title,
-                       substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
-                       c.appBundleID, c.createdAt, c.isPinned
-                FROM clip c
-                """
-            var conditions: [String] = []
-            var arguments = StatementArguments()
-
-            if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if let match = Self.ftsMatch(search) {
-                    sql += " JOIN clipSearch ON clipSearch.rowid = c.id"
-                    conditions.append("clipSearch MATCH ?")
-                    arguments += [match]
-                } else {
-                    let pattern = Self.likePattern(search)
-                    conditions.append("""
-                        (c.title LIKE ? ESCAPE '\\' OR c.text LIKE ? ESCAPE '\\'
-                         OR c.ocrText LIKE ? ESCAPE '\\' OR c.appBundleID LIKE ? ESCAPE '\\')
-                        """)
-                    arguments += [pattern, pattern, pattern, pattern]
-                }
-            }
-            if let kind = query?.kind {
-                conditions.append("c.kind = ?")
-                arguments += [kind.rawValue]
-            }
-            if let app = query?.appFragment {
-                conditions.append("lower(COALESCE(c.appBundleID, '')) LIKE ? ESCAPE '\\'")
-                arguments += [Self.likePattern(app.lowercased())]
-            }
-            if let since = query?.since {
-                conditions.append("c.createdAt >= ?")
-                arguments += [since]
-            }
-            switch query?.pinFilter {
-            case .pinned?: conditions.append("c.isPinned = 1")
-            case .history?: conditions.append("c.isPinned = 0")
-            case nil: break
-            }
-            if pinnedOnly { conditions.append("c.isPinned = 1") }
-            if unpinnedOnly { conditions.append("c.isPinned = 0") }
-            if !conditions.isEmpty {
-                sql += " WHERE " + conditions.joined(separator: " AND ")
-            }
-            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC LIMIT ? OFFSET ?"
-            arguments += [max(1, limit), max(0, offset)]
-            let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
-            return rows.compactMap(Self.summary(from:))
-        }
-    }
-
     func fetchClip(id: Int64) throws -> ClipItem? {
         try dbQueue.read { db in try ClipItem.fetchOne(db, key: id) }
+    }
+
+    // OCR-only paste must not materialize the original image or RTF BLOBs.
+    static let ocrTextProjectionSQL = """
+        SELECT title, ocrText, createdAt FROM clip WHERE id = ? AND kind = 'image'
+        """
+
+    func fetchOCRTextItem(id: Int64) throws -> ClipItem? {
+        try dbQueue.read { db in
+            guard let row = try Row.fetchOne(db, sql: Self.ocrTextProjectionSQL, arguments: [id]),
+                  let recognized: String = row["ocrText"] else { return nil }
+            let text = recognized.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            return ClipItem(kind: .text, title: row["title"], text: text, createdAt: row["createdAt"])
+        }
     }
 
     func setOCRText(_ text: String, forClipID id: Int64) throws {
@@ -884,7 +800,7 @@ final class Storage: @unchecked Sendable {
         let removed = try dbQueue.write { db -> RemovedClip? in
             guard let item = try ClipItem.fetchOne(db, key: id) else { return nil }
             try ClipItem.deleteOne(db, key: id)
-            return RemovedClip(item: item)
+            return RemovedClip(item: item, undoGeneration: undoGeneration)
         }
         if removed != nil { notifyChange(.clips) }
         return removed
@@ -893,6 +809,9 @@ final class Storage: @unchecked Sendable {
     func restoreClip(_ removed: RemovedClip) throws {
         var item = removed.item
         try dbQueue.write { db in
+            guard removed.undoGeneration == undoGeneration else {
+                throw UndoRestorationError.invalidatedByErasure
+            }
             try ensureCapacityForBytes(item.contentBytes, replacing: item.isPinned ? item.id : nil, in: db)
             try item.insert(db, onConflict: .replace)
             try trim(db)
@@ -923,12 +842,23 @@ final class Storage: @unchecked Sendable {
     /// Erases every user-created record in one transaction. Keeping this
     /// atomic avoids partially cleared state and one transaction per snippet.
     func deleteAllUserData() throws {
-        try dbQueue.write { db in
-            try ClipItem.deleteAll(db)
-            try Snippet.deleteAll(db)
-            try SnippetFolder.deleteAll(db)
+        try dbQueue.writeWithoutTransaction { db in
+            try db.inTransaction {
+                try ClipItem.deleteAll(db)
+                try Snippet.deleteAll(db)
+                try SnippetFolder.deleteAll(db)
+                return .commit
+            }
+            // Commit succeeded, and we still own the serialized database queue:
+            // a queued restore cannot slip between erasure and invalidation.
+            undoGeneration = UUID()
         }
         notifyChange(.all)
+    }
+
+    /// Also guards late menu completions; failure to read means fail closed.
+    func isUndoCurrent(_ generation: UUID) -> Bool {
+        (try? dbQueue.read { _ in undoGeneration == generation }) ?? false
     }
 
     func vacuum() throws {
@@ -961,34 +891,14 @@ final class Storage: @unchecked Sendable {
         }
     }
 
-    func snippets(inFolder folderID: Int64) -> [Snippet] {
-        (try? dbQueue.read { db in
-            try Snippet.filter(Column("folderID") == folderID)
-                .order(Column("sortIndex"), Column("id")).fetchAll(db)
-        }) ?? []
-    }
-
-    func allSnippets(
-        search: String? = nil,
-        pinnedOnly: Bool = false,
-        limit: Int? = nil
-    ) throws -> [Snippet] {
-        try dbQueue.read { db in
-            let tail = try Self.snippetQueryTail(database: db, search: search, pinnedOnly: pinnedOnly, limit: limit)
-            return try Snippet.fetchAll(db, sql: "SELECT s.* FROM snippet s" + tail.sql, arguments: tail.arguments)
-        }
-    }
-
     func snippetSummaries(
-        search: String? = nil,
         pinnedOnly: Bool = false,
         limit: Int? = nil
     ) throws -> [SnippetSummary] {
         try dbQueue.read { db in
             try Self.fetchSnippetSummaries(
                 database: db,
-                search: search,
-                pinnedOnly: pinnedOnly,
+                    pinnedOnly: pinnedOnly,
                 limit: limit
             )
         }
@@ -1005,7 +915,6 @@ final class Storage: @unchecked Sendable {
         return try dbQueue.read { db in
             let fetched = try Self.fetchSnippetSummaries(
                 database: db,
-                search: nil,
                 pinnedOnly: false,
                 limit: limit + 1
             )
@@ -1046,33 +955,37 @@ final class Storage: @unchecked Sendable {
     func addSnippet(
         folderID: Int64?,
         title: String,
-        content: String,
-        keyword: String? = nil
+        content: String
     ) throws -> Snippet? {
         let fields = try Self.validatedSnippetFields(
             title: title,
-            content: content,
-            keyword: keyword
+            content: content
         )
         let snippet = try dbQueue.write { db -> Snippet in
-            if let folderID, try SnippetFolder.fetchOne(db, key: folderID) == nil {
-                throw SnippetStorageError.folderNotFound
+            try Self.insertSnippet(folderID: folderID, fields: fields, database: db)
+        }
+        notifyChange(.snippets)
+        return snippet
+    }
+
+    /// Reading and creating share one transaction so full erasure cannot fall
+    /// between them and resurrect clipboard content as a new snippet.
+    @discardableResult
+    func saveClipAsSnippet(id: Int64) throws -> Snippet {
+        let snippet = try dbQueue.write { db -> Snippet in
+            guard let row = try Row.fetchOne(
+                db, sql: "SELECT kind, title, text FROM clip WHERE id = ?", arguments: [id]
+            ) else { throw ClipStorageError.clipNotFound }
+            let kind: String = row["kind"]
+            guard kind == ClipKind.text.rawValue,
+                  let content: String = row["text"], !content.isEmpty else {
+                throw ClipStorageError.snippetRequiresText
             }
-            try Self.validateUniqueSnippetKeyword(fields.keyword, database: db)
-            let maxIndex = try Int.fetchOne(
-                db,
-                sql: "SELECT COALESCE(MAX(sortIndex), -1) FROM snippet WHERE folderID IS ?",
-                arguments: [folderID]
-            ) ?? -1
-            var snippet = Snippet(
-                folderID: folderID,
-                title: fields.title,
-                content: fields.content,
-                sortIndex: maxIndex + 1,
-                keyword: fields.keyword
+            let title: String = row["title"]
+            let fields = try Self.validatedSnippetFields(
+                title: String(title.prefix(60)), content: content
             )
-            try snippet.insert(db)
-            return snippet
+            return try Self.insertSnippet(folderID: nil, fields: fields, database: db)
         }
         notifyChange(.snippets)
         return snippet
@@ -1104,12 +1017,10 @@ final class Storage: @unchecked Sendable {
         var snippet = snippet
         let fields = try Self.validatedSnippetFields(
             title: snippet.title,
-            content: snippet.content,
-            keyword: snippet.keyword
+            content: snippet.content
         )
         snippet.title = fields.title
         snippet.content = fields.content
-        snippet.keyword = fields.keyword
         snippet.updatedAt = Date()
         let updated = try dbQueue.write { db -> Snippet in
             guard let id = snippet.id,
@@ -1120,7 +1031,6 @@ final class Storage: @unchecked Sendable {
                try SnippetFolder.fetchOne(db, key: folderID) == nil {
                 throw SnippetStorageError.folderNotFound
             }
-            try Self.validateUniqueSnippetKeyword(snippet.keyword, excluding: id, database: db)
             if stored.folderID != snippet.folderID {
                 snippet.sortIndex = try Self.nextSnippetSortIndex(
                     inFolder: snippet.folderID,
@@ -1131,12 +1041,12 @@ final class Storage: @unchecked Sendable {
                 sql: """
                     UPDATE snippet
                     SET folderID = ?, title = ?, content = ?, sortIndex = ?,
-                        keyword = ?, isPinned = ?, updatedAt = ?
+                        isPinned = ?, updatedAt = ?
                     WHERE id = ?
                     """,
                 arguments: [
                     snippet.folderID, snippet.title, snippet.content, snippet.sortIndex,
-                    snippet.keyword, snippet.isPinned, snippet.updatedAt, id
+                    snippet.isPinned, snippet.updatedAt, id
                 ]
             )
             guard let updated = try Snippet.fetchOne(db, key: id) else {
@@ -1189,8 +1099,7 @@ final class Storage: @unchecked Sendable {
         notifyChange(.snippets)
     }
 
-    /// Duplicates editable content atomically. A search key must remain unique,
-    /// while usage history belongs to the original rather than its copy.
+    /// Duplicates editable content atomically; usage stays with the original.
     func duplicateSnippet(id: Int64) throws -> Snippet {
         let duplicate = try dbQueue.write { db -> Snippet in
             guard let original = try Snippet.fetchOne(db, key: id) else {
@@ -1203,7 +1112,6 @@ final class Storage: @unchecked Sendable {
                 title: title,
                 content: original.content,
                 sortIndex: try Self.nextSnippetSortIndex(inFolder: original.folderID, database: db),
-                keyword: nil,
                 isPinned: original.isPinned
             )
             try copy.insert(db)
@@ -1226,7 +1134,7 @@ final class Storage: @unchecked Sendable {
         let removed = try dbQueue.write { db -> RemovedSnippet? in
             guard let item = try Snippet.fetchOne(db, key: id) else { return nil }
             try Snippet.deleteOne(db, key: id)
-            return RemovedSnippet(item: item)
+            return RemovedSnippet(item: item, undoGeneration: undoGeneration)
         }
         if removed != nil { notifyChange(.snippets) }
         return removed
@@ -1235,6 +1143,9 @@ final class Storage: @unchecked Sendable {
     func restoreSnippet(_ removed: RemovedSnippet) throws {
         var item = removed.item
         try dbQueue.write { db in
+            guard removed.undoGeneration == undoGeneration else {
+                throw UndoRestorationError.invalidatedByErasure
+            }
             if let folderID = item.folderID,
                try SnippetFolder.fetchOne(db, key: folderID) == nil {
                 item.folderID = nil
@@ -1260,7 +1171,6 @@ final class Storage: @unchecked Sendable {
             let payloadBytes = try Int64.fetchOne(db, sql: """
                 SELECT COALESCE(SUM(
                     length(CAST(title AS BLOB)) + length(CAST(content AS BLOB))
-                    + COALESCE(length(CAST(keyword AS BLOB)), 0)
                 ), 0) FROM snippet
                 """) ?? 0
             guard payloadBytes <= Int64(Self.maximumSnippetImportBytes) else {
@@ -1276,7 +1186,6 @@ final class Storage: @unchecked Sendable {
                     folder: snippet.folderID.flatMap { folderTitles[$0] },
                     title: snippet.title,
                     content: snippet.content,
-                    keyword: snippet.keyword,
                     isPinned: snippet.isPinned
                 )
             })
@@ -1307,19 +1216,16 @@ final class Storage: @unchecked Sendable {
         let validated = try document.snippets.map { record -> SnippetTransferRecord in
             let title = record.title.trimmingCharacters(in: .whitespacesAndNewlines)
             let folder = record.folder?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let keyword = Self.normalizedKeyword(record.keyword)
             guard !title.isEmpty,
                   title.count <= Self.maximumSnippetTitleCharacters,
                   record.content.utf8.count <= ClipboardCapturePolicy.maxTextBytes,
-                  (folder?.count ?? 0) <= Self.maximumSnippetTitleCharacters,
-                  (keyword?.count ?? 0) <= Self.maximumSnippetKeywordCharacters else {
+                  (folder?.count ?? 0) <= Self.maximumSnippetTitleCharacters else {
                 throw SnippetTransferError.invalidSnippet
             }
             return SnippetTransferRecord(
                 folder: folder.flatMap { $0.isEmpty ? nil : $0 },
                 title: title,
                 content: record.content,
-                keyword: keyword,
                 isPinned: record.isPinned
             )
         }
@@ -1363,10 +1269,9 @@ final class Storage: @unchecked Sendable {
                         SELECT EXISTS(
                             SELECT 1 FROM snippet
                             WHERE folderID IS ? AND title = ? AND content = ?
-                              AND COALESCE(keyword, '') = COALESCE(?, '')
                         )
                         """,
-                    arguments: [folderID, record.title, record.content, record.keyword]
+                    arguments: [folderID, record.title, record.content]
                 ) ?? false
                 guard !duplicate else { continue }
 
@@ -1376,7 +1281,6 @@ final class Storage: @unchecked Sendable {
                     title: record.title,
                     content: record.content,
                     sortIndex: sortIndex,
-                    keyword: record.keyword,
                     isPinned: record.isPinned
                 )
                 try snippet.insert(db)
@@ -1407,35 +1311,34 @@ final class Storage: @unchecked Sendable {
                 folder = created
             }
 
-            let examples: [(String, String, String)] = russian ? [
-                ("Приветствие", ";hello", "Здравствуйте!"),
-                ("Спасибо", ";thanks", "Спасибо!"),
-                ("Получено", ";received", "Получил. Вернусь с ответом."),
-                ("Напишу позже", ";later", "Сейчас не могу ответить. Напишу позже."),
-                ("Сегодня", ";date", "{date}"),
-                ("Текущее время", ";time", "{time}")
+            let examples: [(String, String)] = russian ? [
+                ("Приветствие", "Здравствуйте!"),
+                ("Спасибо", "Спасибо!"),
+                ("Получено", "Получил. Вернусь с ответом."),
+                ("Напишу позже", "Сейчас не могу ответить. Напишу позже."),
+                ("Сегодня", "{date}"),
+                ("Текущее время", "{time}")
             ] : [
-                ("Greeting", ";hello", "Hello!"),
-                ("Thanks", ";thanks", "Thank you!"),
-                ("Received", ";received", "Got it. I’ll get back to you."),
-                ("Reply later", ";later", "I can’t reply right now. I’ll follow up later."),
-                ("Today", ";date", "{date}"),
-                ("Current time", ";time", "{time}")
+                ("Greeting", "Hello!"),
+                ("Thanks", "Thank you!"),
+                ("Received", "Got it. I’ll get back to you."),
+                ("Reply later", "I can’t reply right now. I’ll follow up later."),
+                ("Today", "{date}"),
+                ("Current time", "{time}")
             ]
 
             for (index, example) in examples.enumerated() {
                 let exists = try Int.fetchOne(
                     db,
-                    sql: "SELECT 1 FROM snippet WHERE lower(keyword) = lower(?) LIMIT 1",
-                    arguments: [example.1]
+                    sql: "SELECT 1 FROM snippet WHERE folderID IS ? AND title = ? AND content = ? LIMIT 1",
+                    arguments: [folder?.id, example.0, example.1]
                 ) != nil
                 guard !exists else { continue }
                 var snippet = Snippet(
                     folderID: folder?.id,
                     title: example.0,
-                    content: example.2,
-                    sortIndex: index,
-                    keyword: example.1
+                    content: example.1,
+                    sortIndex: index
                 )
                 try snippet.insert(db)
             }
@@ -1448,42 +1351,38 @@ final class Storage: @unchecked Sendable {
 
     // MARK: - Internals
 
-    private static func validateUniqueSnippetKeyword(
-        _ keyword: String?, excluding id: Int64? = nil, database db: Database
-    ) throws {
-        guard let keyword, !keyword.isEmpty else { return }
-        // Use the same comparison as snippet_keyword_unique, inside the write
-        // transaction; keep the unique index as the final integrity guard.
-        let exists = try Bool.fetchOne(
-            db,
-            sql: "SELECT EXISTS(SELECT 1 FROM snippet WHERE lower(keyword) = lower(?) AND (? IS NULL OR id <> ?))",
-            arguments: [keyword, id, id]
-        ) ?? false
-        if exists { throw SnippetStorageError.keywordAlreadyExists }
+    private static func insertSnippet(
+        folderID: Int64?,
+        fields: (title: String, content: String),
+        database db: Database
+    ) throws -> Snippet {
+        if let folderID, try SnippetFolder.fetchOne(db, key: folderID) == nil {
+            throw SnippetStorageError.folderNotFound
+        }
+        var snippet = Snippet(
+            folderID: folderID, title: fields.title, content: fields.content,
+            sortIndex: try nextSnippetSortIndex(inFolder: folderID, database: db)
+        )
+        try snippet.insert(db)
+        return snippet
     }
 
     private static func validatedSnippetFields(
         title: String,
-        content: String,
-        keyword: String?
-    ) throws -> (title: String, content: String, keyword: String?) {
+        content: String
+    ) throws -> (title: String, content: String) {
         let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard title.count <= maximumSnippetTitleCharacters else {
             throw SnippetStorageError.snippetTitleTooLong
         }
-        let keyword = normalizedKeyword(keyword)
-        guard (keyword?.count ?? 0) <= maximumSnippetKeywordCharacters else {
-            throw SnippetStorageError.snippetKeywordTooLong
-        }
         guard content.utf8.count <= ClipboardCapturePolicy.maxTextBytes else {
             throw SnippetStorageError.snippetContentTooLarge
         }
-        return (title, content, keyword)
+        return (title, content)
     }
 
     private static func fetchSnippetSummaries(
         database db: Database,
-        search: String?,
         pinnedOnly: Bool,
         limit: Int?
     ) throws -> [SnippetSummary] {
@@ -1491,75 +1390,25 @@ final class Storage: @unchecked Sendable {
             SELECT s.id, s.folderID, f.title AS folderTitle, s.title,
                    substr(s.content, 1, \(snippetPreviewCharacterLimit)) AS contentPreview,
                    substr(s.content, \(snippetPreviewCharacterLimit + 1), 1) != '' AS contentIsTruncated,
-                   s.sortIndex, s.keyword, s.isPinned
+                   s.sortIndex, s.isPinned
             FROM snippet s
             LEFT JOIN snippetFolder f ON f.id = s.folderID
             """
-        let tail = try snippetQueryTail(database: db, search: search, pinnedOnly: pinnedOnly, limit: limit)
+        let tail = snippetQueryTail(pinnedOnly: pinnedOnly, limit: limit)
         return try SnippetSummary.fetchAll(db, sql: sql + tail.sql, arguments: tail.arguments)
     }
 
     private static func snippetQueryTail(
-        database db: Database, search: String?, pinnedOnly: Bool, limit: Int?
-    ) throws -> (sql: String, arguments: StatementArguments) {
-        var sql = ""
-        var conditions: [String] = []
+        pinnedOnly: Bool, limit: Int?
+    ) -> (sql: String, arguments: StatementArguments) {
+        var sql = pinnedOnly ? " WHERE s.isPinned = 1" : ""
         var arguments = StatementArguments()
-        let trimmedSearch = search?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !trimmedSearch.isEmpty {
-            try appendSnippetSearch(
-                trimmedSearch, database: db, conditions: &conditions, arguments: &arguments
-            )
-        }
-        if pinnedOnly { conditions.append("s.isPinned = 1") }
-        if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
-        if !trimmedSearch.isEmpty {
-            sql += """
-                 ORDER BY
-                    CASE WHEN lower(COALESCE(s.keyword, '')) = lower(?) THEN 0 ELSE 1 END,
-                    s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC
-                """
-            arguments += [normalizedKeyword(trimmedSearch) ?? trimmedSearch]
-        } else {
-            sql += " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
-        }
+        sql += " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
         if let limit {
             sql += " LIMIT ?"
             arguments += [max(1, limit)]
         }
         return (sql, arguments)
-    }
-
-    private static func appendSnippetSearch(
-        _ search: String,
-        database db: Database,
-        conditions: inout [String],
-        arguments: inout StatementArguments
-    ) throws {
-        let search = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        var alternatives: [String] = []
-        if let match = ftsMatch(search) {
-            alternatives.append("s.id IN (SELECT rowid FROM snippetSearch WHERE snippetSearch MATCH ?)")
-            arguments += [match]
-        } else {
-            alternatives.append("""
-                (s.title LIKE ? ESCAPE '\\' OR s.content LIKE ? ESCAPE '\\'
-                 OR s.keyword LIKE ? ESCAPE '\\')
-                """)
-            let pattern = likePattern(search)
-            arguments += [pattern, pattern, pattern]
-        }
-        // SQLite lower()/NOCASE handle ASCII only. Match user-facing folder
-        // names in Swift so Russian and diacritic-insensitive queries work too.
-        let folderIDs = try SnippetFolder.fetchAll(db).compactMap { folder -> Int64? in
-            folder.title.range(of: search, options: [.caseInsensitive, .diacriticInsensitive]) == nil
-                ? nil : folder.id
-        }
-        if !folderIDs.isEmpty {
-            alternatives.append("s.folderID IN (\(Array(repeating: "?", count: folderIDs.count).joined(separator: ",")))")
-            arguments += StatementArguments(folderIDs)
-        }
-        conditions.append("(" + alternatives.joined(separator: " OR ") + ")")
     }
 
     private func trim(_ db: Database) throws {
@@ -1669,13 +1518,6 @@ final class Storage: @unchecked Sendable {
         )
     }
 
-    private static func normalizedKeyword(_ keyword: String?) -> String? {
-        guard let value = keyword?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
-            return nil
-        }
-        return value.hasPrefix(";") ? value : ";" + value
-    }
-
     private static func nextSnippetSortIndex(
         inFolder folderID: Int64?,
         database db: Database
@@ -1698,22 +1540,5 @@ final class Storage: @unchecked Sendable {
         }
         guard let payload else { return nil }
         return SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
-    }
-
-    private static func ftsMatch(_ query: String) -> String? {
-        let tokens = query
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-        guard !tokens.isEmpty else { return nil }
-        return tokens.map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"*" }
-            .joined(separator: " AND ")
-    }
-
-    private static func likePattern(_ query: String) -> String {
-        let escaped = query
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "%", with: "\\%")
-            .replacingOccurrences(of: "_", with: "\\_")
-        return "%\(escaped)%"
     }
 }

@@ -4,6 +4,36 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Local development after 1.9.1 — not published
+
+- 1.10.0/build 17 source candidate; binary publication waits for restored
+  notarization credentials. See `docs/RELEASE-1.10.0-STATUS.md`.
+- Retry dirty/failed snapshots on explicit open; remove unused OCR notifications.
+- Keep public site/download and source-candidate status coherent in CI.
+- Refresh only changed menu domains; retain dirty work after failed/stale reads.
+- Strip local/debug symbols from distribution copies, keep UUID-matched dSYM
+  outside the shipped app, before signing. Bound application metadata caching.
+- Group retention/exit cleanup under Additional without resetting preferences.
+- Remove two production storage wrappers used only by tests.
+- Evidence and eight-product comparison: `docs/OPTIMIZATION-2026-09-06.md`.
+- Retire search throughout NeClip: menu/editor fields, snippet keywords,
+  filter syntax, fuzzy ranking, query tasks and FTS indexing. Native menu
+  selection and folder snippets define the new immediate-use workflow.
+- Preserve old snippets, folders and pins; accept legacy JSON keys without
+  keyword conflicts. See `docs/NO-SEARCH-2026-09-06.md`.
+- Invalidate deferred deletion undo after full erasure, inside storage transactions.
+- Convert history to snippets atomically across the full-erasure boundary.
+- Fetch OCR text without materializing original image/RTF payloads.
+- Skip standalone text allocation/hash when append succeeds.
+- Distinguish snippet save actions from status; bound row subtitles and clarify history limits.
+
+Scoped plan and verification: `artifacts/neclip/looper-goals/20260906-fresh-pass/`.
+Follow-up candidate, not completed in this pass: conflict/discard UX for a dirty
+snippet concurrently changed or removed elsewhere.
+
+The sections below describe historical releases. Search/FTS entries are
+superseded by the local no-search change above, not active roadmap items.
+
 ## Done in 1.3.0
 
 - Native menu-bar history and snippet sections

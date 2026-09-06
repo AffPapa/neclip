@@ -32,5 +32,6 @@ AuthKey_*.p8
 *.db-shm
 *.log
 *.xcarchive
+*.dSYM/
 *.dmg
 *.zip
