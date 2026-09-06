@@ -1,7 +1,7 @@
 # NeClip 1.9.0 simplification audit
 
-Date: 6 September 2026. Source candidate: 1.9.0/build 15. Public release remains
-1.8.0 until the separate release and installation gates pass. This report does
+Date: 6 September 2026. The initial source-candidate audit below was followed by
+the verified public 1.9.0/build 15 release; see `RELEASE-1.9.0-STATUS.md`. This report does
 not represent an exhaustive proof that every possible defect is absent.
 
 ## Method and scope
@@ -91,10 +91,10 @@ two side-ref-only commits passed after fetching all PR refs. This is a scoped de
 result, not a guarantee about inaccessible third-party caches or all secrets.
 No keys were printed, exported or added to the repository.
 
-Reviewed-source CI/CodeQL, exact
-Developer ID signing/notarization/stapling, public DMG verification, website
-metadata, backup/install/rollback and final live checks are separate gates.
-Their final status belongs in `RELEASE-1.9.0-STATUS.md` after execution.
+Reviewed-source CI/CodeQL, Developer ID signing/notarization/stapling, public
+DMG verification and backup/installation passed after this audit. Website
+metadata is published separately through its protected PR. Release evidence
+and the limits of the post-install visual pass are in `RELEASE-1.9.0-STATUS.md`.
 
 Local raw test/benchmark logs are retained under ignored `.qa/190/`; they are
 not published because diagnostics can contain machine-specific paths.

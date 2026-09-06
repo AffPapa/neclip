@@ -57,16 +57,15 @@
     "Bounded 200-snippet menu projection with complete on-demand search and editing",
     "Atomic erasure of history, snippets and snippet folders",
     "Human-readable source application names in the item inspector",
-    "Simpler search and top-item action wording"
-  ],
-  "inDevelopment": [
-    "1.9.0 source improvements; not included in the published 1.8.0 release",
+    "Simpler search and top-item action wording",
+    "Published 1.9.0 build 15 after CI/CodeQL, notarization and independent public-download verification",
     "Metadata-only OCR and pin updates without loading or rebinding original image and RTF payloads, preserving byte accounting and capacity checks",
     "Text-capture fast path when no sensitive-phrase rules are configured",
     "Shared history and snippet SQL, shortcut and layout preference persistence, and menu pagination helpers",
     "Cancellation of superseded pending menu searches before database work starts",
-    "Simpler Settings wording and an explicit folder-edit button"
+    "Simpler Settings wording and an explicit folder-creation button"
   ],
+  "inDevelopment": [],
   "next": [
     "Verify first-run permission wording across supported macOS releases",
     "Expand local layout pairs only with low-false-positive system tests",

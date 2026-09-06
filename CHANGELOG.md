@@ -4,7 +4,12 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 1.9.0 / build 15 — source candidate, 2026-09-06
+## 1.9.0 / build 15 — 2026-09-06
+
+- Published after green required CI/CodeQL checks. Exact artifact source/tag:
+  `d168d1015c3933221c718633e9a4dfbdc4362729`. Developer ID, notarization,
+  stapling and independent public-DMG verification passed. See
+  `docs/RELEASE-1.9.0-STATUS.md` for release and installation evidence.
 
 - Consolidated history/snippet query construction, bounded layout preferences,
   shortcut persistence and native menu pagination without changing stored keys,
@@ -23,8 +28,7 @@ DMG checksum verification have passed.
 - Measured runtime reduction is 99 lines (0.85%), not the requested 30%.
   Safety checks, tests, migrations and existing functions were not removed to
   meet a cosmetic target. See `docs/AUDIT-1.9.0-2026-09-06.md` for measurements.
-- Public download stays on 1.8.0 until the exact 1.9.0 artifact passes the
-  signing, notarization, CI and public-download verification gates.
+- Public download and update metadata now identify the verified 1.9.0 artifact.
 
 ## 1.8.0 / build 14 — 2026-09-05
 

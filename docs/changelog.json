@@ -2,8 +2,9 @@
   "versions": [
     {
       "version": "1.9.0",
-      "status": "inDevelopment",
+      "status": "released",
       "highlights": [
+        "Public 1.9.0 build 15: Developer ID, notarization, stapling, CI/CodeQL and independently verified public DMG",
         "Shared query construction, bounded settings writes, shortcut persistence and menu pagination",
         "OCR and pin operations avoid materializing image/RTF payloads in Swift",
         "Empty privacy rules skip normalization; oversized text is rejected before expensive processing",
