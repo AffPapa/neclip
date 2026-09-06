@@ -1,15 +1,15 @@
 # NeClip project map
 
-Updated: 6 September 2026. Public release: **1.9.0/build 15**.
-Local candidate: **1.9.1/build 16**, native Settings toolbar, safe history
+Updated: 6 September 2026. Public release: **1.9.1/build 16**.
+This release adds native Settings navigation, safe history
 editing, standard application/Edit menus and bounded local artifact cleanup.
-Current evidence and remaining delivery gates: `AUDIT-1.9.1-2026-09-06.md`.
-Current simplification evidence:
+Current scoped evidence: `AUDIT-1.9.1-2026-09-06.md`.
+Historical simplification measurements:
 `AUDIT-1.9.0-2026-09-06.md`; focused product decisions:
 `RESEARCH-1.9.0-SIMPLIFICATION.md`. No new dependencies or database migration.
-Artifact source: `d168d1015c3933221c718633e9a4dfbdc4362729`.
+Artifact source: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
 Developer ID, notarization, stapling, CodeQL and independent public-DMG
-verification passed. Evidence: `RELEASE-1.9.0-STATUS.md`.
+verification passed. Evidence: `RELEASE-1.9.1-STATUS.md`.
 
 The prior evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
 19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements

@@ -4,6 +4,31 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.9.1 / build 16 — 2026-09-06
+
+- Published artifact source/tag: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
+  Exact download and verification evidence are recorded in
+  `docs/RELEASE-1.9.1-STATUS.md`.
+- Replaced custom Settings navigation with a native, persistent macOS toolbar.
+  History retention, menu presentation, paste behavior and launch settings
+  now have distinct groups; lower-frequency actions remain in the menu.
+- Numeric drafts apply on Enter, focus loss, section change, window close or
+  app quit. Escape cancels; partial keystrokes never trim history.
+- History editing asks before discarding unsaved changes, retains failed-save
+  drafts and rejects stale pending opens. Full data erasure invalidates drafts,
+  OCR and previews so old content cannot be reinserted through the inspector.
+- Added standard About, Settings and Edit commands. Local menu commands use
+  physical keys across EN/RU layouts while ordinary text editing keeps focus.
+- First-run help concentrates on history, search and snippet folders, with
+  scrolling explanations and always-reachable permission/continue actions.
+- Local verification: 241 successful checks and isolated minimum-window
+  scenarios. Swift 6.3.3 CI exposed an IRGen crash for a Binding method
+  reference; an explicit setter closure fixed it and repeat CI passed.
+  Final sanitizer status and visual limitations are recorded in the audit.
+- Obsolete local test/install artifacts were reviewed against exact allowlists;
+  user databases, preferences and verified rollback data were preserved.
+  No dependency or database migration was added.
+
 ## 1.9.0 / build 15 — 2026-09-06
 
 - Published after green required CI/CodeQL checks. Exact artifact source/tag:

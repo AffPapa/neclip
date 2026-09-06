@@ -12,11 +12,11 @@ an unrelated host.
 - `CHANGELOG.md` — detailed human-readable changes and verification status.
 - `BACKLOG.md` — public completed, next and explicitly rejected work.
 - `docs/PROJECT-MAP.md` — current runtime ownership, data flows and invariants.
-- `docs/AUDIT-1.9.0-2026-09-06.md` — current engineering evidence, decisions and
+- `docs/AUDIT-1.9.1-2026-09-06.md` — current engineering evidence, decisions and
   quality/release gates.
 - `docs/RESEARCH-1.9.0-SIMPLIFICATION.md` — focused primary-source UX and
   simplification decisions; links to the broader historical comparison.
-- `docs/RELEASE-1.9.0-STATUS.md` — exact public artifact provenance and checks.
+- `docs/RELEASE-1.9.1-STATUS.md` — exact public artifact provenance and checks.
 - GitHub Releases — binary files and checksum assets.
 
 ## Release rule

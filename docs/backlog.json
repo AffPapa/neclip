@@ -63,7 +63,15 @@
     "Text-capture fast path when no sensitive-phrase rules are configured",
     "Shared history and snippet SQL, shortcut and layout preference persistence, and menu pagination helpers",
     "Cancellation of superseded pending menu searches before database work starts",
-    "Simpler Settings wording and an explicit folder-creation button"
+    "Simpler Settings wording and an explicit folder-creation button",
+    "Published 1.9.1 build 16 with native Settings navigation and safer editing",
+    "Native noncustomizable Settings toolbar with five persistent categories",
+    "Numeric settings apply completed drafts; partial keystrokes do not trim history",
+    "Draft-safe history editing with save/discard/cancel and failed-save preservation",
+    "Data erasure invalidates inspector drafts, previews, OCR and stale pending loads",
+    "Native application and Edit commands with layout-independent menu key handling",
+    "First-run history/search/snippet help with fixed permission and continue actions",
+    "Allowlisted cleanup of obsolete local test artifacts without deleting user data"
   ],
   "inDevelopment": [],
   "next": [

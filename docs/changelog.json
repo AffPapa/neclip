@@ -1,6 +1,21 @@
 {
   "versions": [
     {
+      "version": "1.9.1",
+      "status": "released",
+      "highlights": [
+        "Public 1.9.1 build 16 with Developer ID, notarization and independent public-DMG verification",
+        "Native icon-and-label Settings toolbar: General, Shortcuts, Privacy, Layout and Data",
+        "History retention, menu presentation, paste behavior and launch settings have distinct groups",
+        "Numeric drafts commit on Enter, focus loss, section change, close or quit; Escape cancels",
+        "History editing preserves unsaved drafts on failed saves and asks before closing or replacing them",
+        "Full data erasure invalidates inspector drafts and pending loads",
+        "Standard About, Settings and Edit commands; physical-key menu handling across EN/RU layouts",
+        "Shorter first-run help with scrolling explanations and fixed permission/continue actions",
+        "241 successful local checks; isolated UI evidence and limitations documented in the audit"
+      ]
+    },
+    {
       "version": "1.9.0",
       "status": "released",
       "highlights": [

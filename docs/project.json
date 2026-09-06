@@ -16,10 +16,10 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "1.9.0",
-    "build": 15,
+    "version": "1.9.1",
+    "build": 16,
     "status": "released",
-    "publicVersion": "1.9.0"
+    "publicVersion": "1.9.1"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -29,7 +29,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.0-2026-09-06.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.1-2026-09-06.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.9.1-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.9.0-SIMPLIFICATION.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
@@ -37,6 +38,12 @@
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
   "features": [
+    "native macOS Settings toolbar with five persistent categories",
+    "numeric setting drafts commit on explicit completion rather than partial keystrokes",
+    "draft-safe history editing, save-on-close choices and stale-load rejection",
+    "native About, Settings and responder-chain Edit commands",
+    "physical-key menu commands across English and Russian layouts",
+    "scrollable first-run help with always-reachable permission and continue actions",
     "folder-first snippet hotkey and right-click menu-bar access",
     "direct snippet editing, duplicate and deletion undo",
     "folder-aware snippet search with exact-keyword priority before limiting",
