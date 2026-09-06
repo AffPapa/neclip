@@ -2,8 +2,7 @@ import AppKit
 
 /// The default NeClip interface is a classic native menu: recent history is
 /// visible immediately, older entries are grouped by tens, and the dedicated
-/// snippets shortcut opens folder submenus before quick entries. Search stays
-/// inside the menu itself.
+/// snippets shortcut opens folder submenus before quick entries.
 @MainActor
 final class StatusBarController: NSObject {
     private enum MenuKind: Equatable {
@@ -11,7 +10,7 @@ final class StatusBarController: NSObject {
         case snippets
     }
 
-    private enum SearchEntry {
+    private enum MenuEntry {
         case clip(ClipSummary)
         case snippet(SnippetSummary)
     }
@@ -77,12 +76,8 @@ final class StatusBarController: NSObject {
     private var feedbackWorkItem: DispatchWorkItem?
     private var transientStatus: String?
     private weak var activeMenu: NSMenu?
-    private weak var activeSearchField: MenuSearchField?
-    private var activeMenuKind: MenuKind?
-    private var searchGeneration = 0
-    private var searchWorkItem: DispatchWorkItem?
     private var snapshotRefreshWorkItem: DispatchWorkItem?
-    private var visibleKeyboardEntries: [SearchEntry] = []
+    private var topEntry: MenuEntry?
     private var undoDeletion: UndoDeletion?
     private var hotKeyWarnings: [String] = []
 
@@ -145,10 +140,8 @@ final class StatusBarController: NSObject {
     @objc private func storageDidChange(_ notification: Notification) {
         if StorageChangeDomain.from(notification) == .all {
             undoDeletion = nil
-            visibleKeyboardEntries = []
+            topEntry = nil
             activeMenu?.cancelTracking()
-            searchWorkItem?.cancel()
-            searchGeneration += 1
             refreshGeneration += 1
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
                                     hasMorePinned: false, hasMoreHistory: false, hasMoreSnippets: false)
@@ -188,15 +181,9 @@ final class StatusBarController: NSObject {
             NSApp.activate(ignoringOtherApps: true)
         }
 #endif
-        activeMenuKind = kind
         let menu = kind == .history ? buildHistoryMenu() : buildSnippetsMenu(asRoot: true)
         MenuAppearance.applyEffectiveAppearance(to: menu)
         activeMenu = menu
-        if let searchField = activeSearchField {
-            DispatchQueue.main.async { [weak searchField] in
-                searchField?.window?.makeFirstResponder(searchField)
-            }
-        }
         if anchoredToStatusItem, let button = statusItem.button {
             menu.popUp(
                 positioning: nil,
@@ -207,12 +194,7 @@ final class StatusBarController: NSObject {
             menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
         }
         activeMenu = nil
-        activeSearchField = nil
-        activeMenuKind = nil
-        visibleKeyboardEntries = []
-        searchWorkItem?.cancel()
-        searchWorkItem = nil
-        searchGeneration += 1
+        topEntry = nil
     }
 
     private func refreshSnapshot() {
@@ -224,12 +206,10 @@ final class StatusBarController: NSObject {
             do {
                 let pinned = try Storage.shared.summaries(
                     limit: 101,
-                    search: nil,
                     pinnedOnly: true
                 )
                 let recent = try Storage.shared.summaries(
                     limit: 101,
-                    search: nil,
                     pinnedOnly: false,
                     unpinnedOnly: true
                 )
@@ -279,11 +259,6 @@ final class StatusBarController: NSObject {
 
     private func buildHistoryMenu() -> NSMenu {
         let menu = makeMenu(title: "NeClip")
-        menu.addItem(makeSearchItem(
-            placeholder: "Поиск по истории…",
-            showsHistoryFilters: true
-        ))
-        menu.addItem(.separator())
         appendHistoryContents(to: menu)
         return menu
     }
@@ -342,20 +317,20 @@ final class StatusBarController: NSObject {
                 makeItem: { self.clipMenuItem(pinned[$0], absoluteIndex: $0, quickKey: nil, showNumber: false) })
             if snapshot.hasMorePinned {
                 pinnedMenu.addItem(.separator())
-                pinnedMenu.addItem(item("Остальные — через поиск is:pinned", nil))
+                pinnedMenu.addItem(item("Показаны 100 последних закреплений", nil))
             }
             pinnedItem.submenu = pinnedMenu
             menu.addItem(pinnedItem)
             menu.addItem(.separator())
         }
 
-        menu.addItem(.sectionHeader(title: "История"))
+        menu.addItem(.sectionHeader(title: "Недавние"))
         if RuntimeIdentity.isIsolatedPreview {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
         let history = Array(snapshot.clips.filter { !$0.isPinned }.prefix(100))
         let firstPage = Array(history.prefix(10))
-        visibleKeyboardEntries = firstPage.map(SearchEntry.clip)
+        topEntry = firstPage.first.map(MenuEntry.clip)
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
                 ? "История пуста — запись приостановлена"
@@ -377,7 +352,7 @@ final class StatusBarController: NSObject {
             menu.addItem(moreItem)
         }
         if snapshot.hasMoreHistory {
-            menu.addItem(item("Более старые элементы — через поиск выше", nil))
+            menu.addItem(item("Показаны 100 последних копирований", nil))
         }
         if !firstPage.isEmpty || undoDeletion != nil {
             menu.addItem(firstResultActionsItem())
@@ -396,10 +371,6 @@ final class StatusBarController: NSObject {
 
     private func buildSnippetsMenu(asRoot: Bool) -> NSMenu {
         let menu = makeMenu(title: "Сниппеты")
-        if asRoot {
-            menu.addItem(makeSearchItem(placeholder: "Поиск сниппетов…"))
-            menu.addItem(.separator())
-        }
         appendSnippetContents(to: menu, showHeader: asRoot)
         if asRoot {
             Self.appendStandardFooter(to: menu, target: self)
@@ -450,12 +421,12 @@ final class StatusBarController: NSObject {
             menu.addItem(NSMenuItem(title: "Сниппетов пока нет", action: nil, keyEquivalent: ""))
         }
         if snapshot.hasMoreSnippets {
-            menu.addItem(item("Остальные сниппеты — через поиск", nil))
+            menu.addItem(item("Все сниппеты — в редакторе…", #selector(openSnippetsEditor), symbol: "pencil"))
         }
 
         if showHeader {
             let quickSnippets = Array(snapshot.snippets.prefix(9))
-            visibleKeyboardEntries = quickSnippets.map(SearchEntry.snippet)
+            topEntry = quickSnippets.first.map(MenuEntry.snippet)
             if !quickSnippets.isEmpty {
                 menu.addItem(.separator())
                 menu.addItem(.sectionHeader(title: "Быстрый доступ"))
@@ -484,284 +455,6 @@ final class StatusBarController: NSObject {
         menuItem.keyEquivalentModifierMask = shortcut.nsEventModifiers
     }
 
-    private func makeSearchItem(
-        placeholder: String,
-        showsHistoryFilters: Bool = false
-    ) -> NSMenuItem {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 38))
-        let searchField = MenuSearchField(frame: NSRect(x: 10, y: 5, width: 340, height: 28))
-        searchField.placeholderString = placeholder
-        searchField.sendsSearchStringImmediately = true
-        searchField.focusRingType = .none
-        searchField.delegate = self
-        searchField.setAccessibilityLabel(placeholder)
-        if showsHistoryFilters {
-            searchField.searchMenuTemplate = historySearchMenu()
-        }
-        searchField.toolTip = showsHistoryFilters ? """
-            Фильтры: type:text/image/file/link/email/color/code · app:bundle.id · \
-            when:today/week/month · is:pinned/history
-            """ : "Поиск по названию, папке, ключу и тексту · ⌘E — редактировать первый результат · Esc — очистить поиск или закрыть меню"
-        searchField.onEscape = { [weak self, weak searchField] in
-            guard let self, let searchField else { return }
-            if !searchField.stringValue.isEmpty {
-                searchField.stringValue = ""
-                self.searchChanged("")
-            } else {
-                self.activeMenu?.cancelTracking()
-            }
-        }
-        searchField.onSubmit = { [weak self] modifiers in
-            self?.activateKeyboardEntry(at: 0, modifiers: modifiers)
-        }
-        searchField.onQuickSelect = { [weak self] index, modifiers in
-            self?.activateKeyboardEntry(at: index, modifiers: modifiers.subtracting(.command))
-        }
-        searchField.onNavigateToMenu = { [weak searchField] in
-            searchField?.window?.makeFirstResponder(nil)
-        }
-        searchField.onTogglePinFirst = { [weak self] in
-            self?.toggleFirstResultPin()
-        }
-        searchField.onSaveFirstAsSnippet = { [weak self] in
-            self?.saveFirstResultAsSnippet()
-        }
-        searchField.onDeleteFirst = { [weak self] in
-            self?.deleteFirstResult()
-        }
-        searchField.onUndo = { [weak self] in
-            self?.undoLastDeletion()
-        }
-        searchField.onPreviewFirst = { [weak self] in
-            self?.previewFirstResult()
-        }
-        searchField.onOpenFirst = { [weak self] in
-            self?.openFirstResult()
-        }
-        container.addSubview(searchField)
-        let menuItem = NSMenuItem()
-        menuItem.view = container
-        activeSearchField = searchField
-        return menuItem
-    }
-
-    /// Native magnifier menu: discoverable structured filters without adding
-    /// permanent controls to the compact clipboard menu.
-    private func historySearchMenu() -> NSMenu {
-        let menu = makeMenu(title: "Фильтры поиска")
-        let filters: [(title: String, token: String)] = [
-            ("Текст", "type:text"),
-            ("Изображения", "type:image"),
-            ("Файлы", "type:file"),
-            ("Ссылки", "type:link"),
-            ("Почта", "type:email"),
-            ("Цвета", "type:color"),
-            ("Код", "type:code"),
-            ("Сегодня", "when:today"),
-            ("За неделю", "when:week"),
-            ("Закреплённые", "is:pinned"),
-            ("Только история", "is:history")
-        ]
-        for filter in filters {
-            let filterItem = item(filter.title, #selector(insertSearchFilter(_:)))
-            filterItem.representedObject = filter.token
-            filterItem.toolTip = filter.token
-            menu.addItem(filterItem)
-        }
-        var seenBundleIDs = Set<String>()
-        let recentBundleIDs = snapshot.clips.compactMap(\.appBundleID).filter { bundleID in
-            seenBundleIDs.insert(bundleID.lowercased()).inserted
-        }
-        if !recentBundleIDs.isEmpty {
-            menu.addItem(.separator())
-            let applications = item("Приложение", nil, symbol: "app")
-            let applicationMenu = makeMenu(title: "Приложение")
-            for bundleID in recentBundleIDs.prefix(12) {
-                let metadata = AppMetadataStore.shared.metadata(for: bundleID)
-                let application = item(
-                    MenuTitleFormatter.format(metadata.name, limit: 48), #selector(insertSearchFilter(_:)))
-                application.representedObject = "app:\(bundleID)"
-                application.toolTip = bundleID
-                applicationMenu.addItem(application)
-            }
-            applications.submenu = applicationMenu
-            menu.addItem(applications)
-        }
-        return menu
-    }
-
-    @objc private func insertSearchFilter(_ sender: NSMenuItem) {
-        guard activeMenuKind == .history,
-              let searchField = activeSearchField,
-              let token = sender.representedObject as? String else { return }
-        let current = searchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        let query = MenuSearchRequest.replacingFilter(in: current, with: token)
-        searchField.stringValue = query
-        searchChanged(query)
-        searchField.window?.makeFirstResponder(searchField)
-        searchField.currentEditor()?.moveToEndOfDocument(nil)
-    }
-
-    private func searchChanged(_ rawQuery: String) {
-        guard let menu = activeMenu, let kind = activeMenuKind else { return }
-        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        searchWorkItem?.cancel()
-        searchWorkItem = nil
-        searchGeneration += 1
-        let generation = searchGeneration
-
-        if query.isEmpty {
-            removeDynamicItems(from: menu)
-            if kind == .history {
-                appendHistoryContents(to: menu)
-            } else {
-                appendSnippetContents(to: menu, showHeader: true)
-                Self.appendStandardFooter(to: menu, target: self)
-            }
-            return
-        }
-
-        // Enter, Command-1 and destructive shortcuts must not act on results
-        // belonging to the previous query during the debounce/database work.
-        visibleKeyboardEntries = []
-        removeDynamicItems(from: menu)
-        menu.addItem(NSMenuItem(title: "Поиск…", action: nil, keyEquivalent: ""))
-        menu.addItem(.separator())
-        Self.appendStandardFooter(to: menu, target: self)
-
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self,
-                  generation == self.searchGeneration,
-                  self.activeMenu != nil else { return }
-            self.searchWorkItem = MenuSearchWork.enqueue(on: self.dataQueue) { [weak self] in
-                guard let self else { return }
-                do {
-                    let request = MenuSearchRequest(query, snippetsOnly: kind == .snippets)
-                    let clips = try request.history.map {
-                        try Storage.shared.searchSummaries(query: $0, limit: MenuSearchPage<Int>.limit + 1)
-                    } ?? []
-                    let snippets = try request.snippetTerms.map {
-                        try Storage.shared.snippetSummaries(search: $0, pinnedOnly: false, limit: MenuSearchPage<Int>.limit + 1)
-                    } ?? []
-                    DispatchQueue.main.async {
-                        guard generation == self.searchGeneration,
-                              let menu = self.activeMenu else { return }
-                        self.showSearchResults(
-                            clips: clips,
-                            snippets: snippets,
-                            query: request.snippetTerms ?? "",
-                            kind: kind,
-                            in: menu
-                        )
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        guard generation == self.searchGeneration,
-                              let menu = self.activeMenu else { return }
-                        self.removeDynamicItems(from: menu)
-                        self.visibleKeyboardEntries = []
-                        menu.addItem(NSMenuItem(title: "Не удалось выполнить поиск", action: nil, keyEquivalent: ""))
-                        menu.addItem(.separator())
-                        Self.appendStandardFooter(to: menu, target: self)
-                    }
-                }
-            }
-        }
-        searchWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(50), execute: workItem)
-    }
-
-    private func showSearchResults(
-        clips: [ClipSummary],
-        snippets: [SnippetSummary],
-        query: String,
-        kind: MenuKind,
-        in menu: NSMenu
-    ) {
-        removeDynamicItems(from: menu)
-        menu.addItem(.sectionHeader(title: "Результаты"))
-
-        let normalizedQuery = normalizeSearchToken(query)
-        let exactSnippets = snippets.filter { normalizeSearchToken($0.keyword ?? "") == normalizedQuery }
-        let exactSnippetIDs = Set(exactSnippets.compactMap(\.id))
-        let remainingSnippets = snippets.filter { snippet in
-            guard let id = snippet.id else { return true }
-            return !exactSnippetIDs.contains(id)
-        }
-        var results: [SearchEntry]
-        if kind == .history {
-            results = exactSnippets.map(SearchEntry.snippet)
-                + clips.map(SearchEntry.clip)
-                + remainingSnippets.map(SearchEntry.snippet)
-        } else {
-            results = (exactSnippets + remainingSnippets).map(SearchEntry.snippet)
-        }
-        let page = MenuSearchPage(results)
-        results = page.entries
-        visibleKeyboardEntries = results
-
-        if results.isEmpty {
-            menu.addItem(NSMenuItem(title: "Ничего не найдено", action: nil, keyEquivalent: ""))
-        } else {
-            for (index, result) in results.enumerated() {
-                let key = quickKey(for: index)
-                switch result {
-                case .clip(let clip):
-                    menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: key, showNumber: true))
-                case .snippet(let snippet):
-                    menu.addItem(snippetMenuItem(snippet, resultIndex: index, quickKey: key))
-                }
-            }
-        }
-
-        if page.hasMore {
-            menu.addItem(NSMenuItem(title: "Есть ещё результаты — уточните поиск", action: nil, keyEquivalent: ""))
-        }
-        if !results.isEmpty || undoDeletion != nil {
-            menu.addItem(firstResultActionsItem())
-        }
-        menu.addItem(.separator())
-        if kind == .history {
-            menu.addItem(utilityMenuItem())
-        }
-        menu.addItem(item("Редактор сниппетов…", #selector(openSnippetsEditor), symbol: "pencil"))
-        Self.appendStandardFooter(to: menu, target: self)
-    }
-
-    private func removeDynamicItems(from menu: NSMenu) {
-        while menu.numberOfItems > 2 {
-            menu.removeItem(at: 2)
-        }
-    }
-
-    private func normalizeSearchToken(_ value: String) -> String {
-        value
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .trimmingCharacters(in: CharacterSet(charactersIn: ";"))
-    }
-
-    private func activateKeyboardEntry(at index: Int, modifiers: NSEvent.ModifierFlags) {
-        guard visibleKeyboardEntries.indices.contains(index) else { return }
-        let selected = visibleKeyboardEntries[index]
-        let capturedTargetPID = targetPID
-        activeMenu?.cancelTracking()
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            switch selected {
-            case .clip(let clip):
-                let sender = NSMenuItem()
-                sender.representedObject = NSNumber(value: clip.id)
-                self.pasteClip(sender, forcedModifiers: modifiers, destinationPID: capturedTargetPID)
-            case .snippet(let snippet):
-                guard let id = snippet.id else { return }
-                let sender = NSMenuItem()
-                sender.representedObject = NSNumber(value: id)
-                self.pasteSnippet(sender, forcedModifiers: modifiers, destinationPID: capturedTargetPID)
-            }
-        }
-    }
-
     private func appendHotKeyWarnings(to menu: NSMenu) {
         guard !hotKeyWarnings.isEmpty else { return }
         let root = item("Некоторые быстрые клавиши заняты", nil, symbol: "exclamationmark.triangle")
@@ -775,7 +468,7 @@ final class StatusBarController: NSObject {
     }
 
     private func firstResultActionsItem() -> NSMenuItem {
-        let hasEntry = visibleKeyboardEntries.first != nil
+        let hasEntry = topEntry != nil
         let rootTitle = hasEntry
             ? "Действия с верхним элементом"
             : (undoDeletion == nil ? "Действия с верхним элементом" : "Вернуть удалённое")
@@ -784,7 +477,7 @@ final class StatusBarController: NSObject {
             ? "Команды применяются к первому видимому элементу списка"
             : "Восстановить последний удалённый элемент"
         let submenu = makeMenu(title: rootTitle)
-        if let entry = visibleKeyboardEntries.first {
+        if let entry = topEntry {
             let isPinned: Bool
             switch entry {
             case .clip(let clip):
@@ -796,7 +489,7 @@ final class StatusBarController: NSObject {
                     keyEquivalent: "e",
                     modifiers: [.command]
                 ))
-                if clip.kind == .file || SmartClipClassifier.category(for: clip) == .link {
+                if clip.kind == .file || (clip.kind == .text && HistoryItemActionResolver.webURL(clip.text ?? clip.title) != nil) {
                     submenu.addItem(item(
                         "Открыть",
                         #selector(openFirstResult),
@@ -865,7 +558,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func previewFirstResult() {
-        guard let entry = visibleKeyboardEntries.first else { return }
+        guard let entry = topEntry else { return }
         activeMenu?.cancelTracking()
         DispatchQueue.main.async {
             switch entry {
@@ -879,7 +572,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func openFirstResult() {
-        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        guard case .clip(let summary) = topEntry else { return }
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
@@ -902,7 +595,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func pasteFirstResultOCR() {
-        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        guard case .clip(let summary) = topEntry else { return }
         let capturedTargetPID = targetPID
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
@@ -942,7 +635,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func applyTransformToFirstResult(_ sender: NSMenuItem) {
-        guard case .clip(let summary) = visibleKeyboardEntries.first,
+        guard case .clip(let summary) = topEntry,
               let rawValue = sender.representedObject as? String,
               let transform = TextTransform(rawValue: rawValue) else { return }
         let capturedTargetPID = targetPID
@@ -1063,7 +756,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func toggleFirstResultPin() {
-        guard let entry = visibleKeyboardEntries.first else { return }
+        guard let entry = topEntry else { return }
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
@@ -1087,7 +780,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func saveFirstResultAsSnippet() {
-        guard case .clip(let summary) = visibleKeyboardEntries.first else { return }
+        guard case .clip(let summary) = topEntry else { return }
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
@@ -1104,7 +797,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func deleteFirstResult() {
-        guard let entry = visibleKeyboardEntries.first else { return }
+        guard let entry = topEntry else { return }
         activeMenu?.cancelTracking()
         dataQueue.async { [weak self] in
             do {
@@ -1172,10 +865,9 @@ final class StatusBarController: NSObject {
     }
 
     private func snippetMenuItem(_ snippet: SnippetSummary, resultIndex: Int?, quickKey: String?) -> NSMenuItem {
-        let keyword = snippet.keyword.map { "  —  \($0)" } ?? ""
         let prefix = resultIndex.map { "\($0 + 1). " } ?? ""
         let entry = item(
-            prefix + cleanTitle(snippet.title + keyword),
+            prefix + cleanTitle(snippet.title),
             quickKey == nil ? #selector(pasteSnippet(_:)) : #selector(quickPasteSnippet(_:)),
             symbol: "text.quote",
             keyEquivalent: quickKey ?? "",
@@ -1268,7 +960,7 @@ final class StatusBarController: NSObject {
             modifiers: manualShortcut.nsEventModifiers
         ))
         submenu.addItem(.separator())
-        submenu.addItem(item("⌃↩ — исправить выбранную запись истории и вставить", nil, symbol: "info.circle"))
+        submenu.addItem(item("⌃ + щелчок — исправить раскладку при вставке", nil, symbol: "info.circle"))
         root.submenu = submenu
         return root
     }
@@ -1376,13 +1068,8 @@ final class StatusBarController: NSObject {
     }
 
     private func symbolName(for clip: ClipSummary) -> String {
-        switch SmartClipClassifier.category(for: clip) {
-        case .link?: "link"
-        case .email?: "envelope"
-        case .color?: "paintpalette"
-        case .code?: "chevron.left.forwardslash.chevron.right"
-        case nil: symbolName(for: clip.kind)
-        }
+        clip.kind == .text && HistoryItemActionResolver.webURL(clip.text ?? clip.title) != nil
+            ? "link" : symbolName(for: clip.kind)
     }
 
     private func quickKey(for index: Int) -> String? {
@@ -1748,119 +1435,5 @@ final class StatusBarController: NSObject {
     /// responder and disables the item, so quit uses a real local action.
     @objc private func quitApplication() {
         NSApp.terminate(nil)
-    }
-}
-
-extension StatusBarController: NSSearchFieldDelegate {
-    func controlTextDidChange(_ obj: Notification) {
-        guard let field = obj.object as? NSSearchField else { return }
-        searchChanged(field.stringValue)
-    }
-}
-
-@MainActor
-final class MenuSearchField: NSSearchField {
-    var onEscape: (() -> Void)?
-    var onSubmit: ((NSEvent.ModifierFlags) -> Void)?
-    var onQuickSelect: ((Int, NSEvent.ModifierFlags) -> Void)?
-    var onNavigateToMenu: (() -> Void)?
-    var onTogglePinFirst: (() -> Void)?
-    var onSaveFirstAsSnippet: (() -> Void)?
-    var onDeleteFirst: (() -> Void)?
-    var onUndo: (() -> Void)?
-    var onPreviewFirst: (() -> Void)?
-    var onOpenFirst: (() -> Void)?
-
-    override func cancelOperation(_ sender: Any?) {
-        onEscape?()
-    }
-
-    override func keyDown(with event: NSEvent) {
-        if handleCommand(event) { return }
-        super.keyDown(with: event)
-    }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // AppKit may route Command combinations before keyDown. Only the
-        // focused search (or its field editor) owns these menu commands.
-        if event.modifierFlags.contains(.command), let window,
-           window.firstResponder === self || (currentEditor() != nil && window.firstResponder === currentEditor()),
-           handleCommand(event) {
-            return true
-        }
-        return super.performKeyEquivalent(with: event)
-    }
-
-    @discardableResult
-    func handleCommand(_ event: NSEvent) -> Bool {
-        let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
-        // Match the same physical positions as configurable global shortcuts.
-        // Translated characters would turn ⌘E into «⌘у» on a Russian layout.
-        let character = ShortcutDescriptor(keyCode: UInt32(event.keyCode), modifiers: []).keyEquivalent ?? ""
-        if MenuSearchKeyPolicy.shouldPreviewOnSpace(
-            keyCode: event.keyCode,
-            modifiers: modifiers,
-            searchText: stringValue,
-            isRepeat: event.isARepeat
-        ) {
-            onPreviewFirst?()
-            return true
-        }
-        if modifiers.contains(.command), let number = Int(character), (1...9).contains(number) {
-            onQuickSelect?(number - 1, modifiers)
-            return true
-        }
-        if modifiers == .command, !event.isARepeat {
-            switch character.lowercased() {
-            case "p":
-                onTogglePinFirst?()
-                return true
-            case "s":
-                onSaveFirstAsSnippet?()
-                return true
-            case "z":
-                if MenuSearchKeyPolicy.allowsHistoryMutation(searchText: stringValue) {
-                    onUndo?()
-                    return true
-                }
-            case "e":
-                onPreviewFirst?()
-                return true
-            case "o":
-                onOpenFirst?()
-                return true
-            default:
-                if event.keyCode == 51, MenuSearchKeyPolicy.allowsHistoryMutation(searchText: stringValue) {
-                    onDeleteFirst?()
-                    return true
-                }
-            }
-        }
-        if event.keyCode == 36 || event.keyCode == 76 {
-            onSubmit?(modifiers)
-            return true
-        }
-        if MenuSearchKeyPolicy.shouldNavigateToMenu(keyCode: event.keyCode, modifiers: modifiers) {
-            onNavigateToMenu?()
-            return true
-        }
-        return false
-    }
-}
-
-enum MenuSearchKeyPolicy {
-    static func allowsHistoryMutation(searchText: String) -> Bool { searchText.isEmpty }
-
-    static func shouldNavigateToMenu(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
-        modifiers.isEmpty && (keyCode == 125 || keyCode == 126)
-    }
-
-    static func shouldPreviewOnSpace(
-        keyCode: UInt16,
-        modifiers: NSEvent.ModifierFlags,
-        searchText: String,
-        isRepeat: Bool
-    ) -> Bool {
-        keyCode == 49 && modifiers.isEmpty && searchText.isEmpty && !isRepeat
     }
 }

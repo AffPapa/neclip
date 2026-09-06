@@ -1,6 +1,6 @@
 # NeClip
 
-NeClip is a small, local-first clipboard history and snippet manager for macOS.
+NeClip is a small, local-first macOS utility: copy, choose a recent item or a ready-made snippet, paste.
 It has no account, cloud sync, telemetry, subscription, or background network
 traffic. A network request is made only when the user explicitly chooses
 **Check for Updates**.
@@ -31,17 +31,17 @@ SHA-256:
 `4b1563a4b808a35e3dc6580f947f3ee598ca99fde899cb56fa322f345c166a95`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
-## Keyboard workflow
+## Current development workflow (not yet released)
+
+The source branch removes search everywhere. The public 1.9.1 download above
+still has the previous interface; no new release or installed-app update is
+implied. The app is for immediate reuse, not managing a searchable archive.
 
 - `Command-Shift-V` — open the native history menu at the pointer (customizable)
 - `Command-Shift-B` — open snippet folders directly (customizable)
 - right-click the menu-bar icon — open snippet folders without a keyboard
-- type immediately — search inside the menu (digits and punctuation work)
-- `Up` / `Down` — leave search; continue with arrows through native menu items
-- `Return` — use the first visible result, or copy when Accessibility is unavailable
-- `Shift-Return` — paste as plain text
-- `Command-Return` — copy without pasting
-- `Control-Return` — correct EN/RU layout and paste a text history item
+- `Up` / `Down`, `Left` / `Right` — select items and navigate folders
+- `Return` — use the selected item; without Accessibility it is copied for manual paste
 - `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo (customizable)
 - `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
 - `Control-Command-V` — paste the next recent value in sequence (customizable)
@@ -50,17 +50,16 @@ It is also published beside the DMG and in [`docs/version.json`](docs/version.js
 - `Command-S` — save the first visible text result as a snippet
 - `Command-Delete` — delete the first visible result
 - `Command-Z` — restore the last individually deleted item
-- `Space` — preview the first result when search is empty
-- `Command-E` — inspect the first result or edit the first matching snippet
-- `Escape` — clear search, then close
+- `Command-E` — inspect the first result or edit the top quick snippet
+- `Escape` — close the menu
 
 The first ten recent items are inline; up to 100 are browsable in one compact
 **More from History** hierarchy, grouped by tens. Up to 100 pinned items use the
-same bounded hierarchy; older values remain available through database search.
-The snippet hotkey shows a bounded folder hierarchy first, then nine quick
-items. Folder order matches the editor; search includes folder names and
-prioritizes exact keywords with or without `;`. Larger imported libraries remain
-searchable and editable. The
+same bounded hierarchy. The menu explicitly labels the 100-item window without
+promising access through a removed search field. Existing stored values are not
+deleted by this UI change. The snippet hotkey shows up to 200 snippets in folders
+first, then nine quick items. Folder order matches the editor. For larger imported
+libraries, an explicit action opens the complete editor. The
 history menu also contains an explicit **Actions for Top Item** submenu.
 Lower-frequency capture, cleanup, sequential-paste, layout and update controls
 are grouped under **Management**, followed by snippet editing, Settings and Quit.
@@ -71,9 +70,9 @@ accessible from the menu bar. All five global shortcuts can be recorded locally
 in the **Keys** Settings tab; a conflicting candidate never replaces the
 previous working one.
 
-In the snippet editor, `Command-F` focuses search, `Command-N` creates a snippet
-in the active folder, and `Command-D` duplicates it without copying its search
-key. The visible **Restore Snippet** action undoes the last deletion. Explicit
+In the snippet editor, `Command-N` creates a snippet in the active folder and
+`Command-D` duplicates it. Only name, folder, pin and text are editable; there is
+no search field or search key. The visible **Restore Snippet** action undoes the last deletion. Explicit
 full-data erasure clears undo and drafts too. Templates support `{date}`,
 `{time}`, `{clipboard}`, `{date:iso}` and `{time:iso}`; `{{date}}` inserts the
 literal `{date}`. Expanded output is capped at 2 MB and never silently truncated.
@@ -83,14 +82,12 @@ global shortcut. Long text is collapsed to one line and shortened after a
 user-defined 16–96 character limit (64 by default) without cutting an emoji or
 combined Unicode character.
 
-Search accepts ordinary text together with compact local filters:
-`type:text/image/file/link/email/color/code`, `app:com.apple.Safari`,
-`when:today/week/month`, and `is:pinned/history`. When exact search has no
-result, NeClip performs a bounded typo-tolerant pass over lightweight recent
-summaries, never image or RTF payloads.
-The standard magnifier inside the history search field exposes the common
-filters and recent source applications, so their syntax and bundle identifiers
-do not have to be memorized.
+Search fields, query parsing, filters, fuzzy ranking and background full-text
+indexing have been removed. The v7 migration drops only derived search tables,
+triggers and the keyword uniqueness index. Old database key values remain inert;
+legacy JSON keys are ignored on import and omitted on export. Existing snippet
+text, folders and pins remain intact. Do not open a migrated database with an
+older NeClip build; keep a pre-upgrade database copy for rollback.
 
 The top-item action submenu keeps advanced workflows out of the main menu:
 preview/edit/rename, safe URL or file opening, OCR-text paste and local text
@@ -138,11 +135,11 @@ this mode off; it can never enable monitoring or open a permission prompt.
 The focused snippet editor shows every folder, empty folders and **Unfiled** in
 one compact sidebar. It selects the top visible snippet on open; every complete
 native list row selects the clearly labelled fields on the right and arrow keys
-follow the same visible order. Snippets can be edited, moved, pinned and searched; folders can be
+follow the same visible order. Snippets can be edited, moved and pinned; folders can be
 created, renamed and removed. Removing a folder keeps its snippets in
 **Unfiled**. Changes save automatically, pending edits are flushed before
 navigation or close, and a failed save remains visible instead of discarding
-the draft. Menus, searches and the sidebar retain only bounded previews; the
+the draft. Menus and the sidebar retain only bounded previews; the
 complete text is loaded from SQLite only when one snippet is opened or pasted.
 
 ## Local data and privacy

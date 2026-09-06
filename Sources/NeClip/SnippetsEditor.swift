@@ -69,7 +69,6 @@ final class SnippetsEditorModel: ObservableObject {
     @Published var activeFolderID: Int64?
 
     @Published var editorTitle = ""
-    @Published var editorKeyword = ""
     @Published var editorContent = ""
     @Published var editorPinned = false
     @Published var editorFolderID: Int64?
@@ -236,8 +235,7 @@ final class SnippetsEditorModel: ObservableObject {
             guard let snippet = try storage.addSnippet(
                 folderID: folderID,
                 title: "Новый сниппет",
-                content: "",
-                keyword: nil
+                content: ""
             ), let id = snippet.id else {
                 message = "Не удалось создать сниппет"
                 return
@@ -362,19 +360,17 @@ final class SnippetsEditorModel: ObservableObject {
             self.removedSnippet = nil
             reload(selecting: removedSnippet.item.id)
         } catch {
-            message = "Не удалось восстановить сниппет. Проверьте, не занят ли его ключ поиска."
+            message = "Не удалось восстановить сниппет. Попробуйте ещё раз."
         }
     }
 
     func editorChanged() {
         guard !isLoadingEditor, var snippet = editingSnippet else { return }
         snippet.title = editorTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        snippet.keyword = normalizedKeyword(editorKeyword)
         snippet.content = editorContent
         snippet.isPinned = editorPinned
         snippet.folderID = editorFolderID
         guard snippet.title != editingSnippet?.title
-                || snippet.keyword != editingSnippet?.keyword
                 || snippet.content != editingSnippet?.content
                 || snippet.isPinned != editingSnippet?.isPinned
                 || snippet.folderID != editingSnippet?.folderID else {
@@ -429,7 +425,6 @@ final class SnippetsEditorModel: ObservableObject {
         editingSnippet = snippet
         activeFolderID = snippet.folderID
         editorTitle = snippet.title
-        editorKeyword = snippet.keyword ?? ""
         editorContent = snippet.content
         editorPinned = snippet.isPinned
         editorFolderID = snippet.folderID
@@ -445,7 +440,6 @@ final class SnippetsEditorModel: ObservableObject {
             // reset the text editor/caret for those background-only changes.
             if latest.title != editingSnippet?.title
                 || latest.content != editingSnippet?.content
-                || latest.keyword != editingSnippet?.keyword
                 || latest.folderID != editingSnippet?.folderID
                 || latest.isPinned != editingSnippet?.isPinned {
                 applyLoadedSnippet(latest)
@@ -459,7 +453,6 @@ final class SnippetsEditorModel: ObservableObject {
         isLoadingEditor = true
         editingSnippet = nil
         editorTitle = ""
-        editorKeyword = ""
         editorContent = ""
         editorPinned = false
         editorFolderID = nil
@@ -493,12 +486,6 @@ final class SnippetsEditorModel: ObservableObject {
             message = SnippetStorageError.userFacingMessage(for: error, fallback: "Не удалось сохранить сниппет. Черновик сохранён для повтора.")
             return false
         }
-    }
-
-    private func normalizedKeyword(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !trimmed.isEmpty else { return nil }
-        return trimmed.hasPrefix(";") ? trimmed : ";\(trimmed)"
     }
 
     private func rebuildSnippetIndex() {
@@ -542,7 +529,6 @@ private struct SnippetsEditorView: View {
             model.storageDidChange(StorageChangeDomain.from(notification))
         }
         .onChange(of: model.editorTitle) { _, _ in model.editorChanged() }
-        .onChange(of: model.editorKeyword) { _, _ in model.editorChanged() }
         .onChange(of: model.editorContent) { _, _ in model.editorChanged() }
         .onChange(of: model.editorPinned) { _, _ in model.editorChanged() }
         .onChange(of: model.editorFolderID) { _, _ in model.editorChanged() }
@@ -708,38 +694,25 @@ private struct SnippetsEditorView: View {
     }
 
     private func snippetRow(_ snippet: SnippetSummary) -> some View {
-        let context = snippet.keyword ?? ""
-        return HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    if snippet.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.tint)
-                    }
-                    Text(snippet.title.isEmpty ? "Без названия" : snippet.title)
-                        .lineLimit(1)
-                }
-                if !context.isEmpty {
-                    Text(context)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+        HStack(spacing: 8) {
+            if snippet.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.tint)
             }
+            Text(snippet.title.isEmpty ? "Без названия" : snippet.title)
+                .lineLimit(1)
             Spacer(minLength: 4)
             Image(systemName: model.selectedSnippetID == snippet.id ? "pencil.circle.fill" : "pencil")
                 .foregroundStyle(model.selectedSnippetID == snippet.id ? Color.accentColor : Color.secondary)
                 .accessibilityHidden(true)
         }
         .contentShape(Rectangle())
-        .padding(.vertical, 2)
-        .help(context.isEmpty ? "Редактировать сниппет справа" : "\(context)\nРедактировать сниппет справа")
+        .padding(.vertical, 4)
+        .help("Редактировать сниппет справа")
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Сниппет \(snippet.title.isEmpty ? "Без названия" : snippet.title)")
-        .accessibilityValue(context)
-        .accessibilityHint("Открывает название, папку, ключ и текст справа")
+        .accessibilityHint("Открывает название, папку и текст справа")
         .listRowBackground(
             model.selectedSnippetID == snippet.id
                 ? Color.accentColor.opacity(0.14)
@@ -759,7 +732,7 @@ private struct SnippetsEditorView: View {
                         Label("Дублировать", systemImage: "doc.on.doc")
                     }
                     .keyboardShortcut("d", modifiers: .command)
-                    .help("Создать копию без повторения ключа поиска · ⌘D")
+                    .help("Создать копию сниппета · ⌘D")
                 }
 
                 Divider()
@@ -780,12 +753,6 @@ private struct SnippetsEditorView: View {
                     }
                     .labelsHidden()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                LabeledContent("Ключ поиска") {
-                    TextField("Например, ;thanks", text: $model.editorKeyword)
-                        .textFieldStyle(.roundedBorder)
-                        .help("Для быстрого поиска в меню NeClip")
                 }
 
                 Toggle("Закрепить", isOn: $model.editorPinned)

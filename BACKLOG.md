@@ -6,8 +6,11 @@ not planned.
 
 ## Local development after 1.9.1 — not published
 
-- Remove the snippet editor's search controls, Command-F, filtering/debounce,
-  results-only layout and unused folder-context helper. Keep menu search intact.
+- Retire search throughout NeClip: menu/editor fields, snippet keywords,
+  filter syntax, fuzzy ranking, query tasks and FTS indexing. Native menu
+  selection and folder snippets define the new immediate-use workflow.
+- Preserve old snippets, folders and pins; accept legacy JSON keys without
+  keyword conflicts. See `docs/NO-SEARCH-2026-09-06.md`.
 - Invalidate deferred deletion undo after full erasure, inside storage transactions.
 - Convert history to snippets atomically across the full-erasure boundary.
 - Fetch OCR text without materializing original image/RTF payloads.
@@ -16,8 +19,11 @@ not planned.
 
 Scoped plan and verification: `artifacts/neclip/looper-goals/20260906-fresh-pass/`.
 Follow-up candidates, not completed in this pass: selective menu snapshot refresh,
-measured fuzzy-search allocation reductions, and conflict/discard UX for a dirty
+and conflict/discard UX for a dirty
 snippet concurrently changed or removed elsewhere.
+
+The sections below describe historical releases. Search/FTS entries are
+superseded by the local no-search change above, not active roadmap items.
 
 ## Done in 1.3.0
 

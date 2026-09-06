@@ -110,7 +110,7 @@ private struct OnboardingView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 shortcut(Settings.historyShortcut.displayString, "Открыть историю")
-                shortcut("Поиск → ↩", "Найти и вставить")
+                shortcut("↑↓ → ↩", "Выбрать и вставить")
                 shortcut(Settings.snippetsShortcut.displayString, "Открыть папки сниппетов")
             }
             .padding(14)

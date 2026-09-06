@@ -8,7 +8,7 @@ final class SnippetsEditorPresentationTests: XCTestCase {
         let source = try String(contentsOf: root.appendingPathComponent("Sources/NeClip/SnippetsEditor.swift"), encoding: .utf8)
         for removed in ["@Published var query", "queryTask", "searchIsFocused", "scheduleQueryReload",
                         "noSearchResults", "showsFolder", "folderSubtitle", "SnippetRowContext",
-                        "magnifyingglass", "keyboardShortcut(\"f\""] {
+                        "magnifyingglass", "editorKeyword", "Ключ поиска", "keyboardShortcut(\"f\""] {
             XCTAssertFalse(source.contains(removed), "Editor search must stay removed: \(removed)")
         }
     }
@@ -20,7 +20,7 @@ final class SnippetsEditorPresentationTests: XCTestCase {
         let emptyFolder = try XCTUnwrap(storage.addFolder(title: "Пустая"))
         let firstID = try XCTUnwrap(firstFolder.id)
         let emptyID = try XCTUnwrap(emptyFolder.id)
-        let first = try XCTUnwrap(storage.addSnippet(folderID: firstID, title: "Первый", content: "A", keyword: ";first"))
+        let first = try XCTUnwrap(storage.addSnippet(folderID: firstID, title: "Первый", content: "A"))
         let unfiled = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Без папки", content: "B"))
         let model = SnippetsEditorModel(storage: storage)
         model.reload()
@@ -32,17 +32,16 @@ final class SnippetsEditorPresentationTests: XCTestCase {
         XCTAssertTrue(model.openSnippet(id: try XCTUnwrap(unfiled.id)))
         XCTAssertEqual(model.snippets.count, 2, "Direct opening must not hide other snippets")
         XCTAssertEqual(model.selectedSnippetID, unfiled.id)
-        XCTAssertEqual(try storage.fetchSnippet(id: XCTUnwrap(first.id))?.keyword, ";first")
     }
 
     @MainActor
     func testSaveFailureRemainsExplainedAfterRefreshAndClearsAfterCorrection() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
-        _ = try storage.addSnippet(folderID: nil, title: "Existing", content: "A", keyword: "taken")
+        _ = try storage.addSnippet(folderID: nil, title: "Existing", content: "A")
         let id = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Editing", content: "B")?.id)
         let model = SnippetsEditorModel(storage: storage)
         model.reload(selecting: id)
-        model.editorKeyword = "taken"
+        model.editorTitle = String(repeating: "x", count: 201)
         model.editorContent = "Retained draft"
         model.editorChanged()
 
@@ -55,7 +54,7 @@ final class SnippetsEditorPresentationTests: XCTestCase {
         XCTAssertEqual(model.editorContent, "Retained draft")
         XCTAssertNotNil(model.editorMessage, "A refresh must not leave only an unexplained Retry button")
 
-        model.editorKeyword = "available"
+        model.editorTitle = "Editing"
         model.editorChanged()
         XCTAssertNil(model.editorMessage)
         XCTAssertTrue(model.flushPendingSave())

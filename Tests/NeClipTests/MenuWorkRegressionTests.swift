@@ -26,17 +26,4 @@ final class MenuWorkRegressionTests: XCTestCase {
         }
     }
 
-    func testSupersededQueuedSearchDoesNotRunAndLatestRuns() {
-        let queue = DispatchQueue(label: "test.menu-search")
-        queue.suspend()
-        let obsoleteRan = expectation(description: "obsolete SQL must not run")
-        obsoleteRan.isInverted = true
-        let latestRan = expectation(description: "latest SQL runs")
-        let obsolete = MenuSearchWork.enqueue(on: queue) { obsoleteRan.fulfill() }
-        obsolete.cancel()
-        _ = MenuSearchWork.enqueue(on: queue) { latestRan.fulfill() }
-        queue.resume()
-        wait(for: [latestRan], timeout: 2)
-        wait(for: [obsoleteRan], timeout: 0.02)
-    }
 }

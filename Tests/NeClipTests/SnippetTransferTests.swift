@@ -23,8 +23,7 @@ final class SnippetTransferTests: XCTestCase {
         let snippet = try XCTUnwrap(source.addSnippet(
             folderID: folder.id,
             title: "Приветствие",
-            content: "Здравствуйте, {clipboard}",
-            keyword: ";hello"
+            content: "Здравствуйте, {clipboard}"
         ))
         try source.setSnippetPinned(id: XCTUnwrap(snippet.id), pinned: true)
         try source.markSnippetUsed(id: XCTUnwrap(snippet.id))
@@ -37,7 +36,6 @@ final class SnippetTransferTests: XCTestCase {
         let imported = try XCTUnwrap(target.allSnippets().first)
         XCTAssertEqual(imported.title, "Приветствие")
         XCTAssertEqual(imported.content, "Здравствуйте, {clipboard}")
-        XCTAssertEqual(imported.keyword, ";hello")
         XCTAssertTrue(imported.isPinned)
         XCTAssertEqual(imported.useCount, 0)
         XCTAssertEqual(try target.snippetFolders().map(\.title), ["Ответы"])
@@ -57,7 +55,7 @@ final class SnippetTransferTests: XCTestCase {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let content = String(repeating: "x", count: ClipboardCapturePolicy.maxTextBytes)
         for index in 0..<9 {
-            _ = try storage.addSnippet(folderID: nil, title: "Large \(index)", content: content, keyword: nil)
+            _ = try storage.addSnippet(folderID: nil, title: "Large \(index)", content: content)
         }
         XCTAssertThrowsError(try storage.exportSnippetData()) { error in
             XCTAssertEqual(error as? SnippetTransferError, .exportTooLarge)

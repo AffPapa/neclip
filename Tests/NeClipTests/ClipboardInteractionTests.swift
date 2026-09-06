@@ -16,30 +16,4 @@ final class ClipboardInteractionTests: XCTestCase {
         XCTAssertLessThanOrEqual(title.count, 200)
     }
 
-    func testSpacePreviewNeverStealsARealSearchSpace() {
-        XCTAssertTrue(MenuSearchKeyPolicy.shouldPreviewOnSpace(
-            keyCode: 49,
-            modifiers: [],
-            searchText: "",
-            isRepeat: false
-        ))
-        XCTAssertFalse(MenuSearchKeyPolicy.shouldPreviewOnSpace(
-            keyCode: 49,
-            modifiers: [],
-            searchText: "two words",
-            isRepeat: false
-        ))
-        XCTAssertFalse(MenuSearchKeyPolicy.shouldPreviewOnSpace(
-            keyCode: 49,
-            modifiers: .command,
-            searchText: "",
-            isRepeat: false
-        ))
-        XCTAssertFalse(MenuSearchKeyPolicy.shouldPreviewOnSpace(
-            keyCode: 49,
-            modifiers: [],
-            searchText: "",
-            isRepeat: true
-        ))
-    }
 }

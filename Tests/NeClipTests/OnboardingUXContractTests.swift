@@ -13,10 +13,10 @@ final class OnboardingUXContractTests: XCTestCase {
         )
     }
 
-    func testIntroductionFocusesOnHistorySearchAndSnippetFolders() throws {
+    func testIntroductionFocusesOnSelectionAndSnippetFolders() throws {
         let source = try source()
         XCTAssertTrue(source.contains("shortcut(Settings.historyShortcut.displayString"))
-        XCTAssertTrue(source.contains("shortcut(\"Поиск → ↩\""))
+        XCTAssertTrue(source.contains("shortcut(\"↑↓ → ↩\""))
         XCTAssertTrue(source.contains("shortcut(Settings.snippetsShortcut.displayString"))
         XCTAssertFalse(source.contains("Settings.manualLayoutShortcut"))
         XCTAssertFalse(source.contains("Settings.disableAutomaticLayoutShortcut"))

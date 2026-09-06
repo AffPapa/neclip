@@ -5,42 +5,24 @@ final class SnippetsEditorTests: XCTestCase {
     @MainActor
     func testFailedSaveKeepsRetryStateAndDraftUntilSuccessfulRetry() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
-        let occupied = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Occupied", content: "Other", keyword: "reserved")?.id)
         let edited = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Edited", content: "Original")?.id)
         let model = SnippetsEditorModel(storage: storage)
         model.reload(selecting: edited)
-        model.editorKeyword = "reserved"
+        model.editorTitle = String(repeating: "x", count: 201)
         model.editorContent = "Draft to retry"
         model.editorChanged()
         XCTAssertFalse(model.flushPendingSave())
         guard case .failed = model.saveState else { return XCTFail("Failed save must retain its retry state") }
-        XCTAssertEqual(model.message, SnippetStorageError.keywordAlreadyExists.errorDescription)
+        XCTAssertEqual(model.message, SnippetStorageError.snippetTitleTooLong.errorDescription)
         XCTAssertEqual(model.editorContent, "Draft to retry")
         XCTAssertEqual(try storage.fetchSnippet(id: edited)?.content, "Original")
 
-        try storage.deleteSnippet(id: occupied)
+        model.editorTitle = "Edited"
+        model.editorChanged()
         XCTAssertTrue(model.flushPendingSave())
         XCTAssertEqual(model.saveState, .saved)
         XCTAssertNil(model.message)
         XCTAssertEqual(try storage.fetchSnippet(id: edited)?.content, "Draft to retry")
-    }
-
-    func testSnippetKeywordConflictsUseFriendlyTypedErrorAndPermitOwnKeyword() throws {
-        let storage = try Storage(inMemory: true, installStarterContent: false)
-        let first = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "First", content: "Body", keyword: "Shared")?.id)
-        XCTAssertThrowsError(try storage.addSnippet(folderID: nil, title: "Other", content: "Other", keyword: "SHARED")) {
-            XCTAssertEqual($0 as? SnippetStorageError, .keywordAlreadyExists)
-        }
-        var same = try XCTUnwrap(storage.fetchSnippet(id: first))
-        same.content = "Updated"
-        XCTAssertEqual(try storage.update(same).content, "Updated")
-        let second = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Second", content: "Other")?.id)
-        var conflicting = try XCTUnwrap(storage.fetchSnippet(id: second))
-        conflicting.keyword = "shared"
-        XCTAssertThrowsError(try storage.update(conflicting)) {
-            XCTAssertEqual($0 as? SnippetStorageError, .keywordAlreadyExists)
-        }
-        XCTAssertNil(try storage.fetchSnippet(id: second)?.keyword)
     }
 
     func testUnexpectedStorageErrorNeverDisplaysSQLOrPayload() {
@@ -155,7 +137,7 @@ final class SnippetsEditorTests: XCTestCase {
     @MainActor
     func testDuplicateSavesDraftAndSelectsAnEditableCopy() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
-        let id = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Original", content: "Body", keyword: "key")?.id)
+        let id = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Original", content: "Body")?.id)
         let model = SnippetsEditorModel(storage: storage)
         model.reload()
         model.editorContent = "Newest draft"
@@ -163,7 +145,6 @@ final class SnippetsEditorTests: XCTestCase {
         model.duplicateSelected()
         XCTAssertNotEqual(model.selectedSnippetID, id)
         XCTAssertEqual(model.editorContent, "Newest draft")
-        XCTAssertEqual(model.editorKeyword, "")
         XCTAssertEqual(try storage.fetchSnippet(id: id)?.content, "Newest draft")
     }
 
@@ -185,23 +166,6 @@ final class SnippetsEditorTests: XCTestCase {
         XCTAssertEqual(model.selectedSnippetID, id)
         XCTAssertEqual(model.editorContent, "Latest edited body")
         XCTAssertNil(model.editorFolderID)
-        XCTAssertNil(model.removedSnippet)
-    }
-
-    @MainActor
-    func testFailedUndoRetainsRecoveryWhenKeywordIsOccupied() throws {
-        let storage = try Storage(inMemory: true, installStarterContent: false)
-        let id = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Original", content: "Body", keyword: "key")?.id)
-        let model = SnippetsEditorModel(storage: storage)
-        model.reload()
-        model.deleteSelected()
-        let other = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Other", content: "Other", keyword: "key")?.id)
-        model.undoSnippetDeletion()
-        XCTAssertNotNil(model.removedSnippet)
-        XCTAssertNil(try storage.fetchSnippet(id: id))
-        try storage.deleteSnippet(id: other)
-        model.undoSnippetDeletion()
-        XCTAssertEqual(model.selectedSnippetID, id)
         XCTAssertNil(model.removedSnippet)
     }
 
@@ -259,14 +223,14 @@ final class SnippetsEditorTests: XCTestCase {
     @MainActor
     func testDirectOpenCannotDiscardInvalidDraft() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
-        let first = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "First", content: "Body", keyword: "reserved")?.id)
+        let first = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "First", content: "Body")?.id)
         let second = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Second", content: "Other")?.id)
         let model = SnippetsEditorModel(storage: storage)
         model.reload(selecting: second)
-        model.editorKeyword = "reserved"
+        model.editorTitle = String(repeating: "x", count: 201)
         model.editorChanged()
         XCTAssertFalse(model.openSnippet(id: first))
         XCTAssertEqual(model.selectedSnippetID, second)
-        XCTAssertEqual(model.editorKeyword, "reserved")
+        XCTAssertEqual(model.editorTitle, String(repeating: "x", count: 201))
     }
 }

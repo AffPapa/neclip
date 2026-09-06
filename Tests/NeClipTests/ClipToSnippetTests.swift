@@ -17,7 +17,6 @@ final class ClipToSnippetTests: XCTestCase {
         XCTAssertEqual(snippet.content, content)
         XCTAssertEqual(snippet.sortIndex, existing.sortIndex + 1)
         XCTAssertNil(snippet.folderID)
-        XCTAssertNil(snippet.keyword)
         XCTAssertEqual(try storage.fetchSnippet(id: XCTUnwrap(snippet.id))?.content, content)
         XCTAssertEqual(try storage.fetchClip(id: id)?.rtf, rtf)
         XCTAssertEqual(storage.count, 1)

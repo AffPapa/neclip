@@ -45,7 +45,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
         XCTAssertTrue(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
-        XCTAssertTrue(statusBar.contains("MenuSearchKeyPolicy.shouldPreviewOnSpace"))
+        XCTAssertFalse(statusBar.contains("MenuSearchKeyPolicy"))
         XCTAssertFalse(
             FileManager.default.fileExists(
                 atPath: repositoryRoot
@@ -110,14 +110,14 @@ final class ApplicationModeContractTests: XCTestCase {
 
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)"))
         XCTAssertTrue(statusBar.contains("let displayTitle = cleanTitle(title)"))
-        XCTAssertTrue(statusBar.contains("cleanTitle(snippet.title + keyword)"))
+        XCTAssertTrue(statusBar.contains("cleanTitle(snippet.title)"))
         XCTAssertTrue(statusBar.contains("cleanTitle(clip.title)"))
         XCTAssertEqual(statusBar.components(separatedBy: "NSMenu(title:").count - 1, 1)
         XCTAssertTrue(statusBar.contains("private func makeMenu(title: String) -> NSMenu"))
-        XCTAssertTrue(statusBar.contains("searchField.searchMenuTemplate = historySearchMenu()"))
-        XCTAssertTrue(statusBar.contains("#selector(insertSearchFilter(_:))"))
+        XCTAssertFalse(statusBar.contains("NSSearchField"))
+        XCTAssertFalse(statusBar.contains("insertSearchFilter"))
         XCTAssertTrue(statusBar.contains("Storage.shared.menuSnippetSnapshot()"))
-        XCTAssertTrue(statusBar.contains("Storage.shared.snippetSummaries("))
+        XCTAssertFalse(statusBar.contains("Storage.shared.searchSummaries("))
         XCTAssertTrue(statusBar.contains("Storage.shared.fetchSnippet(id: id)"))
         XCTAssertFalse(statusBar.contains("Storage.shared.allSnippets("))
         XCTAssertTrue(statusBar.contains("NSApp.currentEvent?.type == .rightMouseUp ? .snippets : .history"))
@@ -137,7 +137,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("Размер текста одной записи"))
         XCTAssertTrue(preferences.contains("DisclosureGroup(\"Дополнительно\")"))
         XCTAssertTrue(preferences.contains("DisclosureGroup(\"Работа в меню\")"))
-        XCTAssertTrue(statusBar.contains("self.searchWorkItem = MenuSearchWork.enqueue(on: self.dataQueue)"))
+        XCTAssertFalse(statusBar.contains("searchWorkItem"))
         XCTAssertTrue(preferences.contains("Очищать незакреплённую историю при выходе"))
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
