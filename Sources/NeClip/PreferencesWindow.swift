@@ -179,7 +179,7 @@ private struct NumericPreferenceRow: View {
             Text(unit)
                 .foregroundStyle(.secondary)
                 .frame(width: 84, alignment: .leading)
-            Stepper("", value: Binding(get: { value }, set: apply), in: range, step: step)
+            Stepper("", value: Binding(get: { value }, set: { apply($0) }), in: range, step: step)
                 .labelsHidden()
                 .accessibilityLabel("Изменить: \(accessibilityLabel.lowercased())")
         }
