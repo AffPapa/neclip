@@ -533,12 +533,7 @@ final class Storage: @unchecked Sendable {
     func insert(_ newItem: ClipItem) throws -> Int64? {
         var item = newItem
         if item.contentBytes == 0 {
-            item.contentBytes = Int64(
-                (item.text?.utf8.count ?? 0)
-                    + (item.ocrText?.utf8.count ?? 0)
-                    + (item.data?.count ?? 0)
-                    + (item.rtf?.count ?? 0)
-            )
+            item.contentBytes = Self.payloadBytes(item)
         }
         if item.contentHash == nil {
             item.contentHash = Self.hash(for: item)
@@ -1167,12 +1162,6 @@ final class Storage: @unchecked Sendable {
             try item.insert(db)
         }
         notifyChange(.snippets)
-    }
-
-    func deleteSnippet(id: Int64) throws {
-        guard try removeSnippet(id: id) != nil else {
-            throw SnippetStorageError.snippetNotFound
-        }
     }
 
     /// Portable, versioned JSON. History and usage metadata are intentionally
