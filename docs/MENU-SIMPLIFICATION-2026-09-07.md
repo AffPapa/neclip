@@ -28,6 +28,9 @@ Absent notarization access blocks a new binary, not safe source/site publication
 - Option-click inspects the selected clip by exact ID before paste work starts.
   It replaces the old Option formatting override; Shift remains plain-text paste,
   Command copy-only and Control layout correction. A visible menu hint explains it.
+  Native testing caught a late modifier-polling issue: actions now capture the
+  activating NSEvent flags, not the keyboard state after tracking ends. The same
+  correction applies to snippet copy-only and numeric history shortcuts.
 - Existing pinned clips keep protection from retention, including image/file/RTF
   payloads. The conditional Previously Pinned group remains accessible. Its
   inspector offers explicit Unpin with a retention warning. The unpin operation
@@ -71,6 +74,16 @@ payloads, idempotent exact-ID unpinning, invalidated inspectors, draft conversio
 legacy snippet editing and removed menu paths. Structural menu tests do not
 replace live interaction testing. Sanitizers/native QA/publication results are
 recorded in the associated PR evidence after they actually run.
+
+Isolated native QA verified direct root folders, the dedicated snippet menu,
+light/dark editor without pin controls, active-panel Settings title, disabled
+zoom and disclosed layout memory. Option-Return on a selected synthetic legacy
+clip opened its exact inspector; Unpin showed a warning, retained the text in
+history and removed the now-empty legacy group. Inspector Command-W and menu
+Quit worked. One earlier CUA timeout followed Settings closure; a one-second
+process sample showed an idle event loop, not a blocked main thread. Only that
+synthetic QA process was restarted. No production clipboard/database was used;
+global hotkey registration conflicts are expected while the installed app runs.
 
 The previous Developer ID identity is available. Filename-only checks across
 relevant local locations did not find the former .p8; the neclip Keychain profile

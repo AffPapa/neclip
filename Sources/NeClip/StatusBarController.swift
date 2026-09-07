@@ -749,17 +749,23 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func pasteClip(_ sender: NSMenuItem) {
-        pasteClip(sender, forcedModifiers: nil, destinationPID: targetPID)
+        pasteClip(sender, forcedModifiers: actionModifiers, destinationPID: targetPID)
     }
 
     @objc private func quickPasteClip(_ sender: NSMenuItem) {
-        pasteClip(sender, forcedModifiers: NSEvent.modifierFlags.subtracting(.command), destinationPID: targetPID)
+        pasteClip(sender, forcedModifiers: actionModifiers.subtracting(.command), destinationPID: targetPID)
+    }
+
+    /// Capture the activating event, not the key state after menu tracking ends.
+    private var actionModifiers: NSEvent.ModifierFlags {
+        (NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags)
+            .intersection(.deviceIndependentFlagsMask)
     }
 
     private func pasteClip(_ sender: NSMenuItem, forcedModifiers: NSEvent.ModifierFlags?, destinationPID: pid_t?) {
         guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = destinationPID
-        let modifiers = forcedModifiers ?? NSEvent.modifierFlags
+        let modifiers = forcedModifiers ?? actionModifiers
         if modifiers.contains(.option) {
             activeMenu?.cancelTracking()
             DispatchQueue.main.async {
@@ -831,7 +837,7 @@ final class StatusBarController: NSObject {
     @objc private func pasteSnippet(_ sender: NSMenuItem) {
         guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = targetPID
-        let copyOnly = NSEvent.modifierFlags.contains(.command)
+        let copyOnly = actionModifiers.contains(.command)
         let clipboard = NSPasteboard.general.string(forType: .string)
         dataQueue.async { [weak self] in
             do {

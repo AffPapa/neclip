@@ -43,6 +43,9 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(paste.contains("modifiers.contains(.control)"))
         XCTAssertTrue(paste.contains("modifiers.contains(.command)"))
         XCTAssertTrue(paste.contains("forcedModifiers: NSEvent.ModifierFlags?"))
+        XCTAssertTrue(source.contains("NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags"))
+        XCTAssertTrue(source.contains("forcedModifiers: actionModifiers.subtracting(.command)"))
+        XCTAssertTrue(source.contains("let copyOnly = actionModifiers.contains(.command)"))
     }
 
     func testLegacyPinsRemainAccessibleAndSnippetPasteDoesNotReorderTheLibrary() throws {
