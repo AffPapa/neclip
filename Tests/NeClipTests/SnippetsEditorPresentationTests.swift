@@ -8,8 +8,9 @@ final class SnippetsEditorPresentationTests: XCTestCase {
         let source = try String(contentsOf: root.appendingPathComponent("Sources/NeClip/SnippetsEditor.swift"), encoding: .utf8)
         for removed in ["@Published var query", "queryTask", "searchIsFocused", "scheduleQueryReload",
                         "noSearchResults", "showsFolder", "folderSubtitle", "SnippetRowContext",
-                        "magnifyingglass", "editorKeyword", "Ключ поиска", "keyboardShortcut(\"f\""] {
-            XCTAssertFalse(source.contains(removed), "Editor search must stay removed: \(removed)")
+                        "magnifyingglass", "editorKeyword", "Ключ поиска", "keyboardShortcut(\"f\"",
+                        "editorPinned", "pin.fill", "Toggle(\"Закрепить\""] {
+            XCTAssertFalse(source.contains(removed), "Retired editor controls must stay removed: \(removed)")
         }
     }
 

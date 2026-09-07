@@ -39,7 +39,7 @@
       <h2>Только то, что ускоряет работу</h2>
       <p class="section-lead">NeClip живёт в строке меню, не занимает Dock и вызывается одной комбинацией. Настройки, просмотр записей и редактор сниппетов открываются в отдельных окнах.</p>
       <div class="grid">
-        <article class="card"><h3>История</h3><p>Недавние тексты, изображения и файлы. Выберите нужное в меню; закрепление, просмотр и лимиты помогают держать список под контролем.</p></article>
+        <article class="card"><h3>История</h3><p>Недавние тексты, изображения и файлы. Выберите нужное в меню. В кандидате 1.10.0 папки сразу видны, а ⌥-клик открывает выбранную запись для просмотра.</p></article>
         <article class="card"><h3>Сниппеты</h3><p>Готовые тексты по папкам. Выбор одной клавишей, понятный редактор и локальные подстановки даты, времени и текущего буфера.</p></article>
         <article class="card"><h3>Раскладка</h3><p>Ручное исправление EN/RU, переназначаемые клавиши и осторожный авто-режим с отдельной кнопкой выключения.</p></article>
       </div>
@@ -52,9 +52,7 @@
         <div class="shortcut" role="listitem"><span>Открыть папки сниппетов</span><kbd>⌘ ⇧ B</kbd></div>
         <div class="shortcut" role="listitem"><span>Исправить раскладку</span><kbd>⌥ ⇧ L</kbd></div>
         <div class="shortcut" role="listitem"><span>Выключить автоисправление</span><kbd>⌃ ⌥ A</kbd></div>
-        <div class="shortcut" role="listitem"><span>Закрепить первый результат</span><kbd>⌘ P</kbd></div>
-        <div class="shortcut" role="listitem"><span>Сохранить как сниппет</span><kbd>⌘ S</kbd></div>
-        <div class="shortcut" role="listitem"><span>Удалить / вернуть</span><kbd>⌘ ⌫ / ⌘ Z</kbd></div>
+        <div class="shortcut" role="listitem"><span>Просмотр выбранной записи · 1.10.0</span><kbd>⌥ клик</kbd></div>
         <div class="shortcut" role="listitem"><span>Вставить без форматирования</span><kbd>⇧ ↩</kbd></div>
         <div class="shortcut" role="listitem"><span>Только копировать</span><kbd>⌘ ↩</kbd></div>
       </div>
@@ -74,6 +72,7 @@
     <section class="wrap" id="versions">
       <h2>Версии</h2>
       <p class="section-lead">Что изменилось и какие проверки прошла каждая опубликованная версия.</p>
+      <p>В кандидате 1.10.0 папки сразу в главном меню. Убраны новые закрепления, действия с верхним элементом и повторяющийся быстрый список. Старые закреплённые записи сохранены. <a href="https://github.com/AffPapa/neclip/blob/main/docs/MENU-SIMPLIFICATION-2026-09-07.md">Проверка меню и рекомендации Apple</a>.</p>
       <div class="timeline">
         <article class="card release"><div><strong>1.10.0</strong><br><span class="status">готовится</span></div><div><b>Меньше лишнего, ближе к делу.</b><ul><li>Убраны поиск и ключи сниппетов: недавние копии и папки сразу в меню</li><li>Обновляется только изменившаяся история или библиотека сниппетов</li><li>Отладочные символы хранятся отдельно, а не утяжеляют приложение</li><li>Редкие ограничения в «Дополнительно», активная автоочистка остаётся заметной</li></ul><p>Исходники готовы к проверке выпуска. Публичного DMG 1.10.0 пока нет: ожидается восстановление доступа для нотарификации Apple.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.10.0-STATUS.md">Статус и ограничения</a> · <a href="https://github.com/AffPapa/neclip/blob/main/docs/OPTIMIZATION-2026-09-06.md">Замеры и восемь аналогов</a></div></article>
         <article class="card release"><div><strong>1.9.1</strong><br><span class="status">выпущена</span></div><div><b>Настройки по правилам Mac.</b><ul><li>Пять постоянных разделов с привычной панелью macOS</li><li>Лимиты применяются после ввода, а Escape отменяет изменение</li><li>Редактор предупреждает о несохранённом тексте и сохраняет черновик при ошибке</li><li>Короче первый запуск, понятнее разрешения и стандартные команды меню</li></ul><a href="https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.1-2026-09-06.md">Проверки и ограничения</a></div></article>

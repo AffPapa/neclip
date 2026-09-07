@@ -53,11 +53,7 @@ distribution-symbol stripping and measured results. No new dependency is added.
 - `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
 - `Control-Command-V` — paste the next recent value in sequence (customizable)
 - `Command-1` … `Command-9` — select a visible result
-- `Command-P` — pin or unpin the first visible result
-- `Command-S` — save the first visible text result as a snippet
-- `Command-Delete` — delete the first visible result
-- `Command-Z` — restore the last individually deleted item
-- `Command-E` — inspect the first result or edit the top quick snippet
+- `Option-click` — inspect the chosen history item; its text can be saved as a snippet
 - `Escape` — close the menu
 
 The first ten recent items are inline; up to 100 are browsable in one compact
@@ -65,9 +61,12 @@ The first ten recent items are inline; up to 100 are browsable in one compact
 same bounded hierarchy. The menu explicitly labels the 100-item window without
 promising access through a removed search field. Existing stored values are not
 deleted by this UI change. The snippet hotkey shows up to 200 snippets in folders
-first, then nine quick items. Folder order matches the editor. For larger imported
-libraries, an explicit action opens the complete editor. The
-history menu also contains an explicit **Actions for Top Item** submenu.
+directly, without an outer folder submenu or a duplicate quick list. Folder
+order matches the editor and no longer changes after pasting. For larger imported
+libraries, an explicit action opens the complete editor. Implicit top-item actions
+and new pin creation are removed. Existing protected clips remain accessible in
+**Previously Pinned**; Option-click opens their explicit Unpin button with a
+retention warning. Unpinning alone never deletes a record.
 Lower-frequency capture, cleanup, sequential-paste, layout and update controls
 are grouped under **Management**, followed by snippet editing, Settings and Quit.
 
@@ -78,7 +77,7 @@ in the **Keys** Settings tab; a conflicting candidate never replaces the
 previous working one.
 
 In the snippet editor, `Command-N` creates a snippet in the active folder and
-`Command-D` duplicates it. Only name, folder, pin and text are editable; there is
+`Command-D` duplicates it. Only name, folder and text are editable; there is
 no search field or search key. The visible **Restore Snippet** action undoes the last deletion. Explicit
 full-data erasure clears undo and drafts too. Templates support `{date}`,
 `{time}`, `{clipboard}`, `{date:iso}` and `{time:iso}`; `{{date}}` inserts the
@@ -96,9 +95,8 @@ legacy JSON keys are ignored on import and omitted on export. Existing snippet
 text, folders and pins remain intact. Do not open a migrated database with an
 older NeClip build; keep a pre-upgrade database copy for rollback.
 
-The top-item action submenu keeps advanced workflows out of the main menu:
-preview/edit/rename, safe URL or file opening, OCR-text paste and local text
-transforms. Deletion remains a separate explicit action with exact local undo;
+The selected-item inspector supports preview/edit/rename and safe URL or file
+opening. Text-transform tools and implicit first-item deletion were removed.
 NeClip never infers that a receiving application accepted an injected paste.
 Sequential paste needs no collection mode: the first invocation
 captures a stable list of the 50 latest database identifiers, each successful
@@ -142,7 +140,7 @@ this mode off; it can never enable monitoring or open a permission prompt.
 The focused snippet editor shows every folder, empty folders and **Unfiled** in
 one compact sidebar. It selects the top visible snippet on open; every complete
 native list row selects the clearly labelled fields on the right and arrow keys
-follow the same visible order. Snippets can be edited, moved and pinned; folders can be
+follow the same visible order. Snippets can be edited and moved; folders can be
 created, renamed and removed. Removing a folder keeps its snippets in
 **Unfiled**. Changes save automatically, pending edits are flushed before
 navigation or close, and a failed save remains visible instead of discarding

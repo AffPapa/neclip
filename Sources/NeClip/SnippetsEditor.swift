@@ -70,7 +70,6 @@ final class SnippetsEditorModel: ObservableObject {
 
     @Published var editorTitle = ""
     @Published var editorContent = ""
-    @Published var editorPinned = false
     @Published var editorFolderID: Int64?
 
     @Published var saveState: SaveState = .idle
@@ -368,11 +367,9 @@ final class SnippetsEditorModel: ObservableObject {
         guard !isLoadingEditor, var snippet = editingSnippet else { return }
         snippet.title = editorTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         snippet.content = editorContent
-        snippet.isPinned = editorPinned
         snippet.folderID = editorFolderID
         guard snippet.title != editingSnippet?.title
                 || snippet.content != editingSnippet?.content
-                || snippet.isPinned != editingSnippet?.isPinned
                 || snippet.folderID != editingSnippet?.folderID else {
             saveTask?.cancel()
             saveTask = nil
@@ -426,7 +423,6 @@ final class SnippetsEditorModel: ObservableObject {
         activeFolderID = snippet.folderID
         editorTitle = snippet.title
         editorContent = snippet.content
-        editorPinned = snippet.isPinned
         editorFolderID = snippet.folderID
         pendingDraft = nil
         saveState = .saved
@@ -454,7 +450,6 @@ final class SnippetsEditorModel: ObservableObject {
         editingSnippet = nil
         editorTitle = ""
         editorContent = ""
-        editorPinned = false
         editorFolderID = nil
         pendingDraft = nil
         saveState = .idle
@@ -530,7 +525,6 @@ private struct SnippetsEditorView: View {
         }
         .onChange(of: model.editorTitle) { _, _ in model.editorChanged() }
         .onChange(of: model.editorContent) { _, _ in model.editorChanged() }
-        .onChange(of: model.editorPinned) { _, _ in model.editorChanged() }
         .onChange(of: model.editorFolderID) { _, _ in model.editorChanged() }
         .alert("Удалить сниппет?", isPresented: $model.showDeleteSnippetAlert) {
             Button("Удалить", role: .destructive, action: model.deleteSelected)
@@ -695,11 +689,6 @@ private struct SnippetsEditorView: View {
 
     private func snippetRow(_ snippet: SnippetSummary) -> some View {
         HStack(spacing: 8) {
-            if snippet.isPinned {
-                Image(systemName: "pin.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.tint)
-            }
             Text(snippet.title.isEmpty ? "Без названия" : snippet.title)
                 .lineLimit(1)
             Spacer(minLength: 4)
@@ -754,9 +743,6 @@ private struct SnippetsEditorView: View {
                     .labelsHidden()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                Toggle("Закрепить", isOn: $model.editorPinned)
-                    .toggleStyle(.checkbox)
 
                 Text("Текст")
                 TextEditor(text: $model.editorContent)

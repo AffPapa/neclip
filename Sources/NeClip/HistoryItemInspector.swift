@@ -218,6 +218,7 @@ final class HistoryItemInspectorModel: ObservableObject {
     let appBundleID: String?
     let createdAt: Date
     @Published private(set) var contentBytes: Int64
+    @Published private(set) var isLegacyPinned: Bool
     private(set) var imagePreview: NSImage?
     private(set) var ocrText: String?
     private let storage: Storage
@@ -240,6 +241,7 @@ final class HistoryItemInspectorModel: ObservableObject {
         appBundleID = item.appBundleID
         createdAt = item.createdAt
         contentBytes = item.contentBytes
+        isLegacyPinned = item.isPinned
         imagePreview = imagePreviewData.flatMap(NSImage.init(data:))
         ocrText = item.ocrText
         title = item.title
@@ -252,6 +254,30 @@ final class HistoryItemInspectorModel: ObservableObject {
 
     var canOpen: Bool {
         isValid && HistoryItemActionResolver.openTarget(for: currentItem) != nil
+    }
+
+    /// Only retires an existing pin; there is deliberately no way to create one.
+    func unpinLegacyItem() {
+        guard isValid, isLegacyPinned else { return }
+        do {
+            let changed = try storage.unpinLegacyClip(id: id)
+            isLegacyPinned = false
+            feedback = changed
+                ? "Откреплено — теперь действуют обычные ограничения истории"
+                : "Запись уже откреплена или удалена"
+        } catch {
+            feedback = "Не удалось открепить. Запись сохранена — попробуйте ещё раз."
+        }
+    }
+
+    func saveAsSnippet() {
+        guard isValid, kind == .text else { return }
+        do {
+            _ = try storage.saveClipAsSnippet(id: id, draftTitle: title, draftText: text)
+            feedback = "Сохранено в сниппеты без папки"
+        } catch {
+            feedback = "Не удалось создать сниппет. Текст оставлен в окне."
+        }
     }
 
     @discardableResult
@@ -286,6 +312,7 @@ final class HistoryItemInspectorModel: ObservableObject {
         imagePreview = nil
         ocrText = nil
         contentBytes = 0
+        isLegacyPinned = false
         feedback = nil
     }
 
@@ -314,6 +341,7 @@ final class HistoryItemInspectorModel: ObservableObject {
 
 private struct HistoryItemInspectorView: View {
     @ObservedObject var model: HistoryItemInspectorModel
+    @State private var confirmUnpin = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -369,6 +397,20 @@ private struct HistoryItemInspectorView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if model.isLegacyPinned {
+                HStack {
+                    Text("Закреплено в прежней версии — защищено от автоочистки")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Открепить…") { confirmUnpin = true }
+                }
+            }
+
+            if model.kind == .text {
+                Button("Сохранить как сниппет", action: model.saveAsSnippet)
+            }
+
             HStack(spacing: 12) {
                 Text(metadata)
                     .font(.caption)
@@ -385,6 +427,12 @@ private struct HistoryItemInspectorView: View {
         }
         .padding(16)
         .frame(minWidth: 500, minHeight: 360)
+        .confirmationDialog("Открепить эту запись?", isPresented: $confirmUnpin) {
+            Button("Открепить", action: model.unpinLegacyItem)
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Запись останется в истории, но сможет удалиться при следующей автоочистке по сроку, количеству или объёму. Сниппеты не затрагиваются.")
+        }
     }
 
     private var metadata: String {

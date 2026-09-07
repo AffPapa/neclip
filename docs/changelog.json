@@ -18,6 +18,9 @@
       "version": "1.9.1",
       "status": "released",
       "highlights": [
+        "7 September: flat folders, no duplicate quick list, first-item commands, text-transform tools or new pins",
+        "Legacy clips remain protected with explicit unpinning; Option-click inspects the chosen item",
+        "Stable folder order; snippet paste no longer writes usage or refreshes an unchanged menu",
         "Public 1.9.1 build 16 with Developer ID, notarization and independent public-DMG verification",
         "Native icon-and-label Settings toolbar: General, Shortcuts, Privacy, Layout and Data",
         "History retention, menu presentation, paste behavior and launch settings have distinct groups",

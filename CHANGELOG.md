@@ -6,6 +6,15 @@ DMG checksum verification have passed.
 
 ## 1.10.0 / build 17 — source candidate, 2026-09-06
 
+7 September follow-up (same unpublished candidate): folders now appear directly
+in both menus. Removed duplicate quick snippets, top-item actions, text-transform
+tools and creation of new pins. Existing protected clips remain accessible with
+explicit warned unpinning. Option-click inspects the chosen item; Shift still
+pastes plain text. Snippet insertion no longer writes usage statistics or
+refreshes an unchanged library. Settings titles follow the active panel;
+secondary layout-memory controls use progressive disclosure. See
+`docs/MENU-SIMPLIFICATION-2026-09-07.md` for scope, Apple sources and release limits.
+
 - Removed search, snippet keywords and derived FTS work; recent copies and
   snippet folders are the entire browsing concept. Existing content is preserved.
 - Refresh only changed menu domains; retry dirty/failed reads when opening.

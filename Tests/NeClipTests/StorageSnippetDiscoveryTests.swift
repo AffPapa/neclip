@@ -35,11 +35,11 @@ final class StorageSnippetDiscoveryTests: XCTestCase {
         XCTAssertGreaterThan(duplicate.sortIndex, original.sortIndex)
     }
 
-    func testMarkUsedNotifiesSnippetObserversAndChangesQuickOrder() async throws {
+    func testLegacyUsageDoesNotReorderFolderMenu() async throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let first = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "First", content: "A")?.id)
         let second = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Second", content: "B")?.id)
-        XCTAssertEqual(try storage.menuSnippetSnapshot().snippets.first?.id, second)
+        XCTAssertEqual(try storage.menuSnippetSnapshot().snippets.map(\.id), [first, second])
         // Drain notifications from setup before observing the usage mutation.
         await MainActor.run {}
         let changed = expectation(forNotification: .neClipStorageDidChange, object: storage) { notification in
@@ -47,6 +47,19 @@ final class StorageSnippetDiscoveryTests: XCTestCase {
         }
         try storage.markSnippetUsed(id: first)
         await fulfillment(of: [changed], timeout: 2)
-        XCTAssertEqual(try storage.menuSnippetSnapshot().snippets.first?.id, first)
+        XCTAssertEqual(try storage.menuSnippetSnapshot().snippets.map(\.id), [first, second])
+    }
+
+    func testBoundedMenuUsesStableFolderOrderBeforeApplyingLimit() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let folder = try XCTUnwrap(storage.addFolder(title: "Work"))
+        let inFolder = try XCTUnwrap(storage.addSnippet(folderID: folder.id, title: "A", content: "A"))
+        let unfiled = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "B", content: "B"))
+        try storage.setSnippetPinned(id: XCTUnwrap(unfiled.id), pinned: true)
+        try storage.markSnippetUsed(id: XCTUnwrap(unfiled.id))
+        let snapshot = try storage.menuSnippetSnapshot(limit: 1)
+        XCTAssertEqual(snapshot.snippets.map(\.id), [inFolder.id])
+        XCTAssertEqual(snapshot.folders.map(\.id), [folder.id])
+        XCTAssertTrue(snapshot.hasMore)
     }
 }

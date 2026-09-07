@@ -109,7 +109,6 @@ final class SnippetsEditorTests: XCTestCase {
         try storage.setSnippetPinned(id: id, pinned: true)
         _ = try storage.moveSnippet(id: id, toFolderID: folder.id)
         model.reload()
-        XCTAssertTrue(model.editorPinned)
         XCTAssertEqual(model.editorFolderID, folder.id)
         model.editorTitle = "Edited title"
         model.editorChanged()
@@ -146,6 +145,26 @@ final class SnippetsEditorTests: XCTestCase {
         XCTAssertNotEqual(model.selectedSnippetID, id)
         XCTAssertEqual(model.editorContent, "Newest draft")
         XCTAssertEqual(try storage.fetchSnippet(id: id)?.content, "Newest draft")
+    }
+
+    @MainActor
+    func testRetiredPinIsPreservedDuringEditingAndDuplication() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let id = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Legacy", content: "Body")?.id)
+        try storage.setSnippetPinned(id: id, pinned: true)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload(selecting: id)
+        model.editorTitle = "Edited legacy snippet"
+        model.editorContent = "Updated content"
+        model.editorChanged()
+        XCTAssertTrue(model.flushPendingSave())
+        XCTAssertEqual(try storage.fetchSnippet(id: id)?.isPinned, true)
+        model.duplicateSelected()
+        let copyID = try XCTUnwrap(model.selectedSnippetID)
+        XCTAssertNotEqual(copyID, id)
+        let copy = try XCTUnwrap(storage.fetchSnippet(id: copyID))
+        XCTAssertTrue(copy.isPinned, "Retiring the UI must not rewrite legacy stored metadata")
+        XCTAssertEqual(copy.content, "Updated content")
     }
 
     @MainActor

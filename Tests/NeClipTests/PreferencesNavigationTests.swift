@@ -22,6 +22,7 @@ final class PreferencesNavigationTests: XCTestCase {
             XCTAssertEqual(Set(identifiers).count, 5)
             XCTAssertEqual(controller.toolbarSelectableItemIdentifiers(toolbar), identifiers)
             for section in PreferencesSection.allCases {
+                XCTAssertEqual(section.windowTitle, "\(RuntimeIdentity.displayName) — \(section.title)")
                 let item = controller.toolbar(toolbar, itemForItemIdentifier: section.identifier,
                                               willBeInsertedIntoToolbar: true)
                 XCTAssertEqual(item?.label, section.title)
@@ -48,5 +49,18 @@ final class PreferencesNavigationTests: XCTestCase {
             XCTAssertEqual(observed, [.general, .data])
             withExtendedLifetime(subscription) {}
         }
+    }
+
+    func testSettingsKeepResizableAccessibleChromeWithoutMinimizeOrZoom() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: root.appendingPathComponent("Sources/NeClip/PreferencesWindow.swift"), encoding: .utf8)
+        XCTAssertTrue(source.contains("window.styleMask = [.titled, .closable, .resizable]"))
+        XCTAssertTrue(source.contains("standardWindowButton(.miniaturizeButton)?.isEnabled = false"))
+        XCTAssertTrue(source.contains("standardWindowButton(.zoomButton)?.isEnabled = false"))
+        XCTAssertTrue(source.contains("window?.title = section.windowTitle"))
+        XCTAssertFalse(source.contains("⌥ — изменить режим форматирования"))
+        XCTAssertTrue(source.contains("⌥ — просмотреть выбранное"))
+        XCTAssertTrue(source.contains("DisclosureGroup(isExpanded: $layoutMemoryExpanded)"))
     }
 }
