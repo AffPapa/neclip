@@ -746,6 +746,20 @@ final class Storage: @unchecked Sendable {
         notifyChange(.clips)
     }
 
+    /// Compatibility exit for old pins. Never reads payloads or runs retention.
+    @discardableResult
+    func unpinLegacyClip(id: Int64) throws -> Bool {
+        let changed = try dbQueue.write { db in
+            try db.execute(
+                sql: "UPDATE clip SET isPinned = 0, pinnedAt = NULL WHERE id = ? AND isPinned = 1",
+                arguments: [id]
+            )
+            return db.changesCount > 0
+        }
+        if changed { notifyChange(.clips) }
+        return changed
+    }
+
     func setPinned(id: Int64, pinned: Bool) throws {
         try dbQueue.write { db in
             if pinned, let row = try Row.fetchOne(
@@ -916,7 +930,8 @@ final class Storage: @unchecked Sendable {
             let fetched = try Self.fetchSnippetSummaries(
                 database: db,
                 pinnedOnly: false,
-                limit: limit + 1
+                limit: limit + 1,
+                folderOrder: true
             )
             let snippets = Array(fetched.prefix(limit))
             let folderIDs = Set(snippets.compactMap(\.folderID))
@@ -971,7 +986,7 @@ final class Storage: @unchecked Sendable {
     /// Reading and creating share one transaction so full erasure cannot fall
     /// between them and resurrect clipboard content as a new snippet.
     @discardableResult
-    func saveClipAsSnippet(id: Int64) throws -> Snippet {
+    func saveClipAsSnippet(id: Int64, draftTitle: String? = nil, draftText: String? = nil) throws -> Snippet {
         let snippet = try dbQueue.write { db -> Snippet in
             guard let row = try Row.fetchOne(
                 db, sql: "SELECT kind, title, text FROM clip WHERE id = ?", arguments: [id]
@@ -983,7 +998,7 @@ final class Storage: @unchecked Sendable {
             }
             let title: String = row["title"]
             let fields = try Self.validatedSnippetFields(
-                title: String(title.prefix(60)), content: content
+                title: String((draftTitle ?? title).prefix(60)), content: draftText ?? content
             )
             return try Self.insertSnippet(folderID: nil, fields: fields, database: db)
         }
@@ -1384,7 +1399,8 @@ final class Storage: @unchecked Sendable {
     private static func fetchSnippetSummaries(
         database db: Database,
         pinnedOnly: Bool,
-        limit: Int?
+        limit: Int?,
+        folderOrder: Bool = false
     ) throws -> [SnippetSummary] {
         let sql = """
             SELECT s.id, s.folderID, f.title AS folderTitle, s.title,
@@ -1394,16 +1410,18 @@ final class Storage: @unchecked Sendable {
             FROM snippet s
             LEFT JOIN snippetFolder f ON f.id = s.folderID
             """
-        let tail = snippetQueryTail(pinnedOnly: pinnedOnly, limit: limit)
+        let tail = snippetQueryTail(pinnedOnly: pinnedOnly, limit: limit, folderOrder: folderOrder)
         return try SnippetSummary.fetchAll(db, sql: sql + tail.sql, arguments: tail.arguments)
     }
 
     private static func snippetQueryTail(
-        pinnedOnly: Bool, limit: Int?
+        pinnedOnly: Bool, limit: Int?, folderOrder: Bool = false
     ) -> (sql: String, arguments: StatementArguments) {
         var sql = pinnedOnly ? " WHERE s.isPinned = 1" : ""
         var arguments = StatementArguments()
-        sql += " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
+        sql += folderOrder
+            ? " ORDER BY f.id IS NULL, f.sortIndex, f.id, s.sortIndex, s.id"
+            : " ORDER BY s.isPinned DESC, s.lastUsedAt DESC, s.updatedAt DESC, s.id DESC"
         if let limit {
             sql += " LIMIT ?"
             arguments += [max(1, limit)]

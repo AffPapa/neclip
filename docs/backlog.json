@@ -1,5 +1,8 @@
 {
   "done": [
+    "Flat snippet folders in both root menus; remove duplicate quick list and implicit top-item actions",
+    "Retire new pins without deleting legacy protected clips; explicit warned unpinning by selected ID",
+    "Stable snippet folder order with no usage write on paste; atomic draft-to-snippet creation",
     "Source candidate 1.10.0: no-search immediate-use workflow; public download remains 1.9.1",
     "Selective history/snippet refresh and explicit-open recovery after a failed read",
     "Unused OCR notifications removed; storage owns the sole refresh signal",
@@ -9,7 +12,7 @@
     "macOS pasteboard privacy status and fail-closed denial",
     "Swift 6 strict concurrency and one pinned dependency",
     "Developer ID, notarization, stapling and exact-DMG release gate",
-    "Native pin, save-as-snippet, individual delete and exact undo actions",
+    "Selected history inspection and save-as-snippet; snippet-editor deletion undo",
     "Single storage-driven refresh path and removal of the unused large window",
     "Immutable releases, Dependabot, CodeQL and pinned Action revisions",
     "Private vulnerability reporting and a privacy-safe structured bug form",

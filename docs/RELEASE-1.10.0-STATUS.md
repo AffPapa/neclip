@@ -1,6 +1,11 @@
 # NeClip 1.10.0 / build 17 — source candidate
 
-Updated: 6 September 2026. **Not a published binary release.**
+Updated: 7 September 2026. **Not a published binary release.**
+The further flat-menu and legacy-pin retirement pass is documented in
+`MENU-SIMPLIFICATION-2026-09-07.md`; its own checks and publication evidence
+supersede the earlier UI description below. Existing notarization access was
+rechecked on 7 September and is still unavailable; the Developer ID certificate
+is present, so a new signing certificate is not required.
 The verified public download remains 1.9.1/build 16. `version.json` is unchanged.
 
 ## Scope and completion gates

@@ -22,8 +22,10 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
                 }
             ))
             let window = NSWindow(contentViewController: hosting)
-            window.title = "\(RuntimeIdentity.displayName) — Настройки"
+            window.title = navigation.selected.windowTitle
             window.styleMask = [.titled, .closable, .resizable]
+            window.standardWindowButton(.miniaturizeButton)?.isEnabled = false
+            window.standardWindowButton(.zoomButton)?.isEnabled = false
             window.minSize = NSSize(width: 600, height: 500)
             window.setContentSize(NSSize(width: 640, height: 600))
             window.isReleasedWhenClosed = false
@@ -81,6 +83,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
         guard let section = PreferencesSection(rawValue: sender.itemIdentifier.rawValue) else { return }
         navigation.select(section)
         window?.toolbar?.selectedItemIdentifier = section.identifier
+        window?.title = section.windowTitle
     }
 
     static func allowsEscapeClose(firstResponder: NSResponder?) -> Bool {
@@ -96,6 +99,7 @@ enum PreferencesSection: String, CaseIterable {
     case general, shortcuts, privacy, layout, data
 
     var identifier: NSToolbarItem.Identifier { .init(rawValue) }
+    var windowTitle: String { "\(RuntimeIdentity.displayName) — \(title)" }
     var title: String {
         switch self {
         case .general: "Основные"
@@ -216,6 +220,7 @@ private struct PreferencesView: View {
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
     @State private var historyAdvancedExpanded = false
+    @State private var layoutMemoryExpanded = false
     @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
     @State private var preferPlainText = Settings.preferPlainText
     @State private var loginItemStatus = SMAppService.mainApp.status
@@ -310,11 +315,11 @@ private struct PreferencesView: View {
             }
         }
         .alert("Очистить историю?", isPresented: $clearHistoryConfirmation) {
-            Button("Удалить незакреплённое", role: .destructive) { clearHistory(includePinned: false) }
-            Button("Удалить всё, включая закреплённое", role: .destructive) { clearHistory(includePinned: true) }
+            Button("Удалить, кроме ранее закреплённых", role: .destructive) { clearHistory(includePinned: false) }
+            Button("Удалить всю историю", role: .destructive) { clearHistory(includePinned: true) }
             Button("Отмена", role: .cancel) {}
         } message: {
-            Text("Сниппеты останутся на месте.")
+            Text("Можно сохранить элементы, закреплённые в прежних версиях. Сниппеты останутся на месте.")
         }
         .alert("Удалить историю и сниппеты?", isPresented: $deleteAllConfirmation) {
             Button("Удалить историю и сниппеты", role: .destructive, action: deleteAllData)
@@ -349,7 +354,7 @@ private struct PreferencesView: View {
                 )
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
-                Text("Лимиты применяются только к незакреплённым записям. Сниппеты сохраняются отдельно.")
+                Text("Сниппеты и ранее закреплённые записи не удаляются по лимиту истории.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 DisclosureGroup(isExpanded: $historyAdvancedExpanded) {
@@ -369,7 +374,7 @@ private struct PreferencesView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Toggle("Очищать незакреплённую историю при выходе", isOn: $clearHistoryOnQuit)
+                    Toggle("Очищать историю при выходе", isOn: $clearHistoryOnQuit)
                         .onChange(of: clearHistoryOnQuit) { _, value in Settings.clearHistoryOnQuit = value }
                     NumericPreferenceRow(
                         "Размер текста одной записи",
@@ -478,7 +483,7 @@ private struct PreferencesView: View {
 
             Section {
                 DisclosureGroup("Работа в меню") {
-                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — без форматирования, ⌥ — изменить режим форматирования, ⌃ — исправить раскладку текста.")
+                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — вставить без форматирования, ⌥ — просмотреть выбранное, ⌃ — исправить раскладку текста.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
@@ -595,29 +600,38 @@ private struct PreferencesView: View {
                     .onChange(of: rememberLayoutPerApplication) { _, value in
                         Settings.rememberLayoutPerApplication = value
                     }
-                HStack {
-                    Text("Запомнено автоматически: \(rememberedApplicationCount)")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Очистить память") {
-                        Settings.clearRememberedApplicationLayouts()
-                        feedback = "Запомненные раскладки сброшены"
+                DisclosureGroup(isExpanded: $layoutMemoryExpanded) {
+                    HStack {
+                        Text("Запомнено автоматически: \(rememberedApplicationCount)")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Очистить память") {
+                            Settings.clearRememberedApplicationLayouts()
+                            feedback = "Запомненные раскладки сброшены"
+                        }
+                        .disabled(rememberedApplicationCount == 0)
                     }
-                    .disabled(rememberedApplicationCount == 0)
-                }
-                HStack {
-                    Text("Закреплено вручную: \(fixedApplicationCount)")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Сбросить закреплённые") {
-                        Settings.clearFixedApplicationLayouts()
-                        feedback = "Закреплённые раскладки сброшены"
+                    HStack {
+                        Text("Назначено вручную: \(fixedApplicationCount)")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Сбросить назначения") {
+                            Settings.clearFixedApplicationLayouts()
+                            feedback = "Назначенные раскладки сброшены"
+                        }
+                        .disabled(fixedApplicationCount == 0)
                     }
-                    .disabled(fixedApplicationCount == 0)
+                    Text("Назначить текущую раскладку приложению можно в меню NeClip → «Управление» → «Раскладка». Она будет выбрана при переключении на это приложение.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    Text(rememberedApplicationCount > 0 || fixedApplicationCount > 0
+                         ? "Память раскладок · \(rememberedApplicationCount) автоматически, \(fixedApplicationCount) вручную"
+                         : "Память раскладок")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { layoutMemoryExpanded.toggle() }
                 }
-                Text("Закрепить текущую раскладку можно в меню NeClip → «Управление» → «Раскладка». Она будет выбрана, когда вы снова переключитесь на приложение.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Text("Следит только за активным приложением и выбранной системной раскладкой. Текст и нажатия клавиш не читаются; «Мониторинг ввода» не нужен.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

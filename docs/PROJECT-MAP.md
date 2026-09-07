@@ -1,6 +1,10 @@
 # NeClip project map
 
-Updated: 6 September 2026. Public release: **1.9.1/build 16**.
+Updated: 7 September 2026. Public release: **1.9.1/build 16**.
+Current menu follow-up: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
+snippet folders directly; no quick-list duplication, top-item actions, text
+transform tools or new pin UI. Existing protected clips remain in a conditional
+legacy section, with explicit unpinning from the selected item's inspector.
 Current source candidate: **1.10.0/build 17**, not notarized or downloadable;
 see `RELEASE-1.10.0-STATUS.md`. Site/download consistency is checked by
 `scripts/verify-site.rb`; public download metadata stays on 1.9.1 until release.
@@ -92,16 +96,18 @@ local history and snippet bodies are fetched only for the chosen action.
 - `HistoryItemInspector.swift`: preview, rename/edit, safe open and OCR paste.
   Its session guards dirty drafts on close/replacement/quit, rejects stale loads
   and drops retained drafts/previews after full data erasure.
-- `TextTransform.swift`: deterministic local transforms.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.
 
 ### Snippets
 
-The dedicated shortcut opens folders first; right-clicking the status item is
-an alternative. Folder browse order matches editor sortIndex/ID, while the
-separate quick list follows pin/usage. Counts describe displayed items. Overflow
-opens the complete editor. Command-E opens the top quick snippet by ID after
-flushing drafts; native arrows and Return own selection.
+The dedicated shortcut and ordinary history menu show folders directly;
+right-clicking the status item is an alternative. The bounded SQL projection
+and folder browse use stable folder/snippet sortIndex/ID, not usage or pins.
+Counts describe displayed items; overflow opens the complete editor. There is
+no duplicate quick list. Native arrows and Return own selection. Option-click
+inspects the exact selected clip without touching the pasteboard. The inspector
+can save the current text draft as a snippet atomically without trimming the
+source clip. Legacy unpinning is a metadata-only, idempotent update without trim.
 
 `SnippetsEditor` reads lightweight summaries for folders, empty folders
 and **Unfiled**, then fetches one full body when selected. Selection, navigation
@@ -118,7 +124,7 @@ empty and over-16 MB import files are rejected before JSON decoding.
 The editor always shows the folder library. Search fields, Command-F, queries,
 filtering, debounce tasks and keyword fields are gone throughout the app.
 Creation/duplicate use Command-N/D and visible buttons. Duplicate preserves
-content/folder/pin but not usage. One-item undo survives ordinary refresh but not
+content/folder/legacy pin metadata but not usage; pin UI is absent. One-item undo survives ordinary refresh but not
 explicit full-data erasure. Clean editors refresh external pin/move changes;
 dirty drafts remain protected. Legacy keyword data is inert in SQLite and
 ignored when importing old JSON; exports contain no keys. Historical migrations

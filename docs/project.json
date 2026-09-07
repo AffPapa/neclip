@@ -40,6 +40,10 @@
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
   },
   "features": [
+    "snippet folders directly in both menus, without duplicated quick entries or implicit first-item commands",
+    "no new pins; protected legacy clips remain accessible with explicit warned unpinning",
+    "Option-click inspects the chosen clip without pasting; draft-to-snippet creation is atomic",
+    "stable folder order and no usage write or refresh on snippet paste",
     "immediate-use history and folder snippets without search or keyword fields",
     "selective menu refresh with stale-result rejection and retry on explicit open",
     "compact retention controls with visible active-cleanup indicator",
@@ -106,20 +110,8 @@
       "offOnly": true
     },
     {
-      "action": "pin-first-result",
-      "keys": "Command-P"
-    },
-    {
-      "action": "save-first-result-as-snippet",
-      "keys": "Command-S"
-    },
-    {
-      "action": "delete-first-result",
-      "keys": "Command-Delete"
-    },
-    {
-      "action": "undo-item-deletion",
-      "keys": "Command-Z"
+      "action": "inspect-selected-history-item",
+      "keys": "Option-click"
     },
     {
       "action": "paste-plain-text",
