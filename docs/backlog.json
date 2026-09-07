@@ -3,7 +3,7 @@
     "Flat snippet folders in both root menus; remove duplicate quick list and implicit top-item actions",
     "Retire new pins without deleting legacy protected clips; explicit warned unpinning by selected ID",
     "Stable snippet folder order with no usage write on paste; atomic draft-to-snippet creation",
-    "Source candidate 1.10.0: no-search immediate-use workflow; public download remains 1.9.1",
+    "Published 1.10.0 build 17: no-search immediate-use workflow, notarized DMG and independent public verification",
     "Selective history/snippet refresh and explicit-open recovery after a failed read",
     "Unused OCR notifications removed; storage owns the sole refresh signal",
     "Compact retention controls and private dSYM outside shipped application",
@@ -24,7 +24,9 @@
     "Earlier 1.7 and 1.6 source milestones included in the published 1.8.0 release",
     "Folder-first snippets, direct edit, duplicate, undo and safe full erasure",
     "Individual hotkey reset, live settings and case-insensitive protected layout identities",
-    "Bounded nonrecursive ISO placeholders, CRLF line cleanup and URL component encoding",
+    "Bounded nonrecursive ISO snippet placeholders",
+    "Native snippet-list selection and visible-order arrow navigation",
+    "Bounded 200-snippet menu projection with complete editor access",
     "Short root menu with lower-frequency controls grouped under Management",
     "Distinct pending pasteboard permission state with direct recovery",
     "Off-main Data operations, bounded image previews and newest-pending OCR",
@@ -64,12 +66,11 @@
     "Native noncustomizable Settings toolbar with five persistent categories",
     "Draft-safe history editing with save/discard/cancel and failed-save preservation",
     "Native application and Edit commands with layout-independent menu key handling",
-    "Allowlisted cleanup of obsolete local test artifacts without deleting user data"
+    "Allowlisted cleanup of obsolete local test artifacts without deleting user data",
+    "Numeric settings apply completed drafts; partial keystrokes do not trim history",
+    "Data erasure invalidates inspector drafts, previews, OCR and stale pending loads"
   ],
-  "inDevelopment": [
-    "Apple notarization of 1.10.0 requires restored credentials",
-    "Publish signed/notarized 1.10.0 DMG only after CI and independent download verification"
-  ],
+  "inDevelopment": [],
   "next": [
     "Verify first-run permission wording across supported macOS releases",
     "Expand local layout pairs only with low-false-positive system tests",
@@ -85,19 +86,17 @@
     "Search, keyword fields, tags and smart collections"
   ],
   "retiredIn110": [
-    "Keyboard-first search, paste, pins and quick selection",
-    "Local OCR, FTS5 search and bounded storage",
-    "27 selected refinements documented in RESEARCH-2026-09-05.md",
+    "Search fields, keyword lookup and new pin creation",
+    "Derived FTS5 search indexes; local OCR and bounded storage remain",
     "Folder-aware exact-keyword search with stable menu footer and pending-result protection",
-    "Native snippet-list selection, visible-order arrow navigation and debounced search",
+    "Debounced snippet search",
     "Content-only FTS update triggers and paged semantic filtering",
     "Space preview only while search is empty",
     "Native magnifier menu for common structured-search filters",
-    "Bounded 200-snippet menu projection with complete on-demand search and editing",
+    "On-demand snippet search beyond the menu projection",
+    "CRLF line-cleanup and URL-component transform tools",
     "Simpler search and top-item action wording",
     "Cancellation of superseded pending menu searches before database work starts",
-    "Numeric settings apply completed drafts; partial keystrokes do not trim history",
-    "Data erasure invalidates inspector drafts, previews, OCR and stale pending loads",
     "First-run history/search/snippet help with fixed permission and continue actions"
   ]
 }

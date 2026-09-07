@@ -4,12 +4,25 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
-## Local development after 1.9.1 — not published
+## Done in 1.10.0 / build 17
 
-- 1.10.0/build 17 source candidate; binary publication waits for restored
-  notarization credentials. See `docs/RELEASE-1.10.0-STATUS.md`.
+Published 7 September 2026 after required CI/CodeQL, app and DMG notarization,
+stapling, Gatekeeper and independent public-download verification.
+[Release](https://github.com/AffPapa/neclip/releases/tag/v1.10.0) ·
+[Evidence](docs/RELEASE-1.10.0-STATUS.md).
+The installed application and production database were not changed.
+
+- Expose snippet folders directly in both menus; remove the duplicate quick list.
+- Remove new pin creation and implicit top-item actions. Keep legacy protected
+  clips accessible, with explicitly warned unpinning that does not delete payloads.
+- Option-click inspects the chosen clip; saving its draft as a snippet is atomic
+  and does not trim the source. Shift-plain and Command-copy remain available.
+- Keep folder order stable and avoid usage-statistic writes on snippet insertion.
+- Match Settings titles to the active panel; disclose secondary layout controls.
+- Remove a net 379 runtime source lines in the flat-menu pass. Each debug,
+  strict release, ASan and TSan test run passed 245 checks.
 - Retry dirty/failed snapshots on explicit open; remove unused OCR notifications.
-- Keep public site/download and source-candidate status coherent in CI.
+- Keep public site/download and release metadata coherent in CI.
 - Refresh only changed menu domains; retain dirty work after failed/stale reads.
 - Strip local/debug symbols from distribution copies, keep UUID-matched dSYM
   outside the shipped app, before signing. Bound application metadata caching.
@@ -27,12 +40,12 @@ not planned.
 - Skip standalone text allocation/hash when append succeeds.
 - Distinguish snippet save actions from status; bound row subtitles and clarify history limits.
 
-Scoped plan and verification: `artifacts/neclip/looper-goals/20260906-fresh-pass/`.
-Follow-up candidate, not completed in this pass: conflict/discard UX for a dirty
-snippet concurrently changed or removed elsewhere.
+Scoped plan: `artifacts/neclip/looper-goals/20260906-fresh-pass/`.
+The published no-search migration v7 retires derived search structures only;
+rollback requires a matching pre-upgrade database backup.
 
 The sections below describe historical releases. Search/FTS entries are
-superseded by the local no-search change above, not active roadmap items.
+superseded by the published no-search change above, not active roadmap items.
 
 ## Done in 1.3.0
 
@@ -176,6 +189,7 @@ public-download verification. [Release evidence](docs/RELEASE-1.9.0-STATUS.md).
 
 ## Next
 
+- Conflict/discard UX for a dirty snippet concurrently changed or removed elsewhere
 - Verify first-run pasteboard wording across currently supported macOS releases
 - Expand local layout pairs only when system-layout tests can keep false fixes low
 - Repeat measured menu latency before changing the bounded 100-history and

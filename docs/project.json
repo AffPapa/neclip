@@ -20,8 +20,8 @@
   "sourceCandidate": {
     "version": "1.10.0",
     "build": 17,
-    "status": "awaiting-notarization",
-    "publicVersion": "1.9.1"
+    "status": "released",
+    "publicVersion": "1.10.0"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -32,7 +32,7 @@
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
     "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.10.0-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.9.1-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.10.0-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/OPTIMIZATION-2026-09-06.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
@@ -135,5 +135,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "1.10.0 source candidate; downloadable version is identified by version.json"
+  "featuresVersion": "1.10.0 released; exact downloadable artifact is identified by version.json"
 }

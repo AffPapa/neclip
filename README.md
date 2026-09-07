@@ -8,39 +8,42 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current public, signed and notarized version: **1.9.1 (build 16)**,
-with native Settings navigation and safer text editing.
-Its [audit](docs/AUDIT-1.9.1-2026-09-06.md) and
-[release evidence](docs/RELEASE-1.9.1-STATUS.md) distinguish local checks from
-publication; the [design decisions](docs/RESEARCH-1.9.0-SIMPLIFICATION.md) explain
-which competitor workflows fit NeClip's deliberately small scope.
-The public DMG and its contained app passed checksum and Gatekeeper verification.
+Current public, signed and notarized version: **1.10.0 (build 17)**,
+released on 7 September 2026. Snippet folders appear directly in the menu;
+search, new pins and implicit top-item actions are removed.
+Its [release evidence](docs/RELEASE-1.10.0-STATUS.md) and
+[menu design decisions](docs/MENU-SIMPLIFICATION-2026-09-07.md) record the scope
+and verification. Both the app and DMG passed notarization, stapling and
+Gatekeeper. The independently downloaded public artifact matched the verified
+checksum and complete app contents. Publishing did not replace the installed
+application or modify its database.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
 
 The current module ownership and invariants are in
-[docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest reproducible three-track
-audit, decisions and verification gates are in
-[docs/AUDIT-1.9.1-2026-09-06.md](docs/AUDIT-1.9.1-2026-09-06.md).
+[docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest scoped changes and Apple
+design sources are in
+[docs/MENU-SIMPLIFICATION-2026-09-07.md](docs/MENU-SIMPLIFICATION-2026-09-07.md).
 The refreshed comparison of 19 clipboard products, 11 layout tools, 100
 candidate improvements and 27 selected refinements is in
 [docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
 
-[Download the signed and notarized NeClip 1.9.1 DMG](https://github.com/AffPapa/neclip/releases/download/v1.9.1/NeClip-1.9.1.dmg).
+[Download the signed and notarized NeClip 1.10.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.10.0/NeClip-1.10.0.dmg)
+(2,006,978 bytes).
 SHA-256:
-`4b1563a4b808a35e3dc6580f947f3ee598ca99fde899cb56fa322f345c166a95`.
+`d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
-## Current development workflow (not yet released)
+Artifact source: `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`, merged through
+[PR #13](https://github.com/AffPapa/neclip/pull/13). Required CI and CodeQL passed.
+Each debug, strict release, ASan and TSan test run passed 245 checks (244 XCTest
+cases with three opt-in skips, plus four Swift Testing checks). The flat-menu
+pass removed a net 379 runtime source lines without removing privacy safeguards.
 
-Source candidate: **1.10.0/build 17**. [Release status](docs/RELEASE-1.10.0-STATUS.md)
-tracks verification and the current notarization-credential blocker. The public
-download above remains 1.9.1; a source commit is not an installable release.
+## Everyday workflow
 
-The source branch removes search everywhere. The public 1.9.1 download above
-still has the previous interface; no new release or installed-app update is
-implied. The app is for immediate reuse, not managing a searchable archive.
-The next [local optimization report](docs/OPTIMIZATION-2026-09-06.md) compares
+NeClip is for immediate reuse, not managing a searchable archive.
+The [optimization report](docs/OPTIMIZATION-2026-09-06.md) compares
 eight products and records selective menu refresh, simpler retention settings,
 distribution-symbol stripping and measured results. No new dependency is added.
 
@@ -52,7 +55,7 @@ distribution-symbol stripping and measured results. No new dependency is added.
 - `Option-Shift-L` — correct the selected text or the word left of the cursor; repeat to undo (customizable)
 - `Control-Option-A` — turn automatic correction off immediately (customizable, off-only)
 - `Control-Command-V` — paste the next recent value in sequence (customizable)
-- `Command-1` … `Command-9` — select a visible result
+- `Command-1` … `Command-9` — use one of the first nine history items
 - `Option-click` — inspect the chosen history item; its text can be saved as a snippet
 - `Escape` — close the menu
 
@@ -63,7 +66,7 @@ promising access through a removed search field. Existing stored values are not
 deleted by this UI change. The snippet hotkey shows up to 200 snippets in folders
 directly, without an outer folder submenu or a duplicate quick list. Folder
 order matches the editor and no longer changes after pasting. For larger imported
-libraries, an explicit action opens the complete editor. Implicit top-item actions
+libraries, an overflow hint points to the complete editor. Implicit top-item actions
 and new pin creation are removed. Existing protected clips remain accessible in
 **Previously Pinned**; Option-click opens their explicit Unpin button with a
 retention warning. Unpinning alone never deletes a record.
