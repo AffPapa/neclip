@@ -1,6 +1,9 @@
 # NeClip: flat menus and safe simplification
 
-7 September 2026. Source candidate **1.10.0/build 17**, not a published DMG.
+7 September 2026. **1.10.0/build 17 released at 08:15:45 UTC**.
+[Public release](https://github.com/AffPapa/neclip/releases/tag/v1.10.0).
+The DMG is independently verified; website/updater-feed changes are being
+published separately and are not claimed live in this report.
 
 ## Professional task prompts and plan gate
 
@@ -13,11 +16,12 @@
    reading or printing private keys; verify exact code, artifact and public site.
 
 All three started as independent read-only audits. Their findings agreed before
-implementation. Scope excludes production database changes, new credentials,
+implementation. Scope excludes production database changes, new signing certificates,
 accounts, cloud, broad machine cleanup and unrelated services. The release gate
 requires tests, strict Swift, sanitizers, isolated UI checks, secret scanning,
 protected GitHub checks, exact signing/notarization and live download/site checks.
-Absent notarization access blocks a new binary, not safe source/site publication.
+The initial notarization-access blocker was resolved by the user configuring
+the local Keychain profile before signing/notarization and binary publication.
 
 ## Implemented
 
@@ -67,13 +71,13 @@ Apple requirement. No popularity assumptions justify removing privacy settings.
 
 ## Verification and delivery status
 
-Debug and strict-release tests passed: 244 XCTest cases, three opt-in skips,
+Debug, strict-release, ASan and TSan tests passed: each ran 244 XCTest cases, three opt-in skips,
 zero failures, plus four Swift Testing checks (245 successful checks total).
 New checks cover stable bounded folder ordering, preservation of protected
 payloads, idempotent exact-ID unpinning, invalidated inspectors, draft conversion,
 legacy snippet editing and removed menu paths. Structural menu tests do not
-replace live interaction testing. Sanitizers/native QA/publication results are
-recorded in the associated PR evidence after they actually run.
+replace live interaction testing. All required GitHub Swift CI, full-history
+secret scanning and Swift/Actions CodeQL checks passed before PR #13 merged.
 
 Isolated native QA verified direct root folders, the dedicated snippet menu,
 light/dark editor without pin controls, active-panel Settings title, disabled
@@ -85,10 +89,26 @@ process sample showed an idle event loop, not a blocked main thread. Only that
 synthetic QA process was restarted. No production clipboard/database was used;
 global hotkey registration conflicts are expected while the installed app runs.
 
-The previous Developer ID identity is available. Filename-only checks across
-relevant local locations did not find the former .p8; the neclip Keychain profile
-is absent. No secret values were read or printed. New certificates are unnecessary;
-existing notarization credentials must be restored locally before publishing a
-new DMG. The public download remains verified 1.9.1 and the installed app/data are
-unchanged. Source 1.10.0 also includes prior v7 FTS retirement: downgrade requires
-the matching pre-upgrade database backup, not just replacing the binary.
+The previous Developer ID identity was reused. Filename-only checks initially
+did not find the former .p8; the user subsequently configured the local `neclip`
+Keychain profile, resolving the blocker without a new signing certificate.
+The profile check, full release build, application/DMG notarization, stapling
+and Gatekeeper checks passed. Account details and secret contents are not
+included here.
+
+Exact artifact source/tag: `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`.
+[PR #13](https://github.com/AffPapa/neclip/pull/13) merged as
+`682ce5370d6c8ee5a95291fa63e114c9e50d2546` after all required checks passed.
+The public DMG is **2,006,978 bytes**, SHA-256
+`d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
+Independent unauthenticated download verification checked the actual Git tag,
+provenance, checksum, size, full mounted-app equality, arm64, signatures, staple
+and Gatekeeper. The image was ejected after verification. Private local evidence:
+`/tmp/neclip-110-release.log`, `/tmp/neclip-110-public.log`,
+`.qa/110/public.Tme2dT/`. Full release details and accepted Apple submission IDs
+are in [release status](RELEASE-1.10.0-STATUS.md).
+
+The installed app and production data are unchanged. Version 1.10.0 includes
+prior v7 FTS retirement: back up the database and export snippets before updating.
+Downgrade requires the matching pre-upgrade database backup, not just replacing
+the binary. Site and updater-feed publication/live checks remain a separate step.

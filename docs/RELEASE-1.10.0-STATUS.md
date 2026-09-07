@@ -1,12 +1,27 @@
-# NeClip 1.10.0 / build 17 — source candidate
+# NeClip 1.10.0 / build 17 — released
 
-Updated: 7 September 2026. **Not a published binary release.**
-The further flat-menu and legacy-pin retirement pass is documented in
-`MENU-SIMPLIFICATION-2026-09-07.md`; its own checks and publication evidence
-supersede the earlier UI description below. Existing notarization access was
-rechecked on 7 September and is still unavailable; the Developer ID certificate
-is present, so a new signing certificate is not required.
-The verified public download remains 1.9.1/build 16. `version.json` is unchanged.
+Published: **7 September 2026, 08:15:45 UTC**.
+[GitHub release](https://github.com/AffPapa/neclip/releases/tag/v1.10.0).
+The public DMG has been independently downloaded and verified. The flat-menu
+and legacy-pin retirement pass is documented in
+[menu simplification](MENU-SIMPLIFICATION-2026-09-07.md).
+Updating the website and updater feeds is a separate publication step; this
+report does not claim those changes are already live. The installed app and
+production database have not been changed.
+
+## Exact public artifact
+
+- Artifact source and actual `v1.10.0` tag:
+  `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`.
+- [Source PR #13](https://github.com/AffPapa/neclip/pull/13) merged as
+  `682ce5370d6c8ee5a95291fa63e114c9e50d2546` after all required checks passed.
+  The merge commit is not substituted for the exact artifact source above.
+- [DMG](https://github.com/AffPapa/neclip/releases/download/v1.10.0/NeClip-1.10.0.dmg):
+  **2,006,978 bytes**, arm64, macOS 14+.
+- SHA-256:
+  `d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
+- Developer ID signing, Apple notarization, stapling and Gatekeeper passed for
+  the application and DMG, including the mounted public application.
 
 ## Scope and completion gates
 
@@ -24,7 +39,9 @@ Those checks must pass; branch protection is not bypassed.
 ## Included changes
 
 - Immediate-use history and folder snippets. Search fields, keys, filtering
-  and derived FTS indexing are retired. Existing content, folders and pins remain.
+  and derived FTS indexing are retired. Folders appear directly in both menus.
+  First-item actions and new pin controls are removed; existing protected clips
+  remain available with explicit unpinning and a retention warning.
 - Selective menu refresh and bounded application metadata caching; separate
   UUID-matched dSYM outside the shipped app. Measurements and eight-product
   comparison: [optimization report](OPTIMIZATION-2026-09-06.md).
@@ -45,43 +62,48 @@ Those checks must pass; branch protection is not bypassed.
 ## Upgrade boundary
 
 Migration v7 removes derived FTS tables/triggers, not user clips/snippets.
-Back up the database and export snippets before installing this candidate.
+Back up the database and export snippets before installing this release.
 Downgrading to 1.9.1 requires its matching pre-upgrade database backup; replacing
 only the binary is not a supported rollback. No production migration occurred
 during this pass. Migration/content preservation is covered by synthetic tests.
 
-## Distribution blocker
+## Notarization access restored
 
-Developer ID identity is available. The `neclip` notarytool Keychain profile
-is absent, and the API key file previously used for notarization is no longer
-at its recorded location. No private-key contents were read or printed.
-The user has been asked to restore the existing key locally or recreate the
-`neclip` profile; credentials must not be sent in chat.
-
-Until restored: no notarization claim, no new public DMG, no v1.10.0 release
-tag and no advance of the application's download manifest. Source and website
-publication may proceed with an explicit candidate label and the working 1.9.1 link.
+The earlier missing-credentials blocker is resolved. The user configured the
+local `neclip` Keychain profile; its read-only notarization history check passed.
+The existing Developer ID identity was reused, without requiring a new signing
+certificate. No private-key or account-secret contents are included in this report.
+Application submission `439a664d-7d4a-4b59-8953-6ff10873161d` and DMG submission
+`86c64a01-05f5-47c5-b1e7-3dea275bb2a3` were both accepted by Apple.
 
 ## Verification status
 
 Local debug, strict-release (complete concurrency, warnings-as-errors), ASan
-and TSan passed for this candidate: each has 242 XCTest cases with three opt-in
-skips and zero failures, plus four Swift Testing checks: 243 successful checks.
+and TSan passed for the final code: each has 244 XCTest cases with three opt-in
+skips and zero failures, plus four Swift Testing checks: **245 successful checks**.
 `ruby scripts/verify-site.rb`, `bash -n build-app.sh` and `git diff --check`
-passed. Logs: `/tmp/neclip-110-*`.
-GitHub CI, source merge, Pages deployment and live checks are recorded below
-after their actual outcomes. Earlier successful checks are not substituted
-for a signed/notarized 1.10.0 artifact or a complete live interface test.
+passed. Required GitHub Swift CI, full-history secret scanning and Swift/Actions
+CodeQL passed before the protected source merge; branch protection was not bypassed.
 
-## Resume binary release
+`build-app.sh` completed from the exact source above, preserving a UUID-matched
+dSYM outside the shipped app. Build/notarization evidence is in the private local
+log `/tmp/neclip-110-release.log`.
 
-1. Restore notarization credentials locally; check `notarytool history`.
-2. Recheck clean reviewed commit and all required checks.
-3. Run `build-app.sh` with `NECLIP_RELEASE_COMMIT` identifying that exact commit.
-4. Verify app/DMG signatures, notarization, staple, Gatekeeper, UUID and checksums.
-5. Publish the exact source tag and verified artifacts; independently download
-   and compare the public DMG, provenance, checksum and mounted app.
-6. Update release status, visible site and all four JSON feeds together;
-   verify deployed HTML/JSON and public download again.
+The independent public verifier checked the actual Git tag target, public release
+metadata, provenance, checksum, size, arm64 architecture, signatures, stapling,
+Gatekeeper and full mounted-app comparison against the verified local artifact.
+It completed successfully and ejected the mounted image. Local evidence:
+`/tmp/neclip-110-public.log` and `.qa/110/public.Tme2dT/`.
+
+Isolated native UI checks and their limits are recorded in the menu report.
+No complete third-party-app paste/automatic-correction coverage or production
+installation is claimed.
+
+## Remaining publication step
+
+The binary is public and verified. Update the visible site and all four JSON
+feeds together through a separate protected PR, then verify deployed HTML/JSON
+and download links. A local edit or the source PR does not prove the updated
+website or updater feed has deployed.
 
 No existing public release or recovery data is deleted to make this version appear complete.

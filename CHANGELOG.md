@@ -4,16 +4,25 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 1.10.0 / build 17 — source candidate, 2026-09-06
+## 1.10.0 / build 17 — 2026-09-07
 
-7 September follow-up (same unpublished candidate): folders now appear directly
+Published artifact source/tag: `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`.
+[PR #13](https://github.com/AffPapa/neclip/pull/13) merged as
+`682ce5370d6c8ee5a95291fa63e114c9e50d2546` after all required CI/CodeQL checks.
+The [public release](https://github.com/AffPapa/neclip/releases/tag/v1.10.0)
+DMG is 2,006,978 bytes; SHA-256:
+`d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
+App and DMG notarization, stapling, Gatekeeper and independent unauthenticated
+public-download verification passed, including a full comparison of app contents.
+
+Folders now appear directly
 in both menus. Removed duplicate quick snippets, top-item actions, text-transform
 tools and creation of new pins. Existing protected clips remain accessible with
 explicit warned unpinning. Option-click inspects the chosen item; Shift still
 pastes plain text. Snippet insertion no longer writes usage statistics or
 refreshes an unchanged library. Settings titles follow the active panel;
 secondary layout-memory controls use progressive disclosure. See
-`docs/MENU-SIMPLIFICATION-2026-09-07.md` for scope, Apple sources and release limits.
+`docs/MENU-SIMPLIFICATION-2026-09-07.md` for scope and Apple sources.
 
 - Removed search, snippet keywords and derived FTS work; recent copies and
   snippet folders are the entire browsing concept. Existing content is preserved.
@@ -25,10 +34,13 @@ secondary layout-memory controls use progressive disclosure. See
   active cleanup stays visible, and the full disclosure header is clickable.
 - Include transaction-scoped erasure/undo protection, atomic history-to-snippet
   conversion, OCR-only payload reads and lazy append fallback from local development.
-- Website/JSON now distinguish the source candidate from the public download.
-- **Not yet downloadable:** notarization credentials must be restored. Public
-  1.9.1 remains available. Migration v7 requires a matching database backup for
-  downgrade. Exact progress: `docs/RELEASE-1.10.0-STATUS.md`.
+- CI checks website/JSON consistency with the verified public download.
+- Each debug, strict release, ASan and TSan run passed 245 checks: 244 XCTest
+  cases with three opt-in skips, plus four Swift Testing checks. The flat-menu
+  pass removed a net 379 runtime source lines.
+- Publishing did not replace the installed application or modify its database.
+  Migration v7 removes only derived search structures; downgrading requires a
+  matching pre-upgrade database backup. Evidence: `docs/RELEASE-1.10.0-STATUS.md`.
 
 ## 1.9.1 / build 16 — 2026-09-06
 

@@ -1,29 +1,35 @@
 # NeClip project map
 
-Updated: 7 September 2026. Public release: **1.9.1/build 16**.
-Current menu follow-up: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
+Updated: 7 September 2026. Public release: **1.10.0/build 17**.
+Current menu design: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
 snippet folders directly; no quick-list duplication, top-item actions, text
 transform tools or new pin UI. Existing protected clips remain in a conditional
 legacy section, with explicit unpinning from the selected item's inspector.
-Current source candidate: **1.10.0/build 17**, not notarized or downloadable;
-see `RELEASE-1.10.0-STATUS.md`. Site/download consistency is checked by
-`scripts/verify-site.rb`; public download metadata stays on 1.9.1 until release.
-This release adds native Settings navigation, safe history
-editing, standard application/Edit menus and bounded local artifact cleanup.
-Current scoped evidence: `AUDIT-1.9.1-2026-09-06.md`.
-Historical simplification measurements:
-`AUDIT-1.9.0-2026-09-06.md`; focused product decisions:
-`RESEARCH-1.9.0-SIMPLIFICATION.md`. No new dependencies or database migration.
-Artifact source: `ab1f98039f70a33b92b48ff9a1be15ad3f9f8282`.
-Developer ID, notarization, stapling, CodeQL and independent public-DMG
-verification passed. Evidence: `RELEASE-1.9.1-STATUS.md`.
+Release evidence: `RELEASE-1.10.0-STATUS.md`. Site/download consistency is checked
+by `scripts/verify-site.rb`. Artifact source:
+`60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`; PR #13 merge:
+`682ce5370d6c8ee5a95291fa63e114c9e50d2546`.
+[Public release](https://github.com/AffPapa/neclip/releases/tag/v1.10.0):
+DMG 2,006,978 bytes, SHA-256
+`d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
+Required CI/CodeQL, app and DMG notarization, stapling, Gatekeeper and independent
+unauthenticated download verification passed, including the full app comparison.
+Each debug, strict release, ASan and TSan run passed 245 checks (244 XCTest
+cases with three opt-in skips, plus four Swift Testing checks). The flat-menu
+pass removed a net 379 runtime source lines. Publishing did not replace the
+installed app or modify its production database.
 
-Local development after 1.9.1: `20260906-fresh-pass` in
-`artifacts/neclip/looper-goals/`. This is not another published release.
-The bounded pass adds transaction-scoped erasure invalidation for undo,
+Development recorded in `20260906-fresh-pass` under
+`artifacts/neclip/looper-goals/` is included in 1.10.0:
+transaction-scoped erasure invalidation for undo,
 atomic history-to-snippet conversion, an OCR-only projection, lazy append
-fallback payloads and small editor/Settings clarity changes. Public feeds and
-the installed 1.9.1 remain separate from these source changes.
+fallback payloads and editor/Settings clarity changes. No dependency was added.
+Migration v7 retires only derived search structures, not stored content;
+rollback requires a matching pre-upgrade database backup.
+
+Historical Settings and simplification evidence remains in
+`AUDIT-1.9.1-2026-09-06.md`, `AUDIT-1.9.0-2026-09-06.md` and
+`RESEARCH-1.9.0-SIMPLIFICATION.md`.
 
 The prior evidence report is `AUDIT-1.8.0-2026-09-05.md`; the refreshed
 19-clipboard/11-layout comparison, 100-item matrix and 27 selected refinements
@@ -33,14 +39,14 @@ current feature or release claims.
 The later close/capture/shortcut repair and its live QA evidence are recorded
 in `BUGFIX-RUNTIME-2026-09-05.md` (185 checks passed, one opt-in skip).
 
-The next settings/editor usability audit is `UX-SETTINGS-2026-09-05.md`
+The earlier settings/editor usability audit is `UX-SETTINGS-2026-09-05.md`
 (206 checks passed, one opt-in skip). `HistoryCleanupCoordinator` now owns the
 capture barrier for explicit bulk deletion; `PreferencesUXPolicy` describes
-effective settings states. The later local no-search pass retires all search UI
+effective settings states. The no-search pass included in 1.10.0 retires all search UI
 and execution; see `NO-SEARCH-2026-09-06.md` for the current scope and checks.
-The next local optimization pass is `OPTIMIZATION-2026-09-06.md`: selective
+The optimization pass included in 1.10.0 is `OPTIMIZATION-2026-09-06.md`: selective
 menu invalidation, bounded app metadata, smaller distribution binaries and
-progressive disclosure of retention controls. This is still not a public release.
+progressive disclosure of retention controls.
 
 ## Product boundary
 
@@ -90,10 +96,10 @@ local history and snippet bodies are fetched only for the chosen action.
   or snippets are reused, obsolete reads cannot restore erased snapshots.
 - `PasteService.swift`: direct/plain/copy-only paste and lossless,
   compare-and-swap restoration of a temporary pasteboard; an unreadable
-  advertised representation aborts before clearing. Deletion is an explicit,
-  separately undoable action because event dispatch cannot prove target-app
-  acceptance.
-- `HistoryItemInspector.swift`: preview, rename/edit, safe open and OCR paste.
+  advertised representation aborts before clearing. Paste never deletes the
+  source because event dispatch cannot prove target-app acceptance.
+- `HistoryItemInspector.swift`: preview, rename/edit, safe open, selectable OCR
+  text, atomic draft-to-snippet conversion and explicit legacy unpinning.
   Its session guards dirty drafts on close/replacement/quit, rejects stale loads
   and drops retained drafts/previews after full data erasure.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.
@@ -103,7 +109,7 @@ local history and snippet bodies are fetched only for the chosen action.
 The dedicated shortcut and ordinary history menu show folders directly;
 right-clicking the status item is an alternative. The bounded SQL projection
 and folder browse use stable folder/snippet sortIndex/ID, not usage or pins.
-Counts describe displayed items; overflow opens the complete editor. There is
+Counts describe displayed items; an overflow hint points to the complete editor. There is
 no duplicate quick list. Native arrows and Return own selection. Option-click
 inspects the exact selected clip without touching the pasteboard. The inspector
 can save the current text draft as a snippet atomically without trimming the
@@ -163,6 +169,8 @@ ignore list until restart.
 - `PreferencesWindow.swift`: General, Keys, Privacy, Layout and Data.
   AppKit owns the noncustomizable toolbar; `PreferencesNavigation` commits numeric
   drafts before navigation/close/quit without applying partial typed numbers.
+  The title follows the active pane; zoom/minimize are disabled while resizing
+  remains available. Secondary layout-memory controls use progressive disclosure.
 - `OnboardingWindow.swift`: permission explanation and recovery.
 - `AppMetadata.swift`: human-readable source application metadata.
 - `UpdateChecker.swift`: explicit-only, GitHub-bound update check.
@@ -171,7 +179,8 @@ ignore list until restart.
 
 1. Menu/history queries never load original image or RTF BLOBs.
 2. Ordinary history is bounded by count, optional age and 250 MB total storage.
-3. Pins and snippets are not trimmed as ordinary history.
+3. Previously pinned clips and snippets are not trimmed as ordinary history;
+   there is no new pin-creation UI, and explicit unpinning itself never trims.
 4. Full-data deletion removes clips, snippets and folders in one transaction.
 5. A temporary pasteboard is restored only if no other process changed it.
 6. Sensitive-content decisions happen before persistence.
@@ -198,7 +207,7 @@ ignore list until restart.
 19. Full data erasure drops editor drafts, undo payloads, menu snapshots and
     sequential-paste state as well as database rows.
 20. No snippet expansion silently truncates output or recursively expands
-    clipboard text. CRLF is one line break in explicit line transformations.
+    clipboard text.
 
 ## Verification map
 
@@ -207,8 +216,8 @@ ignore list until restart.
 - Layout: `LayoutCorrectionTests`.
 - Hotkeys: `ShortcutDescriptorTests`, `HotKeyCoordinatorTests`.
 - Menu/app-mode contracts: `ApplicationModeContractTests`,
-  `MenuPresentationTests`.
-- Snippets/transforms/actions: `SnippetTransferTests`, `TextTransformTests`,
+  `MenuPresentationTests`, `MenuSimplificationContractTests`.
+- Snippets/selected-item actions: `SnippetTransferTests`, `LegacyPinRetirementTests`,
   `HistoryItemActionsTests`, `SnippetsEditorTests`, `StorageSnippetDiscoveryTests`,
   `SnippetRenderingBehaviorTests`.
 - Release/update/security: `UpdateManifestTests`,
