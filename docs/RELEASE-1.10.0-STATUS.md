@@ -5,9 +5,9 @@ Published: **7 September 2026, 08:15:45 UTC**.
 The public DMG has been independently downloaded and verified. The flat-menu
 and legacy-pin retirement pass is documented in
 [menu simplification](MENU-SIMPLIFICATION-2026-09-07.md).
-Updating the website and updater feeds is a separate publication step; this
-report does not claim those changes are already live. The installed app and
-production database have not been changed.
+Website and updater delivery, including the post-deployment verification receipt,
+is tracked in [PR #14](https://github.com/AffPapa/neclip/pull/14).
+The installed app and production database have not been changed.
 
 ## Exact public artifact
 
@@ -99,11 +99,13 @@ Isolated native UI checks and their limits are recorded in the menu report.
 No complete third-party-app paste/automatic-correction coverage or production
 installation is claimed.
 
-## Remaining publication step
+## Website and updater delivery evidence
 
-The binary is public and verified. Update the visible site and all four JSON
-feeds together through a separate protected PR, then verify deployed HTML/JSON
-and download links. A local edit or the source PR does not prove the updated
-website or updater feed has deployed.
+The binary is public and verified. [PR #14](https://github.com/AffPapa/neclip/pull/14)
+updates the visible site and all four JSON feeds together through the protected
+branch. Its deployment receipt records the exact Pages commit, live HTML/JSON
+byte comparison, MIME types and rendered-page check after deployment. Consult
+the PR state and receipt for delivery evidence: a local edit or source commit
+alone does not prove that the website or updater feed has deployed.
 
 No existing public release or recovery data is deleted to make this version appear complete.

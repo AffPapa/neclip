@@ -111,4 +111,6 @@ are in [release status](RELEASE-1.10.0-STATUS.md).
 The installed app and production data are unchanged. Version 1.10.0 includes
 prior v7 FTS retirement: back up the database and export snippets before updating.
 Downgrade requires the matching pre-upgrade database backup, not just replacing
-the binary. Site and updater-feed publication/live checks remain a separate step.
+the binary. Site and updater-feed publication and live verification are tracked
+separately in [PR #14](https://github.com/AffPapa/neclip/pull/14), including its
+post-deployment receipt.
