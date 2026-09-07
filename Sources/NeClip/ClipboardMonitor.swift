@@ -1,5 +1,4 @@
 import AppKit
-import CryptoKit
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -346,7 +345,7 @@ final class ClipboardMonitor: @unchecked Sendable {
             appBundleID: snapshot.appBundleID,
             createdAt: snapshot.createdAt,
             contentBytes: Int64(pathData.count),
-            contentHash: Self.sha256(pathData)
+            contentHash: ContentDigest.sha256(pathData)
         )
         insert(item)
     }
@@ -404,7 +403,7 @@ final class ClipboardMonitor: @unchecked Sendable {
             appBundleID: snapshot.appBundleID,
             createdAt: snapshot.createdAt,
             contentBytes: Int64(textData.count + (safeRTF?.count ?? 0)),
-            contentHash: Self.sha256(textData)
+            contentHash: ContentDigest.sha256(textData)
         )
         insert(item)
     }
@@ -449,7 +448,7 @@ final class ClipboardMonitor: @unchecked Sendable {
             appBundleID: snapshot.appBundleID,
             createdAt: snapshot.createdAt,
             contentBytes: Int64(png.count),
-            contentHash: Self.sha256(png)
+            contentHash: ContentDigest.sha256(png)
         )
 
         do {
@@ -524,10 +523,6 @@ final class ClipboardMonitor: @unchecked Sendable {
         CGImageDestinationAddImage(destination, image, nil)
         guard CGImageDestinationFinalize(destination) else { return nil }
         return data as Data
-    }
-
-    private static func sha256(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
 

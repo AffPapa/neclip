@@ -484,14 +484,15 @@ final class SnippetsEditorModel: ObservableObject {
     }
 
     private func rebuildSnippetIndex() {
-        let ordered = snippets.sorted {
-            if $0.sortIndex != $1.sortIndex { return $0.sortIndex < $1.sortIndex }
-            return ($0.id ?? 0) < ($1.id ?? 0)
+        snippetsByFolderID.removeAll(keepingCapacity: !snippets.isEmpty)
+        unfiledSnippets.removeAll(keepingCapacity: !snippets.isEmpty)
+        for summary in snippets.sorted(by: SnippetMenuOrder.lessThan) {
+            if let folderID = summary.folderID {
+                snippetsByFolderID[folderID, default: []].append(summary)
+            } else {
+                unfiledSnippets.append(summary)
+            }
         }
-        snippetsByFolderID = Dictionary(grouping: ordered.compactMap { summary in
-            summary.folderID.map { ($0, summary) }
-        }, by: \.0).mapValues { $0.map(\.1) }
-        unfiledSnippets = ordered.filter { $0.folderID == nil }
     }
 
     private func snippetWord(for count: Int) -> String {

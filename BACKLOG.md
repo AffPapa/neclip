@@ -4,6 +4,28 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Local candidate 1.11.0 / build 18 — not published
+
+Public download remains 1.10.0/build 17; the installed app/database are unchanged.
+[Local audit and release boundaries](docs/AUDIT-1.11.0-2026-09-07.md) ·
+[15-product research](docs/RESEARCH-1.11.0-INVISIBLE-2026-09-07.md).
+
+- Version pane with running-bundle identity, dated release cache and explicit-only checks
+- Inline checking/offline/error and newer/equal/local-newer states instead of alerts
+- Bounded, cookie-free update transport and redirect refusal before follow-up requests
+- Shared SHA-256 hex encoding, one-pass snippet grouping and no redundant menu sorting
+- Passed locally: 260 successful checks per debug/strict release/ASan/TSan
+  configuration, scoped secret scanning and isolated native Version-pane QA
+- Measured: hex encoding improved about 12.2x, not whole-app speed
+- Adopt release-only `-Osize` for NeClip, preserving GRDB `-O`: 4,329,808-byte
+  stripped binary, 2.17% below the same candidate and 1.22% below public 1.10.0
+- Reject global `-Osize` because DB snapshot regressed; target-only release
+  passed 263 checks with opt-in benchmarks and repeat measurements
+- Add strict release CI tests and a contract protecting build-flag scope
+- Pending: separate publication/installation gates; local validation is not a release
+
+No dependency, migration, automatic network check or public release is implied.
+
 ## Done in 1.10.0 / build 17
 
 Published 7 September 2026 after required CI/CodeQL, app and DMG notarization,

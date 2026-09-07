@@ -5,6 +5,31 @@ import XCTest
 /// Opt-in synthetic benchmark. Setup and full-payload verification are excluded
 /// from timings; this never opens the user's database or pasteboard.
 final class HotPathBenchmarks: XCTestCase {
+    func testSyntheticDigestHexadecimalLatency() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in synthetic digest hexadecimal benchmark")
+        }
+        let fixtures = (0..<256).map { first in
+            [UInt8(first)] + Array(UInt8(1)...UInt8(31))
+        }
+        var formattedBytes = 0
+        var encodedBytes = 0
+        record("hex-formatter-256-digests", iterations: 50) { _ in
+            for bytes in fixtures {
+                formattedBytes += bytes.map { String(format: "%02x", $0) }.joined().utf8.count
+            }
+        }
+        record("hex-nibbles-256-digests", iterations: 50) { _ in
+            for bytes in fixtures {
+                encodedBytes += ContentDigest.hexadecimal(bytes).utf8.count
+            }
+        }
+        XCTAssertEqual(formattedBytes, 50 * 256 * 64)
+        XCTAssertEqual(encodedBytes, formattedBytes)
+        // These timings isolate digest encoding, not SHA-256, capture, or menu
+        // latency. No speed threshold: shared hosts and sanitizers affect timing.
+    }
+
     func testSyntheticMenuRefreshReadLatency() throws {
         guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
             throw XCTSkip("Opt-in synthetic menu read benchmark")

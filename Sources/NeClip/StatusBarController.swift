@@ -516,7 +516,9 @@ final class StatusBarController: NSObject {
         let folderItem = item("\(displayTitle) · \(snippets.count)", nil, symbol: "folder")
         folderItem.toolTip = "\(title) · показано: \(snippets.count)"
         let submenu = makeMenu(title: displayTitle)
-        for snippet in snippets.sorted(by: SnippetMenuOrder.lessThan) {
+        // The bounded SQL snapshot already orders each folder by sortIndex/ID;
+        // grouping preserves that order, including the unfiled fallback.
+        for snippet in snippets {
             submenu.addItem(snippetMenuItem(snippet))
         }
         folderItem.submenu = submenu
@@ -1087,8 +1089,8 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func checkUpdates() {
-        showFeedback("проверяем обновления…")
-        UpdateChecker.check()
+        PreferencesWindowController.shared.show(section: .version)
+        UpdateChecker.shared.check()
     }
 
     /// NSMenu actions are explicitly targeted at this controller. Forwarding

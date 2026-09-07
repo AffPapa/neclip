@@ -4,6 +4,38 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.11.0 / build 18 — local candidate, 2026-09-07
+
+Not published or installed. Public download remains 1.10.0/build 17.
+Local evidence and release boundaries: `docs/AUDIT-1.11.0-2026-09-07.md`.
+
+- Add a persistent Version Settings pane: running-bundle version/build,
+  dated GitHub result, explicit checking/error/cached states and honest
+  equal/newer/development-build comparisons. About opens this pane without a request.
+- Replace modal update results with inline status; opening Settings never
+  checks automatically. One manual request at a time, validated metadata cache,
+  ephemeral transport, redirect refusal and a streamed 64 KB response bound.
+- Share byte-compatible SHA-256 hexadecimal encoding without per-byte formatting;
+  group snippet rows without intermediate tuple arrays; reuse stable SQL order
+  instead of sorting each folder menu again.
+- Compare 15 clipboard utilities through primary sources and attributable
+  issues: `docs/RESEARCH-1.11.0-INVISIBLE-2026-09-07.md`.
+- No new dependency, data migration or broader clipboard/keyboard permissions.
+- Initial debug, strict release, ASan and TSan each passed 260 checks (260 XCTest
+  cases, four opt-in skips, plus four Swift Testing checks). Secret scanning
+  covered the publishable tree, 61 HEAD commits and one side-ref-only commit.
+- Isolated native QA verified six tabs at minimum width, light/dark appearance,
+  explicit check, local-newer state, dated cache, Close/Command-W and About navigation.
+- Hex-encoding median improved about 12.2x in its microbenchmark, not whole-app
+  speed. Normal `-O` size grew 0.97% with the Version feature; accepted target-only
+  `-Osize` reduces it to 4,329,808 bytes, 2.17% below the same candidate's `-O`
+  and 1.22% below public 1.10.0. GRDB keeps `-O`; a global `-Osize` trial was
+  rejected after a repeatable DB snapshot regression.
+- Target-only release validation passed 263 checks including three opt-in
+  benchmarks. Three repeated runs showed no observed snapshot regression.
+  CI now includes strict release tests; a distribution contract guards target
+  scope and safety flags. None of these measurements claims GUI/startup speed.
+
 ## 1.10.0 / build 17 — 2026-09-07
 
 Published artifact source/tag: `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`.

@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import GRDB
 
@@ -1557,6 +1556,6 @@ final class Storage: @unchecked Sendable {
             payload = item.data
         }
         guard let payload else { return nil }
-        return SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
+        return ContentDigest.sha256(payload)
     }
 }

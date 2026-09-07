@@ -13,7 +13,11 @@ let package = Package(
             dependencies: [
                 .product(name: "GRDB", package: "GRDB.swift")
             ],
-            path: "Sources/NeClip"
+            path: "Sources/NeClip",
+            swiftSettings: [
+                // Keep GRDB speed-optimized; size-optimize only the app target.
+                .unsafeFlags(["-Osize"], .when(configuration: .release))
+            ]
         ),
         .testTarget(
             name: "NeClipTests",
