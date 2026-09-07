@@ -382,9 +382,16 @@ final class StatusBarController: NSObject {
     private func appendSnippetFolders(to menu: NSMenu) {
         var addedSnippetGroup = false
         let grouped = Dictionary(grouping: snapshot.snippets, by: \.folderID)
+        // Folder IDs are stable database keys; resolve titles once per menu,
+        // not once per snippet row.
+        let folderTitles = Dictionary(
+            uniqueKeysWithValues: snapshot.folders.compactMap { folder in
+                folder.id.map { ($0, folder.title) }
+            }
+        )
         for folder in snapshot.folders {
             guard let folderID = folder.id, let snippets = grouped[folderID], !snippets.isEmpty else { continue }
-            menu.addItem(snippetFolderItem(title: folder.title, snippets: snippets))
+            menu.addItem(snippetFolderItem(title: folder.title, snippets: snippets, folderTitles: folderTitles))
             addedSnippetGroup = true
         }
 
@@ -394,7 +401,7 @@ final class StatusBarController: NSObject {
             return !knownFolderIDs.contains(folderID)
         }
         if !unfiled.isEmpty {
-            menu.addItem(snippetFolderItem(title: "Без папки", snippets: unfiled))
+            menu.addItem(snippetFolderItem(title: "Без папки", snippets: unfiled, folderTitles: folderTitles))
             addedSnippetGroup = true
         }
 
@@ -511,7 +518,11 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func snippetFolderItem(title: String, snippets: [SnippetSummary]) -> NSMenuItem {
+    private func snippetFolderItem(
+        title: String,
+        snippets: [SnippetSummary],
+        folderTitles: [Int64: String]
+    ) -> NSMenuItem {
         let displayTitle = cleanTitle(title)
         let folderItem = item("\(displayTitle) · \(snippets.count)", nil, symbol: "folder")
         folderItem.toolTip = "\(title) · показано: \(snippets.count)"
@@ -519,13 +530,13 @@ final class StatusBarController: NSObject {
         // The bounded SQL snapshot already orders each folder by sortIndex/ID;
         // grouping preserves that order, including the unfiled fallback.
         for snippet in snippets {
-            submenu.addItem(snippetMenuItem(snippet))
+            submenu.addItem(snippetMenuItem(snippet, folderTitles: folderTitles))
         }
         folderItem.submenu = submenu
         return folderItem
     }
 
-    private func snippetMenuItem(_ snippet: SnippetSummary) -> NSMenuItem {
+    private func snippetMenuItem(_ snippet: SnippetSummary, folderTitles: [Int64: String]) -> NSMenuItem {
         let entry = item(
             cleanTitle(snippet.title),
             #selector(pasteSnippet(_:)),
@@ -537,7 +548,7 @@ final class StatusBarController: NSObject {
             entry.isEnabled = false
         }
         let folder = snippet.folderTitle
-            ?? snapshot.folders.first { $0.id == snippet.folderID }?.title
+            ?? snippet.folderID.flatMap { folderTitles[$0] }
             ?? (snippet.folderID == nil ? "Без папки" : "Папка")
         entry.toolTip = "\(folder) › \(snippet.title)\n"
             + snippet.contentPreview + (snippet.contentIsTruncated ? "…" : "")

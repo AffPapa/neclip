@@ -2,16 +2,23 @@
 
 Updated: 7 September 2026. Public release: **1.10.0/build 17**.
 
-Local source candidate: **1.11.0/build 18**, not published or installed.
-`AUDIT-1.11.0-2026-09-07.md` tracks its Version pane and three hot-path
-optimizations: 260 successful checks in each debug/strict release/ASan/TSan run,
-scoped secret scan and isolated native GUI checks passed locally.
-`RESEARCH-1.11.0-INVISIBLE-2026-09-07.md` compares 15 clipboard tools.
+Local source candidate: **1.12.0/build 19**, not published or installed.
+`docs/AUDIT-1.12-2026-09-07-release-qa.md` records the new release/QA gate;
+the public 1.10.0 and installed 1.9.1 remain untouched. The global research
+compares 21 clipboard/layout utilities in
+`docs/RESEARCH-GLOBAL-1.12-2026-09-07-research.md` and keeps search, cloud,
+accounts, AI and plugins outside the product boundary.
+The 1.12 candidate keeps the Version pane and measured 1.11 hot-path work,
+then indexes snippet-folder titles once per menu build instead of performing a
+linear folder lookup for every row. This is an O(snippets × folders) to
+O(snippets + folders) projection change; order, previews, orphan fallback and
+paste behavior are unchanged.
 Initial CUA path timeouts were resolved by selecting the QA app by bundle ID.
 The audit distinguishes native checks from unit-only offline/oversize scenarios.
 Normal `-O` size grew 0.97%, but accepted NeClip-target-only release `-Osize`
-produces 4,329,808 bytes: 2.17% below the same candidate's normal `-O` and 1.22%
-below public 1.10.0. GRDB stays `-O`; the global `-Osize` trial was rejected for
+produces approximately 4,329,816 stripped bytes in the 1.12 candidate: 2.17%
+below the same candidate's normal `-O` and 1.22% below public 1.10.0. GRDB stays
+`-O`; the global `-Osize` trial was rejected for
 snapshot regression. Target-only release passed 263 checks with opt-in benchmarks.
 The 12.2x hex-encoding improvement is only a microbenchmark. Public release evidence below
 belongs to 1.10.0, not the candidate.
@@ -91,7 +98,7 @@ Important owners:
   policy plus literal sensitive-phrase rejection; concealed/transient types are
   rejected by `ClipboardMonitor` before payload reads.
 - `OCRService.swift`: serialized local Vision OCR.
-- `ContentDigest.swift` (1.11.0 candidate): shared byte-compatible SHA-256 hex
+- `ContentDigest.swift` (1.12.0 candidate): shared byte-compatible SHA-256 hex
   encoding for capture and storage fallback, without per-byte string formatting.
 - `Storage.swift`: migrations, SHA-256 deduplication, retention, byte quota,
   atomic persistence and v7 retirement of derived FTS tables/triggers/indexes.
@@ -190,7 +197,7 @@ ignore list until restart.
   remains available. Secondary layout-memory controls use progressive disclosure.
 - `OnboardingWindow.swift`: permission explanation and recovery.
 - `AppMetadata.swift`: human-readable source application metadata.
-- `UpdateChecker.swift` (1.11.0 candidate): shared observable update state,
+- `UpdateChecker.swift` (1.12.0 candidate): shared observable update state,
   running-bundle identity, validated dated cache and explicit-only GitHub check.
   Ephemeral transport refuses redirects and bounds the response while streaming.
 - `PreferencesWindow.swift` adds the candidate Version pane; About and the
@@ -244,7 +251,7 @@ ignore list until restart.
   `SnippetRenderingBehaviorTests`.
 - Release/update/security: `UpdateManifestTests`,
   `SecretScanningContractTests`, `scripts/secret-scan.sh`, `build-app.sh`.
-- Candidate 1.11.0: `UpdateStateTests`, `UpdateTransportTests`,
+- Candidate 1.12.0: `UpdateStateTests`, `UpdateTransportTests`,
   `HotPathOptimizationTests`, `HotPathBenchmarks` and the six-pane navigation
   contract. Local results and measurement limitations are recorded in its audit;
   no current release gate is implied by the existence of these tests.
