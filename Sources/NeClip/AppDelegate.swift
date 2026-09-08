@@ -105,7 +105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" {
             DispatchQueue.main.async {
-                PreferencesWindowController.shared.show()
+                let section = qaEnvironment["NECLIP_UI_TEST_SECTION"].flatMap(PreferencesSection.init(rawValue:))
+                PreferencesWindowController.shared.show(section: section)
             }
         } else if let tab = qaEnvironment["NECLIP_UI_TEST_TAB"] {
             DispatchQueue.main.async { [weak self] in
@@ -247,9 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showAboutFromApplicationMenu() {
-        NSApp.activate(ignoringOtherApps: true)
-        // AppKit reads the installed bundle's version/build and app icon.
-        NSApp.orderFrontStandardAboutPanel(nil)
+        PreferencesWindowController.shared.show(section: .version)
     }
 
     @objc private func openSettingsFromApplicationMenu() {

@@ -1,6 +1,18 @@
 {
   "versions": [
     {
+      "version": "1.12.0",
+      "build": 19,
+      "status": "released",
+      "changes": [
+        "Глобальное исследование 21 clipboard- и keyboard-layout utility по первичным источникам; поиск, облако, аккаунты, AI и плагины оставлены вне минималистичной концепции",
+        "Построение меню сниппетов использует один индекс названий папок вместо повторного линейного поиска для каждой записи",
+        "Порядок папок, orphan/unfiled fallback, preview и вставка не меняются",
+        "Сохранены миграции, privacy exclusions, manual-first layout correction и menu-bar-only модель",
+        "Публичный 1.12.0 build 19: Developer ID, notarization ZIP/DMG, stapling, Gatekeeper, mounted-DMG и SHA-256 проверены; установленная копия не заменялась"
+      ]
+    },
+    {
       "version": "1.10.0",
       "build": 17,
       "status": "released",

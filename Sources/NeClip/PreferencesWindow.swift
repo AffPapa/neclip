@@ -10,7 +10,8 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
     private var window: NSWindow?
     let navigation = PreferencesNavigation()
 
-    func show() {
+    func show(section: PreferencesSection? = nil) {
+        if let section { navigation.select(section) }
         if window == nil {
             let hosting = NSHostingController(rootView: PreferencesView(
                 navigation: navigation,
@@ -42,6 +43,8 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
             window.center()
             self.window = window
         }
+        window?.toolbar?.selectedItemIdentifier = navigation.selected.identifier
+        window?.title = navigation.selected.windowTitle
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
     }
@@ -96,7 +99,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
 }
 
 enum PreferencesSection: String, CaseIterable {
-    case general, shortcuts, privacy, layout, data
+    case general, shortcuts, privacy, layout, data, version
 
     var identifier: NSToolbarItem.Identifier { .init(rawValue) }
     var windowTitle: String { "\(RuntimeIdentity.displayName) — \(title)" }
@@ -107,6 +110,7 @@ enum PreferencesSection: String, CaseIterable {
         case .privacy: "Приватность"
         case .layout: "Раскладка"
         case .data: "Данные"
+        case .version: "Версия"
         }
     }
     var symbol: String {
@@ -116,6 +120,7 @@ enum PreferencesSection: String, CaseIterable {
         case .privacy: "hand.raised"
         case .layout: "character.cursor.ibeam"
         case .data: "externaldrive"
+        case .version: "info.circle"
         }
     }
 }
@@ -128,6 +133,52 @@ final class PreferencesNavigation: ObservableObject {
     func select(_ section: PreferencesSection) {
         commitEdits.send()
         selected = section
+    }
+}
+
+private struct VersionPreferencesView: View {
+    @ObservedObject private var updates = UpdateChecker.shared
+
+    var body: some View {
+        Form {
+            Section(updates.installed.isPreview ? "Эта тестовая копия" : "Установленная версия") {
+                LabeledContent("NeClip", value: updates.installed.label)
+                if updates.installed.isPreview {
+                    Text("Версия запущенной тестовой копии, а не приложения в «Программах».")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section("Обновления с GitHub") {
+                if let snapshot = updates.snapshot {
+                    LabeledContent("По последней проверке",
+                                   value: "\(snapshot.manifest.version) · сборка \(snapshot.manifest.build)")
+                    Text("\(updates.isCachedResult ? "Сохранённый результат" : "Проверено"): \(snapshot.checkedAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                HStack {
+                    if updates.isChecking { ProgressView().controlSize(.small) }
+                    Text(updates.status)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                HStack {
+                    Button(updates.isChecking ? "Проверяем…" : "Проверить обновления") {
+                        updates.check()
+                    }
+                    .disabled(updates.isChecking)
+                    if let url = updates.downloadURL, let version = updates.snapshot?.manifest.version {
+                        Button("Скачать \(version)") { NSWorkspace.shared.open(url) }
+                            .disabled(updates.isChecking)
+                    }
+                }
+                Text("Проверка выполняется только по нажатию. Сохранённый результат не означает, что новых выпусков сейчас нет.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Link("История версий на GitHub", destination: URL(string: "https://github.com/AffPapa/neclip/releases")!)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
@@ -337,6 +388,7 @@ private struct PreferencesView: View {
         case .privacy: privacyTab
         case .layout: layoutTab
         case .data: dataTab
+        case .version: VersionPreferencesView()
         }
     }
 

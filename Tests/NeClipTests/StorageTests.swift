@@ -739,7 +739,7 @@ final class StorageTests: XCTestCase {
         model.editorContent = "unsaved text"
         model.editorChanged()
 
-        try storage.deleteSnippet(id: id)
+        _ = try XCTUnwrap(storage.removeSnippet(id: id))
         model.deleteSelected()
 
         XCTAssertEqual(model.selectedSnippetID, id)

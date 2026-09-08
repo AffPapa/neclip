@@ -18,10 +18,10 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "1.10.0",
-    "build": 17,
+    "version": "1.12.0",
+    "build": 19,
     "status": "released",
-    "publicVersion": "1.10.0"
+    "publicVersion": "1.12.0"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -31,10 +31,10 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.10.0-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.10.0-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.12.0-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.12.0-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
-    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/OPTIMIZATION-2026-09-06.md",
+    "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-GLOBAL-1.12-2026-09-07-research.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -135,5 +135,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "1.10.0 released; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "1.12.0 released; exact downloadable artifact is identified by version.json"
 }

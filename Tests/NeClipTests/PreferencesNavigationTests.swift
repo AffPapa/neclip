@@ -18,8 +18,9 @@ final class PreferencesNavigationTests: XCTestCase {
             let controller = PreferencesWindowController()
             let toolbar = NSToolbar(identifier: "test")
             let identifiers = controller.toolbarDefaultItemIdentifiers(toolbar)
-            XCTAssertEqual(identifiers.count, 5)
-            XCTAssertEqual(Set(identifiers).count, 5)
+            XCTAssertEqual(identifiers.count, 6)
+            XCTAssertEqual(Set(identifiers).count, 6)
+            XCTAssertEqual(identifiers.last, PreferencesSection.version.identifier)
             XCTAssertEqual(controller.toolbarSelectableItemIdentifiers(toolbar), identifiers)
             for section in PreferencesSection.allCases {
                 XCTAssertEqual(section.windowTitle, "\(RuntimeIdentity.displayName) — \(section.title)")

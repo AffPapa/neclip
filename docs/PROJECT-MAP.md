@@ -1,17 +1,38 @@
 # NeClip project map
 
-Updated: 7 September 2026. Public release: **1.10.0/build 17**.
+Updated: 8 September 2026. Public release: **1.12.0/build 19**.
+
+`RELEASE-1.12.0-STATUS.md` records the signed, notarized and independently
+verified public release. The immutable previous 1.10.0 release remains in
+`dist/releases` for rollback. The global research compares 21 clipboard/layout
+utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md` and keeps search,
+cloud, accounts, AI and plugins outside the product boundary.
+The 1.12 release keeps the Version pane and measured 1.11 hot-path work, then
+indexes snippet-folder titles once per menu build instead of performing a
+linear folder lookup for every row. This is an O(snippets × folders) to
+O(snippets + folders) projection change; order, previews, orphan fallback and
+paste behavior are unchanged.
+Initial CUA path timeouts were resolved by selecting the QA app by bundle ID.
+The audit distinguishes native checks from unit-only offline/oversize scenarios.
+Normal `-O` size grew 0.97%, but accepted NeClip-target-only release `-Osize`
+produces approximately 4,329,816 stripped bytes in the 1.12 release: 2.17%
+below the same candidate's normal `-O` and 1.22% below public 1.10.0. GRDB stays
+`-O`; the global `-Osize` trial was rejected for
+snapshot regression. Target-only release passed 263 checks with opt-in benchmarks.
+The 12.2x hex-encoding improvement is only a microbenchmark. Current public
+release evidence is in `RELEASE-1.12.0-STATUS.md`.
+
 Current menu design: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
 snippet folders directly; no quick-list duplication, top-item actions, text
 transform tools or new pin UI. Existing protected clips remain in a conditional
 legacy section, with explicit unpinning from the selected item's inspector.
-Release evidence: `RELEASE-1.10.0-STATUS.md`. Site/download consistency is checked
+Release evidence: `RELEASE-1.12.0-STATUS.md`. Site/download consistency is checked
 by `scripts/verify-site.rb`. Artifact source:
 `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`; PR #13 merge:
 `682ce5370d6c8ee5a95291fa63e114c9e50d2546`.
-[Public release](https://github.com/AffPapa/neclip/releases/tag/v1.10.0):
-DMG 2,006,978 bytes, SHA-256
-`d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
+[Public release](https://github.com/AffPapa/neclip/releases/tag/v1.12.0):
+DMG 1,990,083 bytes, SHA-256
+`5b920cfd499446b4ded5a3e38fcc0c8ca5dcfd15544f207dde2249b848c7761e`.
 Required CI/CodeQL, app and DMG notarization, stapling, Gatekeeper and independent
 unauthenticated download verification passed, including the full app comparison.
 Each debug, strict release, ASan and TSan run passed 245 checks (244 XCTest
@@ -76,6 +97,8 @@ Important owners:
   policy plus literal sensitive-phrase rejection; concealed/transient types are
   rejected by `ClipboardMonitor` before payload reads.
 - `OCRService.swift`: serialized local Vision OCR.
+- `ContentDigest.swift` (1.12.0 release): shared byte-compatible SHA-256 hex
+  encoding for capture and storage fallback, without per-byte string formatting.
 - `Storage.swift`: migrations, SHA-256 deduplication, retention, byte quota,
   atomic persistence and v7 retirement of derived FTS tables/triggers/indexes.
   History reads use one bounded summary API; snippets retain bounded projections. OCR and pin updates select metadata
@@ -173,7 +196,12 @@ ignore list until restart.
   remains available. Secondary layout-memory controls use progressive disclosure.
 - `OnboardingWindow.swift`: permission explanation and recovery.
 - `AppMetadata.swift`: human-readable source application metadata.
-- `UpdateChecker.swift`: explicit-only, GitHub-bound update check.
+- `UpdateChecker.swift` (1.12.0 release): shared observable update state,
+  running-bundle identity, validated dated cache and explicit-only GitHub check.
+  Ephemeral transport refuses redirects and bounds the response while streaming.
+- `PreferencesWindow.swift` adds the candidate Version pane; About and the
+  update menu route to it. Only the check action starts a request; opening the
+  pane or reading saved status does not. No modal update-result window remains.
 
 ## Data invariants
 
@@ -222,6 +250,13 @@ ignore list until restart.
   `SnippetRenderingBehaviorTests`.
 - Release/update/security: `UpdateManifestTests`,
   `SecretScanningContractTests`, `scripts/secret-scan.sh`, `build-app.sh`.
+- Release 1.12.0: `UpdateStateTests`, `UpdateTransportTests`,
+  `HotPathOptimizationTests`, `HotPathBenchmarks` and the six-pane navigation
+  contract. Local results and measurement limitations are recorded in its audit;
+  no current release gate is implied by the existence of these tests.
+- `Package.swift` applies `-Osize` only to release builds of the NeClip executable;
+  GRDB keeps normal `-O`. `DistributionSizeContractTests` protects this scope and
+  safety flags. CI includes strict release tests in addition to debug checks.
 
 ## Release gate
 

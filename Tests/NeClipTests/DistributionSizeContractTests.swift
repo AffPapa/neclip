@@ -14,5 +14,9 @@ final class DistributionSizeContractTests: XCTestCase {
         XCTAssertTrue(script.contains("\"$APP_UUID\" == \"$DSYM_UUID\""))
         XCTAssertTrue(script.contains("cp -R \"$WORK_DIR/NeClip.dSYM\" \"$DIST_STAGE/NeClip.dSYM\""))
         XCTAssertTrue(script.contains("xcrun stapler validate \"$APP\""))
+        let package = try String(contentsOf: root.appendingPathComponent("Package.swift"), encoding: .utf8)
+        XCTAssertTrue(package.contains(".unsafeFlags([\"-Osize\"], .when(configuration: .release))"))
+        XCTAssertFalse(script.contains("-Xswiftc -Osize"), "Do not size-optimize dependencies globally")
+        XCTAssertFalse(package.contains("-Ounchecked"), "Runtime safety checks remain enabled")
     }
 }

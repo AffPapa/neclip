@@ -27,3 +27,5 @@ jobs:
         run: swift build -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
       - name: Tests
         run: swift test
+      - name: Strict release tests (app size optimization)
+        run: swift test -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors

@@ -91,7 +91,9 @@ final class ClipboardCaptureFastPathTests: XCTestCase {
         let failure = try XCTUnwrap(body.range(of: "captureFailed(error)"))
         XCTAssertTrue(body[failure.upperBound..<payload.lowerBound].contains("return"))
         XCTAssertEqual(body.components(separatedBy: "insert(item)").count - 1, 1)
-        XCTAssertEqual(body.components(separatedBy: "Self.sha256(textData)").count - 1, 1)
+        let digest = try XCTUnwrap(body.range(of: "ContentDigest.sha256(textData)"))
+        XCTAssertLessThan(payload.lowerBound, digest.lowerBound)
+        XCTAssertEqual(body.components(separatedBy: "ContentDigest.sha256(textData)").count - 1, 1)
     }
 
     func testAppendFallbackResultsKeepExistingRecordUntouched() throws {
