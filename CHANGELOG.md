@@ -4,14 +4,14 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 2.0.1 / build 23 — release candidate ready, 2026-09-08
+## 2.0.1 / build 23 — published, 2026-09-08
 
 Built from commit `292f637419a4bd06633675b973b546d5f15a70b1`.
 The final arm64 DMG is 1,984,962 bytes; SHA-256:
 `0e8d8e6f057b025d9bc9721f7edb9a99ec40f7d4e2fb61717ec08574df798752`.
 The app and DMG passed Developer ID signing, Apple notarization, stapling,
-Gatekeeper and mounted-DMG verification. Public GitHub release publication is
-the remaining distribution step.
+Gatekeeper and mounted-DMG verification. The public [GitHub release](https://github.com/AffPapa/neclip/releases/tag/v2.0.1)
+is live with the signed, notarized DMG and checksum.
 
 - Remove the duplicate **В работе**/Focus Stack projection and its storage
   snapshot data. History is one chronological list: the newest copy is first.
