@@ -23,23 +23,21 @@ search-free, but the source still carries compatibility and preference weight:
 - Storage still has legacy `pinnedAt`, `isPinned`, keyword and FTS migration
   code for upgrade compatibility. These must not be deleted without a tested
   forward migration and rollback boundary.
-- The menu has separate history, snippet and Focus Stack projections. The
-  Focus Stack is the right direction, but its product language should become
-  one obvious **В работе** zone rather than another mental model.
+- The menu previously had a separate Focus Stack projection. Testing the
+  concept showed that a second “latest” list makes a clipboard manager less
+  predictable: the same item can appear twice and the user has to learn a new
+  ranking rule. The 2.0 candidate removes that projection completely.
 - Automatic EN/RU correction remains a high-risk opt-in subsystem because it
   can require Input Monitoring. It should be invisible by default and exposed
   as one safety option, not a peer of ordinary clipboard settings.
 
 ## The 2.0 mental model
 
-The menu has exactly three visual zones, in this order:
+The menu has exactly two visual zones, in this order:
 
-1. **В работе** — up to five context items for the current application and
-   recently used saved snippets. It appears only when there are at least two
-   useful items. `⌘1`–`⌘5` paste directly.
-2. **Недавнее** — the bounded chronological clipboard history. A row always
+1. **Недавнее** — the bounded chronological clipboard history. A row always
    means “paste this”; no inspector, pin state or hidden click mode.
-3. **Сохранённое** — snippet folders shown directly in the same menu. A folder
+2. **Сохранённое** — snippet folders shown directly in the same menu. A folder
    opens one level; a snippet pastes immediately. No search field, keyword,
    tags, smart collections or duplicate quick list.
 
@@ -79,33 +77,33 @@ Version and update status move to the standard About window. There is no
 separate Version toolbar tab. This follows the macOS convention of a Settings
 scene for preferences and About for identity/release information.
 
-## The novel part: contextual memory, not an archive
+## The novel part: chronological certainty, not an archive
 
 Most clipboard managers optimise for searching a large archive. NeClip 2.0
-optimises for recovering the next thing in the current task. The ranking is
-fully local and explainable:
+optimises for the next action being obvious. The rule is fully local and
+explainable:
 
-`current app + current session + last used saved text + chronological fallback`.
+`latest copy first + saved folders always visible`.
 
-No embeddings, AI, cloud, tags or permanent profiling are needed. Context is
-ephemeral; only existing usage timestamps and app identifiers are reused. A
-fresh install stays visually empty until the user has copied or used something.
+No embeddings, AI, cloud, tags, app profiling or second ranking are needed. A
+fresh install shows only the chronological history and saved folders.
 
 ## 100 candidate improvements
 
 ### Immediate-use menu (1–20)
 
-1. Rename Focus Stack to “В работе”. 2. Show it only with two useful items.
-3. Capture frontmost app at menu-open time. 4. Cap contextual items at five.
-5. Remove duplicates across zones. 6. Keep one shared snapshot per open.
-7. Make Return always paste. 8. Make Command-Return copy only. 9. Make
-Option-Return plain-text paste. 10. Keep visible numbers only for the first
-ten rows. 11. Preserve physical-key navigation in EN/RU layouts. 12. Keep
-folders one submenu deep. 13. Put saved folders directly in the root menu.
-14. Remove empty visual groups. 15. Show type icons consistently. 16. Bound
-row previews by grapheme-safe length. 17. Keep link/file/image labels readable.
-18. Reuse one menu snapshot for status-item and hotkey paths. 19. Refresh only
-the changed domain. 20. Retry a failed read on explicit open.
+1. Remove the duplicate “latest/context” projection. 2. Keep one shared
+snapshot per open. 3. Make Return always paste. 4. Make Command-Return copy
+only. 5. Make Option-Return plain-text paste. 6. Keep visible numbers only
+for the first ten rows. 7. Preserve physical-key navigation in EN/RU layouts.
+8. Keep folders one submenu deep. 9. Put saved folders directly in the root
+menu. 10. Remove empty visual groups. 11. Show type icons consistently. 12.
+Bound row previews by grapheme-safe length. 13. Keep link/file/image labels
+readable. 14. Reuse one menu snapshot for status-item and hotkey paths. 15.
+Refresh only the changed domain. 16. Retry a failed read on explicit open.
+17. Keep folder order stable. 18. Give the first ten history rows physical
+number shortcuts. 19. Keep the menu free of network work. 20. Keep the menu
+usable while settings are open.
 
 ### Snippets (21–35)
 

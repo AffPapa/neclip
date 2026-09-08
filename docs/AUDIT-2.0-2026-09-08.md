@@ -22,11 +22,10 @@ Date: 8 September 2026. Branch: `codex/neclip-2.0-rethink`.
 
 ### Product/UX
 
-The strongest workflow is already “open → choose → Return”. The current weak
-point is naming and hierarchy: Focus Stack, history and snippets are three
-different concepts to learn, while Settings exposes six peer categories for a
-menu-bar utility. The proposed three-zone menu and three-question Settings
-model reduce the number of concepts without deleting safety controls.
+The strongest workflow is already “open → choose → Return”. The weak point was
+the duplicate “latest/context” list: it made history and snippets compete for
+the same attention. The candidate now shows only chronological history plus
+saved folders, while Settings exposes three user questions.
 
 ### Architecture/performance
 
@@ -65,7 +64,7 @@ updated only through a protected, check-backed merge.
 
 ### Redesign
 
-- Menu: **В работе → Недавнее → Сохранённое**.
+- Menu: **Недавнее → Сохранённое**; no duplicate “В работе” list.
 - Settings: **Как работает → Клавиши → Безопасность и приватность**.
 - Snippet editor: title, text and folder first; all other fields are gone or
   compatibility-only.
@@ -81,11 +80,13 @@ updated only through a protected, check-backed merge.
 3. No visible setting uses an internal term such as FTS, keyword, bundle ID or
    pinned state.
 4. Settings has at most three peer destinations and each answers one question.
-5. All existing data opens; no migration deletes user payloads.
-6. Menu construction remains bounded and does not load large blobs for labels.
-7. Light/dark appearance and menu-bar/hotkey presentation are identical.
-8. The binary and cold/hot latency are measured before and after each slice.
-9. Full release/security gates remain green.
+5. The menu has one chronological history and one saved-snippet hierarchy;
+   copied items never reappear in a second “latest” projection.
+6. All existing data opens; no migration deletes user payloads.
+7. Menu construction remains bounded and does not load large blobs for labels.
+8. Light/dark appearance and menu-bar/hotkey presentation are identical.
+9. The binary and cold/hot latency are measured before and after each slice.
+10. Full release/security gates remain green.
 
 ## Decision
 
@@ -100,4 +101,8 @@ the Preferences toolbar. Privacy, layout and data controls are grouped into the
 Safety screen with disclosures; their old enum cases remain addressable for
 compatibility and QA. History uses 50/100/250/500 presets, while the exact
 numeric limit remains available under additional settings. No database schema,
-payload, permission policy or release artifact was changed.
+numeric limit remains available under additional settings. The former Focus
+Stack and `recentSnippets` projection are removed from the runtime menu path;
+legacy storage fields remain only where migrations or compatibility require
+them. The footer now shows installed and last-checked GitHub versions on every
+settings screen. No payload or permission policy was changed.

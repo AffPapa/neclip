@@ -270,6 +270,7 @@ private struct NumericPreferenceRow: View {
 
 private struct PreferencesView: View {
     @ObservedObject var navigation: PreferencesNavigation
+    @ObservedObject private var updates = UpdateChecker.shared
     let onClose: () -> Void
     let onEscape: () -> Void
 
@@ -326,6 +327,23 @@ private struct PreferencesView: View {
             }
             Divider()
             HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Установлена: \(updates.installed.label)")
+                    Text("Последняя: \(latestVersionLabel)")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .help("Текущая версия и последняя версия из GitHub")
+                Button {
+                    updates.check()
+                } label: {
+                    Image(systemName: updates.isChecking ? "hourglass" : "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(updates.isChecking)
+                .accessibilityLabel("Проверить последнюю версию")
+                .help("Проверить последнюю версию на GitHub")
                 Spacer()
                 Button("Закрыть", action: onClose)
                     .help("Закрыть настройки · ⌘W. NeClip продолжит работать в строке меню.")
@@ -336,7 +354,10 @@ private struct PreferencesView: View {
         .frame(minWidth: 600, minHeight: 420)
         .environmentObject(navigation)
         .onExitCommand(perform: onEscape)
-        .onAppear { loginItemStatus = SMAppService.mainApp.status }
+        .onAppear {
+            loginItemStatus = SMAppService.mainApp.status
+            updates.check()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginItemStatus = SMAppService.mainApp.status
             axTrusted = PasteService.isAccessibilityTrusted
@@ -386,6 +407,11 @@ private struct PreferencesView: View {
         } message: {
             Text("Это действие нельзя отменить.")
         }
+    }
+
+    private var latestVersionLabel: String {
+        guard let manifest = updates.snapshot?.manifest else { return "не проверена" }
+        return "\(manifest.version) · сборка \(manifest.build)"
     }
 
     @ViewBuilder

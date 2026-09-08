@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.0.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "22")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.0.1")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "23")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -125,6 +125,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("NSApp.currentEvent?.type == .rightMouseUp ? .snippets : .history"))
         XCTAssertFalse(statusBar.contains("snippetsItem.submenu"))
         XCTAssertFalse(statusBar.contains("Быстрый доступ"))
+        XCTAssertFalse(statusBar.contains("В работе"))
+        XCTAssertFalse(statusBar.contains("FocusStack"))
+        XCTAssertFalse(statusBar.contains("recentSnippets"))
         XCTAssertEqual(statusBar.components(separatedBy: "appendSnippetFolders(to: menu)").count - 1, 2)
         XCTAssertTrue(statusBar.contains(".sectionHeader(title: \"Папки\")"))
 
@@ -143,6 +146,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("DisclosureGroup(\"Работа в меню\")"))
         XCTAssertFalse(statusBar.contains("searchWorkItem"))
         XCTAssertTrue(preferences.contains("Очищать историю при выходе"))
+        XCTAssertTrue(preferences.contains("Установлена: "))
+        XCTAssertTrue(preferences.contains("Последняя: "))
+        XCTAssertTrue(preferences.contains("updates.check()"))
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))

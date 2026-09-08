@@ -36,7 +36,6 @@ final class StatusBarController: NSObject {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
         let snippets: [SnippetSummary]
-        let recentSnippets: [SnippetSummary]
         let hasMoreHistory: Bool
         let hasMoreSnippets: Bool
     }
@@ -47,7 +46,6 @@ final class StatusBarController: NSObject {
         clips: [],
         folders: [],
         snippets: [],
-        recentSnippets: [],
         hasMoreHistory: false,
         hasMoreSnippets: false
     )
@@ -124,7 +122,6 @@ final class StatusBarController: NSObject {
         if domain == .all {
             activeMenu?.cancelTracking()
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
-                                    recentSnippets: [],
                                     hasMoreHistory: false, hasMoreSnippets: false)
             snapshotIsReady = false
             SequentialPasteSequence.shared.reset()
@@ -200,7 +197,6 @@ final class StatusBarController: NSObject {
                     clips: clips,
                     folders: snippetSnapshot?.folders ?? previous.folders,
                     snippets: snippetSnapshot?.snippets ?? previous.snippets,
-                    recentSnippets: snippetSnapshot?.recentSnippets ?? previous.recentSnippets,
                     hasMoreHistory: hasMoreHistory,
                     hasMoreSnippets: snippetSnapshot?.hasMore ?? previous.hasMoreSnippets
                 )
@@ -290,19 +286,8 @@ final class StatusBarController: NSObject {
         if RuntimeIdentity.isIsolatedPreview {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
-        let focus = FocusStack.items(
-            clips: snapshot.clips,
-            snippets: snapshot.recentSnippets,
-            currentBundleID: targetBundleID
-        )
-        let focusClipIDs = Set(focus.compactMap(\.clipID))
-        if !focus.isEmpty {
-            menu.addItem(.sectionHeader(title: "В работе"))
-            appendFocusStack(focus, to: menu)
-            menu.addItem(.separator())
-        }
         menu.addItem(.sectionHeader(title: "Недавние"))
-        let history = Array(snapshot.clips.prefix(100)).filter { !focusClipIDs.contains($0.id) }
+        let history = Array(snapshot.clips.prefix(100))
         let firstPage = Array(history.prefix(10))
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
@@ -311,8 +296,7 @@ final class StatusBarController: NSObject {
             menu.addItem(item(emptyTitle, nil, symbol: "doc.on.clipboard"))
         } else {
             for (index, clip) in firstPage.enumerated() {
-                let key = focus.isEmpty ? quickKey(for: index) : nil
-                menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: key, showNumber: true))
+                menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: quickKey(for: index), showNumber: true))
             }
         }
 
@@ -520,29 +504,6 @@ final class StatusBarController: NSObject {
         }
         folderItem.submenu = submenu
         return folderItem
-    }
-
-    private func appendFocusStack(_ focus: [FocusStack.Item], to menu: NSMenu) {
-        let folderTitles = Dictionary(
-            uniqueKeysWithValues: snapshot.folders.compactMap { folder in
-                folder.id.map { ($0, folder.title) }
-            }
-        )
-        for (index, item) in focus.enumerated() {
-            let key = quickKey(for: index)
-            switch item {
-            case let .clip(clip):
-                menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: key, showNumber: true))
-            case let .snippet(snippet):
-                menu.addItem(snippetMenuItem(
-                    snippet,
-                    folderTitles: folderTitles,
-                    absoluteIndex: index,
-                    quickKey: key,
-                    showNumber: true
-                ))
-            }
-        }
     }
 
     private func snippetMenuItem(
