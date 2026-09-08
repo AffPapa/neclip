@@ -1,11 +1,17 @@
 # NeClip project map
 
-Updated: 8 September 2026. Public release: **1.13.0/build 20**.
+Updated: 8 September 2026. Public release: **1.13.0/build 20**. Local
+candidate: **1.14.0/build 21**.
 
 The 1.13 release removes pinning and history inspection from the product
 surface. Legacy pin flags are retired by migration `v8-retire-pins`; the
 history menu is one chronological list and the snippet editor no longer has
 the secondary duplicate action.
+
+The 1.14 candidate adds a bounded contextual **В работе** section. It uses
+current-app clip metadata and already-used snippets, never adds permissions or
+persisted state, and removes repeated focus clips from the chronological page.
+The design and guardrails are recorded in `FOCUS-STACK-2026-09-08.md`.
 
 `RELEASE-1.13.0-STATUS.md` records the signed, notarized and independently
 verified public release. The immutable previous 1.12.0 release remains in
@@ -121,10 +127,8 @@ local history and snippet bodies are fetched only for the chosen action.
   compare-and-swap restoration of a temporary pasteboard; an unreadable
   advertised representation aborts before clearing. Paste never deletes the
   source because event dispatch cannot prove target-app acceptance.
-- `HistoryItemInspector.swift`: preview, rename/edit, safe open, selectable OCR
-  text, atomic draft-to-snippet conversion and explicit legacy unpinning.
-  Its session guards dirty drafts on close/replacement/quit, rejects stale loads
-  and drops retained drafts/previews after full data erasure.
+- `HistoryItemActions.swift`: explicit safe open/edit actions for selected history
+  rows. The old inspector window and option-click workflow are retired.
 - `SequentialPasteSequence.swift`: memory-only stable IDs for `Control-Command-V`.
 
 ### Snippets
@@ -132,11 +136,13 @@ local history and snippet bodies are fetched only for the chosen action.
 The dedicated shortcut and ordinary history menu show folders directly;
 right-clicking the status item is an alternative. The bounded SQL projection
 and folder browse use stable folder/snippet sortIndex/ID, not usage or pins.
+When enough context exists, the ordinary history root adds a five-item **В
+работе** section ranked by current app and prior snippet use; otherwise the
+menu is unchanged.
 Counts describe displayed items; an overflow hint points to the complete editor. There is
-no duplicate quick list. Native arrows and Return own selection. Option-click
-inspects the exact selected clip without touching the pasteboard. The inspector
-can save the current text draft as a snippet atomically without trimming the
-source clip. Legacy unpinning is a metadata-only, idempotent update without trim.
+no duplicate quick list, pin UI or history inspector. Native arrows and Return
+own selection. Focus rows use `⌘1`–`⌘5`; ordinary history keeps its existing
+shortcuts when no focus context exists.
 
 `SnippetsEditor` reads lightweight summaries for folders, empty folders
 and **Unfiled**, then fetches one full body when selected. Selection, navigation

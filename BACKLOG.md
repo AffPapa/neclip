@@ -4,6 +4,19 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Local candidate 1.14.0 / build 21 — Focus Stack
+
+The contextual working set is implemented locally and is not public until the
+normal signed/notarized release gate passes.
+
+- Show at most five current-app clips and already-used snippets under **В работе**.
+- Keep the ordinary chronological history and direct folders as the fallback.
+- Remove repeated focus clips from the visible history page.
+- Reuse existing metadata and permissions; add no migration or network state.
+- Verify deterministic ranking, keyboard shortcuts and the minimum-context rule.
+- Release only after Swift 6, strict build, signing, notarization, Gatekeeper,
+  site/manifest/checksum and clean-history secret scans pass.
+
 ## Local candidate 1.11.0 / build 18 — not published
 
 Public download remains 1.10.0/build 17; the installed app/database are unchanged.

@@ -36,6 +36,7 @@ final class StatusBarController: NSObject {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
         let snippets: [SnippetSummary]
+        let recentSnippets: [SnippetSummary]
         let hasMoreHistory: Bool
         let hasMoreSnippets: Bool
     }
@@ -46,6 +47,7 @@ final class StatusBarController: NSObject {
         clips: [],
         folders: [],
         snippets: [],
+        recentSnippets: [],
         hasMoreHistory: false,
         hasMoreSnippets: false
     )
@@ -122,6 +124,7 @@ final class StatusBarController: NSObject {
         if domain == .all {
             activeMenu?.cancelTracking()
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
+                                    recentSnippets: [],
                                     hasMoreHistory: false, hasMoreSnippets: false)
             snapshotIsReady = false
             SequentialPasteSequence.shared.reset()
@@ -197,6 +200,7 @@ final class StatusBarController: NSObject {
                     clips: clips,
                     folders: snippetSnapshot?.folders ?? previous.folders,
                     snippets: snippetSnapshot?.snippets ?? previous.snippets,
+                    recentSnippets: snippetSnapshot?.recentSnippets ?? previous.recentSnippets,
                     hasMoreHistory: hasMoreHistory,
                     hasMoreSnippets: snippetSnapshot?.hasMore ?? previous.hasMoreSnippets
                 )
@@ -283,11 +287,22 @@ final class StatusBarController: NSObject {
             menu.addItem(.separator())
         }
 
-        menu.addItem(.sectionHeader(title: "Недавние"))
         if RuntimeIdentity.isIsolatedPreview {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
-        let history = Array(snapshot.clips.prefix(100))
+        let focus = FocusStack.items(
+            clips: snapshot.clips,
+            snippets: snapshot.recentSnippets,
+            currentBundleID: targetBundleID
+        )
+        let focusClipIDs = Set(focus.compactMap(\.clipID))
+        if !focus.isEmpty {
+            menu.addItem(.sectionHeader(title: "В работе"))
+            appendFocusStack(focus, to: menu)
+            menu.addItem(.separator())
+        }
+        menu.addItem(.sectionHeader(title: "Недавние"))
+        let history = Array(snapshot.clips.prefix(100)).filter { !focusClipIDs.contains($0.id) }
         let firstPage = Array(history.prefix(10))
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
@@ -296,7 +311,8 @@ final class StatusBarController: NSObject {
             menu.addItem(item(emptyTitle, nil, symbol: "doc.on.clipboard"))
         } else {
             for (index, clip) in firstPage.enumerated() {
-                menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: quickKey(for: index), showNumber: true))
+                let key = focus.isEmpty ? quickKey(for: index) : nil
+                menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: key, showNumber: true))
             }
         }
 
@@ -506,11 +522,43 @@ final class StatusBarController: NSObject {
         return folderItem
     }
 
-    private func snippetMenuItem(_ snippet: SnippetSummary, folderTitles: [Int64: String]) -> NSMenuItem {
+    private func appendFocusStack(_ focus: [FocusStack.Item], to menu: NSMenu) {
+        let folderTitles = Dictionary(
+            uniqueKeysWithValues: snapshot.folders.compactMap { folder in
+                folder.id.map { ($0, folder.title) }
+            }
+        )
+        for (index, item) in focus.enumerated() {
+            let key = quickKey(for: index)
+            switch item {
+            case let .clip(clip):
+                menu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: key, showNumber: true))
+            case let .snippet(snippet):
+                menu.addItem(snippetMenuItem(
+                    snippet,
+                    folderTitles: folderTitles,
+                    absoluteIndex: index,
+                    quickKey: key,
+                    showNumber: true
+                ))
+            }
+        }
+    }
+
+    private func snippetMenuItem(
+        _ snippet: SnippetSummary,
+        folderTitles: [Int64: String],
+        absoluteIndex: Int? = nil,
+        quickKey: String? = nil,
+        showNumber: Bool = false
+    ) -> NSMenuItem {
+        let prefix = showNumber ? "\((absoluteIndex ?? 0) + 1). " : ""
         let entry = item(
-            cleanTitle(snippet.title),
-            #selector(pasteSnippet(_:)),
-            symbol: "text.quote"
+            prefix + cleanTitle(snippet.title),
+            quickKey == nil ? #selector(pasteSnippet(_:)) : #selector(quickPasteSnippet(_:)),
+            symbol: "text.quote",
+            keyEquivalent: quickKey ?? "",
+            modifiers: quickKey == nil ? [] : [.command]
         )
         if let id = snippet.id {
             entry.representedObject = NSNumber(value: id)
@@ -808,9 +856,16 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func pasteSnippet(_ sender: NSMenuItem) {
+        pasteSnippet(sender, copyOnly: actionModifiers.contains(.command))
+    }
+
+    @objc private func quickPasteSnippet(_ sender: NSMenuItem) {
+        pasteSnippet(sender, copyOnly: false)
+    }
+
+    private func pasteSnippet(_ sender: NSMenuItem, copyOnly: Bool) {
         guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = targetPID
-        let copyOnly = actionModifiers.contains(.command)
         let clipboard = NSPasteboard.general.string(forType: .string)
         dataQueue.async { [weak self] in
             do {

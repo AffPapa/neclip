@@ -12,7 +12,7 @@ final class MenuSimplificationContractTests: XCTestCase {
         let source = try source()
         XCTAssertEqual(source.components(separatedBy: "appendSnippetFolders(to: menu)").count - 1, 2)
         for retired in ["topEntry", "UndoDeletion", "firstResultActionsItem", "textTransformMenuItem",
-                        "quickPasteSnippet", "Быстрый доступ", "Папки сниппетов"] {
+                        "Быстрый доступ", "Папки сниппетов"] {
             XCTAssertFalse(source.contains(retired), "Retired menu behavior: \(retired)")
         }
         let start = try XCTUnwrap(source.range(of: "private func buildSnippetsMenu()"))
@@ -38,7 +38,7 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(paste.contains("forcedModifiers: NSEvent.ModifierFlags?"))
         XCTAssertTrue(source.contains("NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags"))
         XCTAssertTrue(source.contains("forcedModifiers: actionModifiers.subtracting(.command)"))
-        XCTAssertTrue(source.contains("let copyOnly = actionModifiers.contains(.command)"))
+        XCTAssertTrue(source.contains("pasteSnippet(sender, copyOnly: actionModifiers.contains(.command))"))
     }
 
     func testHistoryIsOneUnifiedListAndSnippetPasteDoesNotReorderTheLibrary() throws {
