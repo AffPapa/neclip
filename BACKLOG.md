@@ -4,7 +4,7 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
-## Candidate 2.1.0 / build 24
+## Published in 2.1.0 / build 24
 
 - Reuse the bounded history snapshot and first-page slice when opening the menu.
 - Avoid the ordered trim delete while the indexed unpinned count is within the
@@ -12,7 +12,8 @@ not planned.
 - Keep all existing storage migrations, permissions and the local-only product
   boundary unchanged.
 
-Release evidence: [2.1.0 status](docs/RELEASE-2.1.0-STATUS.md).
+The signed arm64 DMG and checksum are live in the [GitHub release](https://github.com/AffPapa/neclip/releases/tag/v2.1.0).
+Evidence: [2.1.0 status](docs/RELEASE-2.1.0-STATUS.md).
 
 ## Published in 2.0.1 / build 23
 

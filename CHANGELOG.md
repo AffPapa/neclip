@@ -4,7 +4,13 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 2.1.0 / build 24 — release candidate
+## 2.1.0 / build 24 — published, 2026-09-08
+
+Built from merge commit `93a836dfc65a97c5e6d592f9d70b6629a63963bc`.
+The final arm64 DMG is 1,985,474 bytes; SHA-256:
+`8292611f70706e696ad304afa884ed57a806dee3d43629e49046650abd1bbfc8`.
+The public [GitHub release](https://github.com/AffPapa/neclip/releases/tag/v2.1.0)
+is live with the signed, notarized DMG and checksum.
 
 This pass keeps the immediate-use product boundary from 2.0.1 and removes
 avoidable work from the two most frequent paths:
@@ -17,8 +23,8 @@ avoidable work from the two most frequent paths:
 - No new permissions, network behavior, dependencies, database migration or
   user-facing search/pin/focus features were added.
 
-The final release evidence, checksum and notarization identifiers will be
-recorded in `docs/RELEASE-2.1.0-STATUS.md` after the signed build passes.
+Release evidence, checksum and notarization identifiers are recorded in
+`docs/RELEASE-2.1.0-STATUS.md`.
 
 ## 2.0.1 / build 23 — published, 2026-09-08
 
