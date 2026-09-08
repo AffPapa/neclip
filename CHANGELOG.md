@@ -7,8 +7,8 @@ DMG checksum verification have passed.
 ## 2.0.1 / build 23 — release candidate ready, 2026-09-08
 
 Built from commit `292f637419a4bd06633675b973b546d5f15a70b1`.
-The local arm64 DMG is 1,984,963 bytes; SHA-256:
-`43bdffb962c887e9e040547cf0bdc0cf8a27d09934aa623907eab21e2526bd93`.
+The final arm64 DMG is 1,984,962 bytes; SHA-256:
+`0e8d8e6f057b025d9bc9721f7edb9a99ec40f7d4e2fb61717ec08574df798752`.
 The app and DMG passed Developer ID signing, Apple notarization, stapling,
 Gatekeeper and mounted-DMG verification. Public GitHub release publication is
 the remaining distribution step.
