@@ -1,5 +1,6 @@
 {
   "done": [
+    "Published 1.14.0 build 21: contextual Focus Stack, signed/notarized DMG and independent Gatekeeper verification",
     "Flat snippet folders in both root menus; remove duplicate quick list and implicit top-item actions",
     "Retire new pins without deleting legacy protected clips; explicit warned unpinning by selected ID",
     "Stable snippet folder order with no usage write on paste; atomic draft-to-snippet creation",

@@ -21,17 +21,17 @@
       <div class="navlinks"><a href="#features">Возможности</a><a href="#versions">Версии</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>1.13.0 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>1.14.0 · выпущена</span>
       <h1>Скопировал.<br>Выбрал. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v1.13.0/NeClip-1.13.0.dmg">Скачать NeClip 1.13.0</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v1.14.0/NeClip-1.14.0.dmg">Скачать NeClip 1.14.0</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.13.0-STATUS.md">Проверки выпуска</a>.</p>
-      <p class="fine">Уже пользуетесь NeClip? Перед обновлением сохраните копию базы и экспорт сниппетов. Для отката сохраните предыдущую версию. <a href="https://github.com/AffPapa/neclip/releases/tag/v1.13.0">Подробнее об обновлении</a>.</p>
+      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. В работе — только то, что нужно сейчас. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.14.0-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">Уже пользуетесь NeClip? Перед обновлением сохраните копию базы и экспорт сниппетов. Для отката сохраните предыдущую версию. <a href="https://github.com/AffPapa/neclip/releases/tag/v1.14.0">Подробнее об обновлении</a>.</p>
     </div>
   </header>
 
@@ -53,7 +53,7 @@
         <div class="shortcut" role="listitem"><span>Открыть папки сниппетов</span><kbd>⌘ ⇧ B</kbd></div>
         <div class="shortcut" role="listitem"><span>Исправить раскладку</span><kbd>⌥ ⇧ L</kbd></div>
         <div class="shortcut" role="listitem"><span>Выключить автоисправление</span><kbd>⌃ ⌥ A</kbd></div>
-        <div class="shortcut" role="listitem"><span>Просмотр выбранной записи</span><kbd>⌥ клик</kbd></div>
+        <div class="shortcut" role="listitem"><span>В работе: быстрый выбор</span><kbd>⌘ 1–5</kbd></div>
         <div class="shortcut" role="listitem"><span>Вставить без форматирования</span><kbd>⇧ ↩</kbd></div>
         <div class="shortcut" role="listitem"><span>Только копировать</span><kbd>⌘ ↩</kbd></div>
       </div>
@@ -73,8 +73,9 @@
     <section class="wrap" id="versions">
       <h2>Версии</h2>
       <p class="section-lead">Что изменилось и какие проверки прошла каждая опубликованная версия.</p>
-      <p>В 1.13.0 история стала одним понятным списком: убраны закрепления и скрытый просмотр по ⌥‑клику, а редактор сниппетов сокращён до нужных полей. Папки остаются прямо в меню, без поиска и ключей. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.13.0-STATUS.md">Проверка меню и редактора</a>.</p>
+      <p>В 1.14.0 добавлен контекстный набор «В работе»: текущие записи и уже использованные сниппеты появляются сверху без отдельного режима, поиска или новой базы. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.14.0-STATUS.md">Проверка меню и редактора</a>.</p>
       <div class="timeline">
+        <article class="card release"><div><strong>1.14.0</strong><br><span class="status">выпущена · 8 сентября</span></div><div><b>Только нужное сейчас.</b><ul><li>Контекстный раздел «В работе» с максимум пятью элементами</li><li>⌘1–⌘5 вставляют текущие записи и использованные сниппеты</li><li>Обычная история и папки остаются простыми и без дублей</li><li>Публичный DMG подписан, notarized, stapled и проверен на смонтированном образе</li></ul><p>250 XCTest, Swift Testing, strict Swift 6, gitleaks и полный Apple release-gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.14.0-STATUS.md">Результаты и ограничения</a></div></article>
         <article class="card release"><div><strong>1.13.0</strong><br><span class="status">выпущена · 8 сентября</span></div><div><b>История без лишних режимов.</b><ul><li>Один список истории без закреплений и скрытого просмотра</li><li>Папки сниппетов остаются прямо в меню без поиска и ключей</li><li>Редактор сниппетов стал компактнее и понятнее</li><li>Публичный DMG подписан, notarized, stapled и проверен на смонтированном образе</li></ul><p>Пройдены XCTest, Swift Testing, strict Swift 6, ASan, TSan, gitleaks и полные проверки Apple release-gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.13.0-STATUS.md">Результаты и ограничения</a></div></article>
         <article class="card release"><div><strong>1.9.1</strong><br><span class="status">выпущена</span></div><div><b>Настройки по правилам Mac.</b><ul><li>Пять постоянных разделов с привычной панелью macOS</li><li>Лимиты применяются после ввода, а Escape отменяет изменение</li><li>Редактор предупреждает о несохранённом тексте и сохраняет черновик при ошибке</li><li>Короче первый запуск, понятнее разрешения и стандартные команды меню</li></ul><a href="https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.1-2026-09-06.md">Проверки и ограничения</a></div></article>
         <article class="card release"><div><strong>1.9.0</strong><br><span class="status">выпущена</span></div><div><b>Меньше лишней работы.</b><ul><li>Распознавание текста и закрепление без лишней загрузки больших изображений</li><li>Отмена устаревшего поиска и быстрая проверка текста</li><li>Понятные подписи настроек и видимая кнопка создания папки</li><li>222 успешных теста; CodeQL, проверки памяти и гонок без ошибок</li></ul><a href="https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.0-2026-09-06.md">Замеры и результаты проверок</a></div></article>

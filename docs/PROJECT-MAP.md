@@ -1,20 +1,19 @@
 # NeClip project map
 
-Updated: 8 September 2026. Public release: **1.13.0/build 20**. Local
-candidate: **1.14.0/build 21**.
+Updated: 8 September 2026. Public release: **1.14.0/build 21**.
 
 The 1.13 release removes pinning and history inspection from the product
 surface. Legacy pin flags are retired by migration `v8-retire-pins`; the
 history menu is one chronological list and the snippet editor no longer has
 the secondary duplicate action.
 
-The 1.14 candidate adds a bounded contextual **В работе** section. It uses
+The 1.14 release adds a bounded contextual **В работе** section. It uses
 current-app clip metadata and already-used snippets, never adds permissions or
 persisted state, and removes repeated focus clips from the chronological page.
 The design and guardrails are recorded in `FOCUS-STACK-2026-09-08.md`.
 
-`RELEASE-1.13.0-STATUS.md` records the signed, notarized and independently
-verified public release. The immutable previous 1.12.0 release remains in
+`RELEASE-1.14.0-STATUS.md` records the signed, notarized and independently
+verified public release. The immutable previous 1.13.0 release remains in
 `dist/releases` for rollback. The global research compares 21 clipboard/layout
 utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md` and keeps search,
 cloud, accounts, AI and plugins outside the product boundary.
@@ -31,12 +30,12 @@ below the same candidate's normal `-O` and 1.22% below public 1.10.0. GRDB stays
 `-O`; the global `-Osize` trial was rejected for
 snapshot regression. Target-only release passed 263 checks with opt-in benchmarks.
 The 12.2x hex-encoding improvement is only a microbenchmark. Current public
-release evidence is in `RELEASE-1.13.0-STATUS.md`.
+release evidence is in `RELEASE-1.14.0-STATUS.md`.
 
 Current menu design: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
 snippet folders directly; no quick-list duplication, top-item actions, text
 transform tools, pins or history inspector. Release evidence:
-`RELEASE-1.13.0-STATUS.md`. Site/download consistency is checked by
+`RELEASE-1.14.0-STATUS.md`. Site/download consistency is checked by
 `scripts/verify-site.rb`. Artifact source and checksum are recorded in
 `docs/version.json` after the release build.
 Required CI/CodeQL, app and DMG notarization, stapling, Gatekeeper and independent
