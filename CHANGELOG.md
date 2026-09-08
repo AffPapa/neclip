@@ -4,6 +4,20 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 1.14.0 / build 21 — local candidate, 2026-09-08
+
+Not published yet. Public download remains 1.13.0/build 20.
+
+- Add the bounded **В работе** Focus Stack: current-app clips plus snippets
+  that were actually used before.
+- Keep the regular chronological history and folder snippets as the fallback;
+  duplicate focus clips are removed from the visible history page.
+- Add `⌘1`–`⌘5` quick paste for the contextual working set, including snippets.
+- Reuse existing local metadata and permissions; no migration, account, cloud,
+  search, pin UI, telemetry or AI was added.
+- Add pure ranking tests and update the project map/backlog with the product
+  boundary and release gates.
+
 ## 1.11.0 / build 18 — local candidate, 2026-09-07
 
 Not published or installed. Public download remains 1.10.0/build 17.

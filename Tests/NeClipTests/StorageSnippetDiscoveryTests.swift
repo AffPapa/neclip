@@ -48,6 +48,7 @@ final class StorageSnippetDiscoveryTests: XCTestCase {
         try storage.markSnippetUsed(id: first)
         await fulfillment(of: [changed], timeout: 2)
         XCTAssertEqual(try storage.menuSnippetSnapshot().snippets.map(\.id), [first, second])
+        XCTAssertEqual(try storage.menuSnippetSnapshot().recentSnippets.map(\.id), [first, second])
     }
 
     func testBoundedMenuUsesStableFolderOrderBeforeApplyingLimit() throws {

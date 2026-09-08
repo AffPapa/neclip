@@ -156,6 +156,8 @@ struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendabl
     let contentIsTruncated: Bool
     let sortIndex: Int
     let isPinned: Bool
+    let useCount: Int
+    let lastUsedAt: Date?
 
     init(snippet: Snippet, previewLimit: Int = Storage.snippetPreviewCharacterLimit, folderTitle: String? = nil) {
         id = snippet.id
@@ -169,6 +171,8 @@ struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendabl
         contentIsTruncated = preview.endIndex != snippet.content.endIndex
         sortIndex = snippet.sortIndex
         isPinned = snippet.isPinned
+        useCount = snippet.useCount
+        lastUsedAt = snippet.lastUsedAt
     }
 }
 
@@ -176,6 +180,7 @@ struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendabl
 struct SnippetMenuSnapshot: Sendable {
     let folders: [SnippetFolder]
     let snippets: [SnippetSummary]
+    let recentSnippets: [SnippetSummary]
     let hasMore: Bool
 }
 
@@ -940,9 +945,16 @@ final class Storage: @unchecked Sendable {
                     .filter(keys: Array(folderIDs))
                     .order(Column("sortIndex"), Column("id"))
                     .fetchAll(db)
+            let recentSnippets = try Self.fetchSnippetSummaries(
+                database: db,
+                pinnedOnly: false,
+                limit: 10,
+                folderOrder: false
+            )
             return SnippetMenuSnapshot(
                 folders: folders,
                 snippets: snippets,
+                recentSnippets: recentSnippets,
                 hasMore: fetched.count > limit
             )
         }
@@ -1401,7 +1413,7 @@ final class Storage: @unchecked Sendable {
             SELECT s.id, s.folderID, f.title AS folderTitle, s.title,
                    substr(s.content, 1, \(snippetPreviewCharacterLimit)) AS contentPreview,
                    substr(s.content, \(snippetPreviewCharacterLimit + 1), 1) != '' AS contentIsTruncated,
-                   s.sortIndex, s.isPinned
+                   s.sortIndex, s.isPinned, s.useCount, s.lastUsedAt
             FROM snippet s
             LEFT JOIN snippetFolder f ON f.id = s.folderID
             """
