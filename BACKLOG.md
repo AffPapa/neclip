@@ -4,6 +4,19 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Ready for publication in 2.0.1 / build 23
+
+Local release gate passed on 8 September 2026. The current branch is ready for
+the GitHub release after the DMG is uploaded with its checksum.
+
+- Keep one chronological history list; remove the duplicate **В работе** view.
+- Keep saved snippet folders directly visible without a second ranking or
+  hidden “latest snippets” mode.
+- Show installed and latest checked versions at the bottom of Settings.
+- Preserve the no-account, no-cloud, no-search and no-telemetry product line.
+
+Evidence: [release status](docs/RELEASE-2.0.1-STATUS.md).
+
 ## Done in 1.14.0 / build 21 — Focus Stack
 
 Published 8 September 2026 after the normal signed/notarized release gate.

@@ -4,6 +4,26 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.0.1 / build 23 — release candidate ready, 2026-09-08
+
+Built from commit `292f637419a4bd06633675b973b546d5f15a70b1`.
+The local arm64 DMG is 1,984,963 bytes; SHA-256:
+`43bdffb962c887e9e040547cf0bdc0cf8a27d09934aa623907eab21e2526bd93`.
+The app and DMG passed Developer ID signing, Apple notarization, stapling,
+Gatekeeper and mounted-DMG verification. Public GitHub release publication is
+the remaining distribution step.
+
+- Remove the duplicate **В работе**/Focus Stack projection and its storage
+  snapshot data. History is one chronological list: the newest copy is first.
+- Keep saved snippet folders directly visible in the menu; no second ranking,
+  usage list or hidden “latest snippets” mode remains.
+- Show installed and latest checked version inline at the bottom of Settings,
+  with an explicit refresh action and no modal update flow.
+- Keep the product boundary small: no accounts, cloud sync, telemetry, AI,
+  search or additional clipboard permissions.
+- Release gate: 247 XCTest cases, four expected skips, three Swift Testing
+  checks, strict Swift 6 build, notarized app/DMG and full-history secret scan.
+
 ## 1.14.0 / build 21 — published, 2026-09-08
 
 Published from merge commit `dd7c5296b6149eea3ae39dce8e0fa3524d6b66ba`.

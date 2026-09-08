@@ -18,10 +18,10 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "1.14.0",
-    "build": 21,
+    "version": "2.0.1",
+    "build": 23,
     "status": "released",
-    "publicVersion": "1.14.0"
+    "publicVersion": "2.0.1"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -31,8 +31,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.14.0-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.14.0-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.0.1-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.0.1-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-GLOBAL-1.12-2026-09-07-research.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
@@ -81,7 +81,7 @@
     "self-verifying complete-ref and pull-request-ref secret scanning",
     "native snippet-list selection with visible-order keyboard navigation",
     "atomic provenance-bound local release staging",
-    "bounded contextual Focus Stack with ⌘1–⌘5 quick paste"
+    "one chronological history with direct saved snippet folders"
   ],
   "shortcuts": [
     {
@@ -132,5 +132,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "1.14.0 released; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "2.0.1 released; exact downloadable artifact is identified by version.json"
 }

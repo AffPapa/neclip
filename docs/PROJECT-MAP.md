@@ -1,22 +1,26 @@
 # NeClip project map
 
-Updated: 8 September 2026. Public release: **1.14.0/build 21**.
+Updated: 8 September 2026. Release candidate: **2.0.1/build 23**.
+
+The 2.0.1 pass is the current minimal product direction: one chronological
+history list, with the newest copy first, and saved snippet folders directly in
+the menu. The duplicate **В работе**/Focus Stack projection and its derived
+`recentSnippets` snapshot are removed. Settings shows the installed version
+and the latest checked GitHub version at the bottom.
+
+The local 2.0.1 app and DMG passed signing, notarization, stapling, Gatekeeper,
+mounted-DMG and full-history secret checks. Public metadata is prepared in
+`docs/version.json`; the GitHub release upload is the final distribution step.
 
 The 1.13 release removes pinning and history inspection from the product
 surface. Legacy pin flags are retired by migration `v8-retire-pins`; the
 history menu is one chronological list and the snippet editor no longer has
 the secondary duplicate action.
-
-The 1.14 release adds a bounded contextual **В работе** section. It uses
-current-app clip metadata and already-used snippets, never adds permissions or
-persisted state, and removes repeated focus clips from the chronological page.
-The design and guardrails are recorded in `FOCUS-STACK-2026-09-08.md`.
-
-`RELEASE-1.14.0-STATUS.md` records the signed, notarized and independently
-verified public release. The immutable previous 1.13.0 release remains in
-`dist/releases` for rollback. The global research compares 21 clipboard/layout
-utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md` and keeps search,
-cloud, accounts, AI and plugins outside the product boundary.
+`RELEASE-2.0.1-STATUS.md` records the current signed, notarized and
+independently verified candidate. The immutable previous 1.14.0 release
+remains the public rollback target. The global research compares 21
+clipboard/layout utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md`
+and keeps search, cloud, accounts, AI and plugins outside the product boundary.
 The 1.12 release keeps the Version pane and measured 1.11 hot-path work, then
 indexes snippet-folder titles once per menu build instead of performing a
 linear folder lookup for every row. This is an O(snippets × folders) to
@@ -29,13 +33,13 @@ produces approximately 4,329,816 stripped bytes in the 1.12 release: 2.17%
 below the same candidate's normal `-O` and 1.22% below public 1.10.0. GRDB stays
 `-O`; the global `-Osize` trial was rejected for
 snapshot regression. Target-only release passed 263 checks with opt-in benchmarks.
-The 12.2x hex-encoding improvement is only a microbenchmark. Current public
-release evidence is in `RELEASE-1.14.0-STATUS.md`.
+The 12.2x hex-encoding improvement is only a microbenchmark. Current release
+evidence is in `RELEASE-2.0.1-STATUS.md`.
 
 Current menu design: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
 snippet folders directly; no quick-list duplication, top-item actions, text
-transform tools, pins or history inspector. Release evidence:
-`RELEASE-1.14.0-STATUS.md`. Site/download consistency is checked by
+transform tools, pins, Focus Stack or history inspector. Release evidence:
+`RELEASE-2.0.1-STATUS.md`. Site/download consistency is checked by
 `scripts/verify-site.rb`. Artifact source and checksum are recorded in
 `docs/version.json` after the release build.
 Required CI/CodeQL, app and DMG notarization, stapling, Gatekeeper and independent
@@ -135,13 +139,10 @@ local history and snippet bodies are fetched only for the chosen action.
 The dedicated shortcut and ordinary history menu show folders directly;
 right-clicking the status item is an alternative. The bounded SQL projection
 and folder browse use stable folder/snippet sortIndex/ID, not usage or pins.
-When enough context exists, the ordinary history root adds a five-item **В
-работе** section ranked by current app and prior snippet use; otherwise the
-menu is unchanged.
-Counts describe displayed items; an overflow hint points to the complete editor. There is
-no duplicate quick list, pin UI or history inspector. Native arrows and Return
-own selection. Focus rows use `⌘1`–`⌘5`; ordinary history keeps its existing
-shortcuts when no focus context exists.
+History is strictly chronological: the newest accepted copy is first, with no
+second “latest snippets” ranking. Counts describe displayed items; an overflow
+hint points to the complete editor. There is no duplicate quick list, pin UI or
+history inspector. Native arrows and Return own selection.
 
 `SnippetsEditor` reads lightweight summaries for folders, empty folders
 and **Unfiled**, then fetches one full body when selected. Selection, navigation
