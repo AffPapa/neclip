@@ -18,9 +18,9 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.0.1",
-    "build": 23,
-    "status": "released",
+    "version": "2.1.0",
+    "build": 24,
+    "status": "candidate",
     "publicVersion": "2.0.1"
   },
   "canonical": {
@@ -31,8 +31,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.0.1-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.0.1-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.1.0-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.1.0-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "competitorResearch": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-GLOBAL-1.12-2026-09-07-research.md",
     "deepResearch16": "https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-1.6.0-ZERO-2026-09-01.md",
@@ -81,7 +81,9 @@
     "self-verifying complete-ref and pull-request-ref secret scanning",
     "native snippet-list selection with visible-order keyboard navigation",
     "atomic provenance-bound local release staging",
-    "one chronological history with direct saved snippet folders"
+    "one chronological history with direct saved snippet folders",
+    "bounded menu snapshots reuse storage without per-open history copies",
+    "history trimming avoids ordered deletion until the indexed limit is exceeded"
   ],
   "shortcuts": [
     {

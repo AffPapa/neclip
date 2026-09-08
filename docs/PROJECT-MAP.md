@@ -1,6 +1,13 @@
 # NeClip project map
 
-Updated: 8 September 2026. Public release: **2.0.1/build 23**.
+Updated: 8 September 2026. Release candidate: **2.1.0/build 24**; public release
+remains **2.0.1/build 23** until the signed release gate completes.
+
+The 2.1.0 performance pass keeps the same small product surface while removing
+avoidable work from menu opening and history writes. Menu construction now
+reuses the bounded snapshot and its first-page slice. Storage trimming checks
+the indexed unpinned count before running the ordered overflow delete. No
+schema, permission, network, search, pin or Focus Stack behavior changed.
 
 The 2.0.1 pass is the current minimal product direction: one chronological
 history list, with the newest copy first, and saved snippet folders directly in

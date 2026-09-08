@@ -4,6 +4,22 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.1.0 / build 24 — release candidate
+
+This pass keeps the immediate-use product boundary from 2.0.1 and removes
+avoidable work from the two most frequent paths:
+
+- Opening the menu reuses the already bounded history snapshot instead of
+  copying the same rows twice.
+- History trimming first uses the indexed unpinned-row count and only runs the
+  ordered delete when the configured limit is exceeded.
+- Removed a duplicate warning-icon assignment in the menu renderer.
+- No new permissions, network behavior, dependencies, database migration or
+  user-facing search/pin/focus features were added.
+
+The final release evidence, checksum and notarization identifiers will be
+recorded in `docs/RELEASE-2.1.0-STATUS.md` after the signed build passes.
+
 ## 2.0.1 / build 23 — published, 2026-09-08
 
 Built from commit `292f637419a4bd06633675b973b546d5f15a70b1`.
