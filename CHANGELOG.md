@@ -4,9 +4,34 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 1.14.0 / build 21 — local candidate, 2026-09-08
+## 2.0.1 / build 23 — release candidate ready, 2026-09-08
 
-Not published yet. Public download remains 1.13.0/build 20.
+Built from commit `292f637419a4bd06633675b973b546d5f15a70b1`.
+The final arm64 DMG is 1,984,962 bytes; SHA-256:
+`0e8d8e6f057b025d9bc9721f7edb9a99ec40f7d4e2fb61717ec08574df798752`.
+The app and DMG passed Developer ID signing, Apple notarization, stapling,
+Gatekeeper and mounted-DMG verification. Public GitHub release publication is
+the remaining distribution step.
+
+- Remove the duplicate **В работе**/Focus Stack projection and its storage
+  snapshot data. History is one chronological list: the newest copy is first.
+- Keep saved snippet folders directly visible in the menu; no second ranking,
+  usage list or hidden “latest snippets” mode remains.
+- Show installed and latest checked version inline at the bottom of Settings,
+  with an explicit refresh action and no modal update flow.
+- Keep the product boundary small: no accounts, cloud sync, telemetry, AI,
+  search or additional clipboard permissions.
+- Release gate: 247 XCTest cases, four expected skips, three Swift Testing
+  checks, strict Swift 6 build, notarized app/DMG and full-history secret scan.
+
+## 1.14.0 / build 21 — published, 2026-09-08
+
+Published from merge commit `dd7c5296b6149eea3ae39dce8e0fa3524d6b66ba`.
+The [public release](https://github.com/AffPapa/neclip/releases/tag/v1.14.0)
+DMG is 1,976,259 bytes; SHA-256:
+`4a83324e8ddc69c6efd24edb879b5f3caaea5b409bc149994790d9f6849c12f6`.
+The app and DMG passed Developer ID signing, Apple notarization, stapling,
+Gatekeeper and mounted-DMG verification.
 
 - Add the bounded **В работе** Focus Stack: current-app clips plus snippets
   that were actually used before.
@@ -17,6 +42,8 @@ Not published yet. Public download remains 1.13.0/build 20.
   search, pin UI, telemetry or AI was added.
 - Add pure ranking tests and update the project map/backlog with the product
   boundary and release gates.
+- Release gate: 250 XCTest cases, four expected skips, three Swift Testing
+  checks, strict Swift 6 warnings-as-errors build, and full-history secret scan.
 
 ## 1.11.0 / build 18 — local candidate, 2026-09-07
 

@@ -180,7 +180,6 @@ struct SnippetSummary: Codable, FetchableRecord, Identifiable, Hashable, Sendabl
 struct SnippetMenuSnapshot: Sendable {
     let folders: [SnippetFolder]
     let snippets: [SnippetSummary]
-    let recentSnippets: [SnippetSummary]
     let hasMore: Bool
 }
 
@@ -945,16 +944,9 @@ final class Storage: @unchecked Sendable {
                     .filter(keys: Array(folderIDs))
                     .order(Column("sortIndex"), Column("id"))
                     .fetchAll(db)
-            let recentSnippets = try Self.fetchSnippetSummaries(
-                database: db,
-                pinnedOnly: false,
-                limit: 10,
-                folderOrder: false
-            )
             return SnippetMenuSnapshot(
                 folders: folders,
                 snippets: snippets,
-                recentSnippets: recentSnippets,
                 hasMore: fetched.count > limit
             )
         }
