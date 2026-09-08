@@ -1,7 +1,6 @@
 # NeClip project map
 
-Updated: 8 September 2026. Release candidate: **2.1.0/build 24**; public release
-remains **2.0.1/build 23** until the signed release gate completes.
+Updated: 8 September 2026. Public release: **2.1.0/build 24**.
 
 The 2.1.0 performance pass keeps the same small product surface while removing
 avoidable work from menu opening and history writes. Menu construction now
@@ -15,16 +14,16 @@ the menu. The duplicate **В работе**/Focus Stack projection and its deriv
 `recentSnippets` snapshot are removed. Settings shows the installed version
 and the latest checked GitHub version at the bottom.
 
-The public 2.0.1 app and DMG passed signing, notarization, stapling, Gatekeeper,
+The public 2.1.0 app and DMG passed signing, notarization, stapling, Gatekeeper,
 mounted-DMG and full-history secret checks. The signed DMG and checksum are in
-GitHub Release `v2.0.1`; `docs/version.json` is the update manifest.
+GitHub Release `v2.1.0`; `docs/version.json` is the update manifest.
 
 The 1.13 release removes pinning and history inspection from the product
 surface. Legacy pin flags are retired by migration `v8-retire-pins`; the
 history menu is one chronological list and the snippet editor no longer has
 the secondary duplicate action.
-`RELEASE-2.0.1-STATUS.md` records the signed, notarized and independently
-verified public release. The immutable previous 1.14.0 release remains the
+`RELEASE-2.1.0-STATUS.md` records the signed, notarized and independently
+verified public release. The immutable previous 2.0.1 release remains the
 public rollback target. The global research compares 21
 clipboard/layout utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md`
 and keeps search, cloud, accounts, AI and plugins outside the product boundary.
@@ -41,12 +40,12 @@ below the same candidate's normal `-O` and 1.22% below public 1.10.0. GRDB stays
 `-O`; the global `-Osize` trial was rejected for
 snapshot regression. Target-only release passed 263 checks with opt-in benchmarks.
 The 12.2x hex-encoding improvement is only a microbenchmark. Current release
-evidence is in `RELEASE-2.0.1-STATUS.md`.
+evidence is in `RELEASE-2.1.0-STATUS.md`.
 
 Current menu design: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
 snippet folders directly; no quick-list duplication, top-item actions, text
 transform tools, pins, Focus Stack or history inspector. Release evidence:
-`RELEASE-2.0.1-STATUS.md`. Site/download consistency is checked by
+`RELEASE-2.1.0-STATUS.md`. Site/download consistency is checked by
 `scripts/verify-site.rb`. Artifact source and checksum are recorded in
 `docs/version.json` after the release build.
 Required CI/CodeQL, app and DMG notarization, stapling, Gatekeeper and independent

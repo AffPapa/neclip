@@ -20,8 +20,8 @@
   "sourceCandidate": {
     "version": "2.1.0",
     "build": 24,
-    "status": "candidate",
-    "publicVersion": "2.0.1"
+    "status": "released",
+    "publicVersion": "2.1.0"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -134,5 +134,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "2.0.1 released; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "2.1.0 released; exact downloadable artifact is identified by version.json"
 }
