@@ -16,7 +16,7 @@ final class SearchRetirementTests: XCTestCase {
         let snippets = try storage.allSnippets()
         XCTAssertEqual(Set(snippets.map(\.title)), ["Первый", "Второй"])
         var edited = try XCTUnwrap(snippets.first { $0.title == "Первый" })
-        XCTAssertTrue(edited.isPinned)
+        XCTAssertFalse(edited.isPinned)
         edited.content = "Изменено без ключа"
         XCTAssertEqual(try storage.update(edited).content, "Изменено без ключа")
 
@@ -52,7 +52,7 @@ final class SearchRetirementTests: XCTestCase {
             let legacy = try DatabaseQueue(path: path)
             try legacy.write { db in
                 try db.execute(sql: """
-                    DELETE FROM grdb_migrations WHERE identifier = 'v7-retire-search';
+                    DELETE FROM grdb_migrations WHERE identifier IN ('v7-retire-search', 'v8-retire-pins');
                     UPDATE snippet SET keyword = ';legacy';
                     CREATE UNIQUE INDEX snippet_keyword_unique ON snippet(lower(keyword))
                         WHERE keyword IS NOT NULL AND keyword <> '';
@@ -74,11 +74,11 @@ final class SearchRetirementTests: XCTestCase {
         var snippet = try XCTUnwrap(migrated.fetchSnippet(id: snippetID))
         XCTAssertEqual(snippet.content, body)
         XCTAssertEqual(snippet.folderID, folderID)
-        XCTAssertTrue(snippet.isPinned)
+        XCTAssertFalse(snippet.isPinned)
         XCTAssertEqual(snippet.useCount, 1)
         let clip = try XCTUnwrap(migrated.fetchClip(id: clipID))
         XCTAssertEqual(clip.data, image)
-        XCTAssertTrue(clip.isPinned)
+        XCTAssertFalse(clip.isPinned)
         let dbQueue = try DatabaseQueue(path: path)
         try dbQueue.read { db in
             let objects = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master")

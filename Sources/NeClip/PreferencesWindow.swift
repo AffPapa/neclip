@@ -366,11 +366,10 @@ private struct PreferencesView: View {
             }
         }
         .alert("Очистить историю?", isPresented: $clearHistoryConfirmation) {
-            Button("Удалить, кроме ранее закреплённых", role: .destructive) { clearHistory(includePinned: false) }
-            Button("Удалить всю историю", role: .destructive) { clearHistory(includePinned: true) }
+            Button("Удалить всю историю", role: .destructive) { clearHistory() }
             Button("Отмена", role: .cancel) {}
         } message: {
-            Text("Можно сохранить элементы, закреплённые в прежних версиях. Сниппеты останутся на месте.")
+            Text("Сниппеты останутся на месте.")
         }
         .alert("Удалить историю и сниппеты?", isPresented: $deleteAllConfirmation) {
             Button("Удалить историю и сниппеты", role: .destructive, action: deleteAllData)
@@ -406,7 +405,7 @@ private struct PreferencesView: View {
                 )
                 Toggle("Сохранять изображения", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
-                Text("Сниппеты и ранее закреплённые записи не удаляются по лимиту истории.")
+                Text("Сниппеты не удаляются по лимиту истории.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 DisclosureGroup(isExpanded: $historyAdvancedExpanded) {
@@ -535,7 +534,7 @@ private struct PreferencesView: View {
 
             Section {
                 DisclosureGroup("Работа в меню") {
-                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — вставить без форматирования, ⌥ — просмотреть выбранное, ⌃ — исправить раскладку текста.")
+                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — вставить без форматирования, ⌃ — исправить раскладку текста.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
@@ -938,10 +937,10 @@ private struct PreferencesView: View {
         feedback = "В меню будет показано до \(normalized) символов"
     }
 
-    private func clearHistory(includePinned: Bool) {
+    private func clearHistory() {
         runDataOperation(requiresCaptureBarrier: true) {
             do {
-                try Storage.shared.clearHistory(includePinned: includePinned)
+                try Storage.shared.clearHistory(includePinned: true)
                 do { try Storage.shared.vacuum() }
                 catch { return "История очищена. Не удалось освободить неиспользуемое место в файле базы." }
                 return "История очищена"

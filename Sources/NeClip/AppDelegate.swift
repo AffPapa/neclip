@@ -77,7 +77,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let qaEnvironment = ProcessInfo.processInfo.environment
         if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1"
             || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil
-            || qaEnvironment["NECLIP_UI_TEST_INSPECTOR"] == "1"
             || qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             // QA builds temporarily behave like a regular app so automated
             // accessibility inspection can address the panel by bundle ID.
@@ -90,15 +89,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if qaEnvironment["NECLIP_UI_TEST_ONBOARDING"] == "1", RuntimeIdentity.isIsolatedPreview {
             DispatchQueue.main.async { OnboardingWindowController.shared.show() }
-        } else if qaEnvironment["NECLIP_UI_TEST_INSPECTOR"] == "1", RuntimeIdentity.isIsolatedPreview {
-            DispatchQueue.main.async {
-                if let id = try? Storage.shared.insert(ClipItem(
-                    kind: .text, title: "Пример для редактирования",
-                    text: "Это тестовый текст. Измените его и нажмите ⌘S, чтобы сохранить.", createdAt: Date()
-                )) {
-                    HistoryItemInspectorWindowController.shared.show(clipID: id)
-                }
-            }
         } else if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             DispatchQueue.main.async {
                 SnippetsEditorWindowController.shared.show()
@@ -131,14 +121,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         PreferencesWindowController.shared.commitPendingEdits()
-        guard HistoryItemInspectorWindowController.shared.prepareForTermination(),
-              SnippetsEditorWindowController.shared.prepareForTermination() else {
+        guard SnippetsEditorWindowController.shared.prepareForTermination() else {
             return .terminateCancel
         }
         guard Settings.clearHistoryOnQuit else { return .terminateNow }
         monitor.stopAndDrain()
         do {
-            try Storage.shared.clearHistory(includePinned: false)
+            try Storage.shared.clearHistory(includePinned: true)
             return .terminateNow
         } catch {
             monitor.start()

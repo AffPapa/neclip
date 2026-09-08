@@ -24,20 +24,13 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertFalse(snippetsRoot.contains("utilityMenuItem"))
     }
 
-    func testOptionInspectsTheSelectedIDBeforeStartingPasteWork() throws {
+    func testOptionNoLongerOpensAHistoryInspector() throws {
         let source = try source()
         let start = try XCTUnwrap(source.range(of: "private func pasteClip(_ sender:"))
         let end = try XCTUnwrap(source.range(of: "@objc private func toggleAutomaticLayoutCorrection", range: start.upperBound..<source.endIndex))
         let paste = String(source[start.lowerBound..<end.lowerBound])
-        let option = try XCTUnwrap(paste.range(of: "if modifiers.contains(.option)"))
-        let queue = try XCTUnwrap(paste.range(of: "dataQueue.async"))
-        XCTAssertLessThan(option.lowerBound, queue.lowerBound)
-        let inspection = String(paste[option.lowerBound..<queue.lowerBound])
-        XCTAssertTrue(inspection.contains("HistoryItemInspectorWindowController.shared.show(clipID: id)"))
-        XCTAssertTrue(inspection.contains("return"))
-        XCTAssertFalse(inspection.contains("Storage.shared.fetchClip"))
-        XCTAssertFalse(inspection.contains("NSPasteboard"))
-        XCTAssertFalse(inspection.contains("PasteService"))
+        XCTAssertFalse(paste.contains("if modifiers.contains(.option)"))
+        XCTAssertFalse(paste.contains("HistoryItemInspectorWindowController"))
         XCTAssertFalse(paste.contains("optionOverride"))
         XCTAssertTrue(paste.contains("modifiers.contains(.shift)"))
         XCTAssertTrue(paste.contains("modifiers.contains(.control)"))
@@ -48,12 +41,12 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(source.contains("let copyOnly = actionModifiers.contains(.command)"))
     }
 
-    func testLegacyPinsRemainAccessibleAndSnippetPasteDoesNotReorderTheLibrary() throws {
+    func testHistoryIsOneUnifiedListAndSnippetPasteDoesNotReorderTheLibrary() throws {
         let source = try source()
-        XCTAssertTrue(source.contains("if !pinned.isEmpty"))
-        XCTAssertTrue(source.contains("Ранее закреплённые"))
-        XCTAssertTrue(source.contains("⌥ клик — просмотр и открепление"))
-        XCTAssertTrue(source.contains("Storage.shared.summaries(limit: 101, pinnedOnly: true)"))
+        XCTAssertFalse(source.contains("if !pinned.isEmpty"))
+        XCTAssertFalse(source.contains("Ранее закреплённые"))
+        XCTAssertFalse(source.contains("⌥ клик — просмотр и открепление"))
+        XCTAssertFalse(source.contains("summaries(limit: 101, pinnedOnly: true)"))
         XCTAssertFalse(source.contains("Storage.shared.setPinned"))
         XCTAssertFalse(source.contains("Storage.shared.setSnippetPinned"))
         XCTAssertFalse(source.contains("Storage.shared.markSnippetUsed"))

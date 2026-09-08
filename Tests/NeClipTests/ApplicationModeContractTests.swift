@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.12.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "19")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.13.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "20")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -35,8 +35,8 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(statusBar.contains("saveFirstResultAsSnippet"))
         XCTAssertFalse(statusBar.contains("deleteFirstResult"))
         XCTAssertFalse(statusBar.contains("undoLastDeletion"))
-        XCTAssertTrue(statusBar.contains("Ранее закреплённые"))
-        XCTAssertTrue(statusBar.contains("⌥ клик — просмотр и открепление"))
+        XCTAssertFalse(statusBar.contains("Ранее закреплённые"))
+        XCTAssertFalse(statusBar.contains("⌥ клик — просмотр и открепление"))
         XCTAssertTrue(statusBar.contains("Self.appendStandardFooter(to: menu, target: self)"))
         XCTAssertFalse(statusBar.contains("#selector(NSApplication.terminate"))
         XCTAssertTrue(statusBar.contains("NSApp.terminate(nil)"))
@@ -147,7 +147,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
         XCTAssertFalse(statusBar.contains("topEntry"))
-        XCTAssertTrue(statusBar.contains("HistoryItemInspectorWindowController.shared.show(clipID: id)"))
+        XCTAssertFalse(statusBar.contains("HistoryItemInspectorWindowController"))
     }
 
     func testPackageUsesSwift6AndNoHotKeyDependency() throws {

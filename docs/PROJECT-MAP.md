@@ -1,9 +1,14 @@
 # NeClip project map
 
-Updated: 8 September 2026. Public release: **1.12.0/build 19**.
+Updated: 8 September 2026. Public release: **1.13.0/build 20**.
 
-`RELEASE-1.12.0-STATUS.md` records the signed, notarized and independently
-verified public release. The immutable previous 1.10.0 release remains in
+The 1.13 release removes pinning and history inspection from the product
+surface. Legacy pin flags are retired by migration `v8-retire-pins`; the
+history menu is one chronological list and the snippet editor no longer has
+the secondary duplicate action.
+
+`RELEASE-1.13.0-STATUS.md` records the signed, notarized and independently
+verified public release. The immutable previous 1.12.0 release remains in
 `dist/releases` for rollback. The global research compares 21 clipboard/layout
 utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md` and keeps search,
 cloud, accounts, AI and plugins outside the product boundary.
@@ -20,19 +25,14 @@ below the same candidate's normal `-O` and 1.22% below public 1.10.0. GRDB stays
 `-O`; the global `-Osize` trial was rejected for
 snapshot regression. Target-only release passed 263 checks with opt-in benchmarks.
 The 12.2x hex-encoding improvement is only a microbenchmark. Current public
-release evidence is in `RELEASE-1.12.0-STATUS.md`.
+release evidence is in `RELEASE-1.13.0-STATUS.md`.
 
 Current menu design: `MENU-SIMPLIFICATION-2026-09-07.md`. Both roots expose
 snippet folders directly; no quick-list duplication, top-item actions, text
-transform tools or new pin UI. Existing protected clips remain in a conditional
-legacy section, with explicit unpinning from the selected item's inspector.
-Release evidence: `RELEASE-1.12.0-STATUS.md`. Site/download consistency is checked
-by `scripts/verify-site.rb`. Artifact source:
-`60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`; PR #13 merge:
-`682ce5370d6c8ee5a95291fa63e114c9e50d2546`.
-[Public release](https://github.com/AffPapa/neclip/releases/tag/v1.12.0):
-DMG 1,990,083 bytes, SHA-256
-`5b920cfd499446b4ded5a3e38fcc0c8ca5dcfd15544f207dde2249b848c7761e`.
+transform tools, pins or history inspector. Release evidence:
+`RELEASE-1.13.0-STATUS.md`. Site/download consistency is checked by
+`scripts/verify-site.rb`. Artifact source and checksum are recorded in
+`docs/version.json` after the release build.
 Required CI/CodeQL, app and DMG notarization, stapling, Gatekeeper and independent
 unauthenticated download verification passed, including the full app comparison.
 Each debug, strict release, ASan and TSan run passed 245 checks (244 XCTest
