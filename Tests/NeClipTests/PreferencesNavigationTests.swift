@@ -61,7 +61,7 @@ final class PreferencesNavigationTests: XCTestCase {
         XCTAssertTrue(source.contains("standardWindowButton(.zoomButton)?.isEnabled = false"))
         XCTAssertTrue(source.contains("window?.title = section.windowTitle"))
         XCTAssertFalse(source.contains("⌥ — изменить режим форматирования"))
-        XCTAssertTrue(source.contains("⌥ — просмотреть выбранное"))
+        XCTAssertFalse(source.contains("⌥ — просмотреть выбранное"))
         XCTAssertTrue(source.contains("DisclosureGroup(isExpanded: $layoutMemoryExpanded)"))
     }
 }

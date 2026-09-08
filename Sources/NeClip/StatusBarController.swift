@@ -19,7 +19,7 @@ final class StatusBarController: NSObject {
             switch self {
             case .lastHour: "историю за последний час"
             case .today: "сегодняшнюю историю"
-            case .all: "всю незакреплённую историю"
+            case .all: "всю историю"
             }
         }
 
@@ -36,7 +36,6 @@ final class StatusBarController: NSObject {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
         let snippets: [SnippetSummary]
-        let hasMorePinned: Bool
         let hasMoreHistory: Bool
         let hasMoreSnippets: Bool
     }
@@ -47,7 +46,6 @@ final class StatusBarController: NSObject {
         clips: [],
         folders: [],
         snippets: [],
-        hasMorePinned: false,
         hasMoreHistory: false,
         hasMoreSnippets: false
     )
@@ -124,7 +122,7 @@ final class StatusBarController: NSObject {
         if domain == .all {
             activeMenu?.cancelTracking()
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
-                                    hasMorePinned: false, hasMoreHistory: false, hasMoreSnippets: false)
+                                    hasMoreHistory: false, hasMoreSnippets: false)
             snapshotIsReady = false
             SequentialPasteSequence.shared.reset()
         }
@@ -187,13 +185,10 @@ final class StatusBarController: NSObject {
         dataQueue.async { [weak self] in
             do {
                 var clips = previous.clips
-                var hasMorePinned = previous.hasMorePinned
                 var hasMoreHistory = previous.hasMoreHistory
                 if domains.contains(.clips) {
-                    let pinned = try Storage.shared.summaries(limit: 101, pinnedOnly: true)
-                    let recent = try Storage.shared.summaries(limit: 101, pinnedOnly: false, unpinnedOnly: true)
-                    clips = Array(pinned.prefix(100)) + Array(recent.prefix(100))
-                    hasMorePinned = pinned.count > 100
+                    let recent = try Storage.shared.summaries(limit: 101)
+                    clips = Array(recent.prefix(100))
                     hasMoreHistory = recent.count > 100
                 }
                 let snippetSnapshot = try domains.contains(.snippets)
@@ -202,7 +197,6 @@ final class StatusBarController: NSObject {
                     clips: clips,
                     folders: snippetSnapshot?.folders ?? previous.folders,
                     snippets: snippetSnapshot?.snippets ?? previous.snippets,
-                    hasMorePinned: hasMorePinned,
                     hasMoreHistory: hasMoreHistory,
                     hasMoreSnippets: snippetSnapshot?.hasMore ?? previous.hasMoreSnippets
                 )
@@ -289,32 +283,11 @@ final class StatusBarController: NSObject {
             menu.addItem(.separator())
         }
 
-        let pinned = Array(snapshot.clips.filter(\.isPinned).prefix(100))
-        if !pinned.isEmpty {
-            let pinnedItem = item("Ранее закреплённые", nil, symbol: "tray.full")
-            let pinnedMenu = makeMenu(title: "Ранее закреплённые")
-            pinnedMenu.addItem(item("⌥ клик — просмотр и открепление", nil))
-            pinnedMenu.addItem(.separator())
-            for (index, clip) in pinned.prefix(10).enumerated() {
-                pinnedMenu.addItem(clipMenuItem(clip, absoluteIndex: index, quickKey: nil, showNumber: false))
-            }
-            MenuPagination.appendPages(count: pinned.count, to: pinnedMenu,
-                makeMenu: { self.makeMenu(title: "Ранее закреплённые \($0)") },
-                makeItem: { self.clipMenuItem(pinned[$0], absoluteIndex: $0, quickKey: nil, showNumber: false) })
-            if snapshot.hasMorePinned {
-                pinnedMenu.addItem(.separator())
-                pinnedMenu.addItem(item("Показаны 100 последних закреплений", nil))
-            }
-            pinnedItem.submenu = pinnedMenu
-            menu.addItem(pinnedItem)
-            menu.addItem(.separator())
-        }
-
         menu.addItem(.sectionHeader(title: "Недавние"))
         if RuntimeIdentity.isIsolatedPreview {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
-        let history = Array(snapshot.clips.filter { !$0.isPinned }.prefix(100))
+        let history = Array(snapshot.clips.prefix(100))
         let firstPage = Array(history.prefix(10))
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
@@ -338,9 +311,6 @@ final class StatusBarController: NSObject {
         }
         if snapshot.hasMoreHistory {
             menu.addItem(item("Показаны 100 последних копирований", nil))
-        }
-        if !firstPage.isEmpty {
-            menu.addItem(item("⌥ клик по записи — просмотр", nil))
         }
         menu.addItem(.separator())
 
@@ -570,10 +540,7 @@ final class StatusBarController: NSObject {
             modifiers: quickKey == nil ? [] : [.command]
         )
         entry.representedObject = NSNumber(value: clip.id)
-        let inspectionHint = clip.isPinned
-            ? "⌥ клик — просмотр и открепление"
-            : "⌥ клик — просмотр"
-        entry.toolTip = [clip.text, inspectionHint,
+        entry.toolTip = [clip.text,
                          clip.kind == .text ? "⇧ — без оформления · ⌃ — исправить раскладку" : nil]
             .compactMap { $0 }.joined(separator: "\n")
         return entry
@@ -643,7 +610,7 @@ final class StatusBarController: NSObject {
         submenu.addItem(item("За последний час…", #selector(clearHistoryLastHour), symbol: "clock"))
         submenu.addItem(item("За сегодня…", #selector(clearHistoryToday), symbol: "calendar"))
         submenu.addItem(.separator())
-        submenu.addItem(item("Всю незакреплённую…", #selector(clearHistory), symbol: "trash"))
+        submenu.addItem(item("Всю историю…", #selector(clearHistory), symbol: "trash"))
         root.submenu = submenu
         return root
     }
@@ -779,13 +746,6 @@ final class StatusBarController: NSObject {
         guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = destinationPID
         let modifiers = forcedModifiers ?? actionModifiers
-        if modifiers.contains(.option) {
-            activeMenu?.cancelTracking()
-            DispatchQueue.main.async {
-                HistoryItemInspectorWindowController.shared.show(clipID: id)
-            }
-            return
-        }
         let correctLayout = modifiers.contains(.control)
         let plainText = correctLayout || modifiers.contains(.shift) || Settings.preferPlainText
         let copyOnly = modifiers.contains(.command)
@@ -950,7 +910,7 @@ final class StatusBarController: NSObject {
 
     @objc private func captureDidFail(_ notification: Notification) {
         if notification.userInfo?["error"] is StorageCapacityError {
-            showFeedback("Закреплённые элементы заняли лимит — новое не сохранено")
+            showFeedback("Лимит истории достигнут — новое не сохранено")
         } else {
             showFeedback("Не удалось сохранить новое копирование")
         }
@@ -1055,7 +1015,7 @@ final class StatusBarController: NSObject {
     private func confirmHistoryCleanup(_ scope: HistoryCleanupWindow) {
         let alert = NSAlert()
         alert.messageText = "Удалить \(scope.title)?"
-        alert.informativeText = "Закреплённые элементы и сниппеты останутся."
+        alert.informativeText = "Сниппеты останутся на месте."
         alert.addButton(withTitle: "Удалить")
         alert.addButton(withTitle: "Отмена")
         alert.alertStyle = .warning
@@ -1066,7 +1026,7 @@ final class StatusBarController: NSObject {
             do {
                 let message = try await HistoryCleanupCoordinator.shared.run {
                     let removed = try Storage.shared.clearHistory(
-                        includePinned: false,
+                        includePinned: true,
                         createdAfter: scope.cutoff()
                     )
                     let result = removed == 0 ? "нечего удалять" : "удалено элементов: \(removed)"

@@ -518,10 +518,15 @@ final class Storage: @unchecked Sendable {
                 DROP INDEX IF EXISTS snippet_keyword_unique;
                 """)
         }
+        // Pinning was removed from the product surface. Retire the legacy
+        // flag once so old databases follow the same retention rules as new
+        // installs; the columns remain only for backwards-compatible import.
+        migrator.registerMigration("v8-retire-pins") { db in
+            try db.execute(sql: "UPDATE clip SET isPinned = 0, pinnedAt = NULL WHERE isPinned = 1")
+            try db.execute(sql: "UPDATE snippet SET isPinned = 0 WHERE isPinned = 1")
+        }
         try migrator.migrate(dbQueue)
-        // Apply retention immediately after a migration/recount. Only ordinary
-        // history can be removed; pinned clips remain protected even if they
-        // alone exceed the cap, in which case new captures fail explicitly.
+        // Apply retention immediately after a migration/recount.
         try dbQueue.write { db in
             try trim(db)
         }
@@ -598,7 +603,7 @@ final class Storage: @unchecked Sendable {
         return id
     }
 
-    /// Appends text to the newest unpinned text record in one transaction.
+    /// Appends text to the newest text record in one transaction.
     /// Rich text is intentionally dropped because two independent RTF payloads
     /// cannot be concatenated without changing their document semantics.
     func appendToLatestUnpinnedText(
@@ -609,7 +614,7 @@ final class Storage: @unchecked Sendable {
     ) throws -> AppendTextResult {
         let result = try dbQueue.write { db -> AppendTextResult in
             guard var latest = try ClipItem
-                .filter(Column("kind") == ClipKind.text.rawValue && Column("isPinned") == false)
+                .filter(Column("kind") == ClipKind.text.rawValue)
                 .order(Column("createdAt").desc, Column("id").desc)
                 .fetchOne(db),
                 let latestID = latest.id,
@@ -682,7 +687,7 @@ final class Storage: @unchecked Sendable {
             if !conditions.isEmpty {
                 sql += " WHERE " + conditions.joined(separator: " AND ")
             }
-            sql += " ORDER BY c.isPinned DESC, c.pinnedAt DESC, c.createdAt DESC, c.id DESC LIMIT ? OFFSET ?"
+            sql += " ORDER BY c.createdAt DESC, c.id DESC LIMIT ? OFFSET ?"
             arguments += [max(1, limit), max(0, offset)]
             let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
             return rows.compactMap(Self.summary(from:))
@@ -1229,7 +1234,9 @@ final class Storage: @unchecked Sendable {
                 folder: folder.flatMap { $0.isEmpty ? nil : $0 },
                 title: title,
                 content: record.content,
-                isPinned: record.isPinned
+                // Pinning is retired; imported documents keep their content
+                // but never recreate the removed pin affordance.
+                isPinned: false
             )
         }
 

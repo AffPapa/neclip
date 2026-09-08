@@ -342,16 +342,6 @@ final class SnippetsEditorModel: ObservableObject {
         }
     }
 
-    func duplicateSelected() {
-        guard flushPendingSave(), let id = selectedSnippetID else { return }
-        do {
-            let duplicate = try storage.duplicateSnippet(id: id)
-            reload(selecting: duplicate.id)
-        } catch {
-            message = "Не удалось создать копию сниппета"
-        }
-    }
-
     func undoSnippetDeletion() {
         guard flushPendingSave(), let removedSnippet else { return }
         do {
@@ -436,8 +426,7 @@ final class SnippetsEditorModel: ObservableObject {
             // reset the text editor/caret for those background-only changes.
             if latest.title != editingSnippet?.title
                 || latest.content != editingSnippet?.content
-                || latest.folderID != editingSnippet?.folderID
-                || latest.isPinned != editingSnippet?.isPinned {
+                || latest.folderID != editingSnippet?.folderID {
                 applyLoadedSnippet(latest)
             }
         } catch {
@@ -714,16 +703,8 @@ private struct SnippetsEditorView: View {
     private var editor: some View {
         if model.selectedSnippetID != nil {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label("Редактирование", systemImage: "pencil")
-                        .font(.headline)
-                    Spacer()
-                    Button(action: model.duplicateSelected) {
-                        Label("Дублировать", systemImage: "doc.on.doc")
-                    }
-                    .keyboardShortcut("d", modifiers: .command)
-                    .help("Создать копию сниппета · ⌘D")
-                }
+                Text("Сниппет")
+                    .font(.headline)
 
                 Divider()
 

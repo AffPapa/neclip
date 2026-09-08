@@ -36,7 +36,7 @@ final class SnippetTransferTests: XCTestCase {
         let imported = try XCTUnwrap(target.allSnippets().first)
         XCTAssertEqual(imported.title, "Приветствие")
         XCTAssertEqual(imported.content, "Здравствуйте, {clipboard}")
-        XCTAssertTrue(imported.isPinned)
+        XCTAssertFalse(imported.isPinned)
         XCTAssertEqual(imported.useCount, 0)
         XCTAssertEqual(try target.snippetFolders().map(\.title), ["Ответы"])
     }
