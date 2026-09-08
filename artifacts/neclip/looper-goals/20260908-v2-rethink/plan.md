@@ -3,16 +3,17 @@
 ## P0 — visible complexity and correctness
 
 1. Freeze the three-zone menu contract and remove any remaining retired visible
-   labels/actions.
+   labels/actions. (audit/spec complete; menu code unchanged in this slice)
 2. Reduce Settings to How it works, Shortcuts and Safety & privacy; keep legacy
-   storage keys behind compatibility accessors.
+   storage keys behind compatibility accessors. (implemented on candidate branch)
 3. Make snippets title/text/folder-first and preserve failed drafts.
 4. Keep automatic layout correction opt-in and progressively disclosed.
 5. Add keyboard and appearance contract tests before moving code.
 
 ## P1 — measured polish
 
-6. Unify retention controls and wording. 7. Add accessibility identifiers and
+6. Unify retention controls and wording. (preset control implemented; advanced
+   values preserved) 7. Add accessibility identifiers and
    focus-order QA. 8. Measure cold launch, menu-open and paste latency. 9.
    Remove proven dead adapters only after `rg`/typecheck evidence.
 

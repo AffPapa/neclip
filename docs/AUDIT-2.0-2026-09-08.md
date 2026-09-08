@@ -10,6 +10,8 @@ Date: 8 September 2026. Branch: `codex/neclip-2.0-rethink`.
 - Test Swift: 5,193 physical lines.
 - Baseline suite: 250 XCTest, 4 expected skips, 0 failures; 3 Swift Testing
   checks passed on the Xcode beta toolchain.
+- Candidate P0 slice: 250 XCTest, 4 expected skips, 0 failures; the focused
+  PreferencesNavigation suite is green after the Settings redesign.
 - Release artefact remains independently signed/notarized; this audit does not
   mutate the installed 1.14.0 app or its production database.
 - Static source audit found no live menu search UI, but legacy storage
@@ -90,3 +92,12 @@ updated only through a protected, check-backed merge.
 Implement P0 as a separate candidate branch, with no public release or
 database migration until the rubric is green. The detailed candidate matrix
 and product boundary are in `NECLIP-2.0-VISION-2026-09-08.md`.
+
+## Candidate implementation note
+
+The candidate now exposes only **Основные**, **Клавиши** and **Безопасность** in
+the Preferences toolbar. Privacy, layout and data controls are grouped into the
+Safety screen with disclosures; their old enum cases remain addressable for
+compatibility and QA. History uses 50/100/250/500 presets, while the exact
+numeric limit remains available under additional settings. No database schema,
+payload, permission policy or release artifact was changed.
