@@ -18,10 +18,12 @@ read safely.
 
 ## Release gates
 
-The final release record is generated from the exact signed commit and the
-artifact checksum in `docs/version.json` after the build script completes.
-The gate covers Swift 6 tests, strict warnings-as-errors build, Developer ID,
-app and DMG notarization, stapling, Gatekeeper, mounted-DMG verification,
-GitHub history secret scanning and public download checksum verification.
+The exact source commit is `e133ed05544e58b2c686192b2662f67afd221d54`.
+The signed DMG is 1,963,971 bytes with SHA-256
+`5212d82fffae0ef7ba9d744fd7bdc29961ad7419d92ef00a7fc695f0ff17de2a`.
+The gate covers 247 XCTest cases, 4 opt-in skips, 3 Swift Testing checks,
+strict warnings-as-errors build, Developer ID, app and DMG notarization,
+stapling, Gatekeeper, mounted-DMG verification, GitHub history secret
+scanning and public download checksum verification.
 
 Rollback target: the immutable NeClip 1.12.0 release.
