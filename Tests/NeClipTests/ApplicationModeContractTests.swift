@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "1.14.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "21")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.0.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "22")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
