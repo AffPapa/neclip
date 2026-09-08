@@ -3,13 +3,13 @@
     {
       "version": "1.12.0",
       "build": 19,
-      "status": "candidate",
+      "status": "released",
       "changes": [
         "Глобальное исследование 21 clipboard- и keyboard-layout utility по первичным источникам; поиск, облако, аккаунты, AI и плагины оставлены вне минималистичной концепции",
         "Построение меню сниппетов использует один индекс названий папок вместо повторного линейного поиска для каждой записи",
         "Порядок папок, orphan/unfiled fallback, preview и вставка не меняются",
         "Сохранены миграции, privacy exclusions, manual-first layout correction и menu-bar-only модель",
-        "Debug/release, Swift 6 strict, ASan и TSan проверки пройдены; публичная 1.10.0 и установленная копия не изменялись"
+        "Публичный 1.12.0 build 19: Developer ID, notarization ZIP/DMG, stapling, Gatekeeper, mounted-DMG и SHA-256 проверены; установленная копия не заменялась"
       ]
     },
     {

@@ -1,20 +1,17 @@
 # NeClip 1.12.0 — release, QA and security audit
 
-Дата: 7 сентября 2026. Проверен локальный worktree
-`codex/neclip-invisible-version`, HEAD `c17f354fb2b94d7151802cf1632ee47a0d539e60`.
+Дата: 8 сентября 2026. Проверен локальный worktree
+`codex/neclip-invisible-version`, release commit
+`f0363c6561a9e59ba51f90490affd35e6a5d386e`.
 
 ## Итог
 
-**Статус: RELEASE BLOCKED.** Кандидат в исходниках — `1.12.0` / build `19`;
-публичная версия остаётся `1.10.0` / build `17`, установленная копия —
-`1.9.1` / build `16`. Исходники, публичная копия и установленная программа
-этим аудитом не изменялись.
+**Статус: RELEASED.** Исходники и публичный релиз — `1.12.0` / build `19`;
+установленная копия остаётся `1.9.1` / build `16` и этим выпуском не заменялась.
 
-Полная тестовая матрица доступного toolchain проходит, но release-gate нельзя
-закрыть: в системе нет исполняемого `gitleaks`, поэтому проверка дерева и
-полной истории не может быть засчитана; установленный `/Applications/NeClip.app`
-также имеет недействительную подпись. Нотаризация, подпись кандидата,
-установка и публикация не запускались.
+Полный release-gate закрыт: gitleaks, строгие тесты, подпись Developer ID,
+notarization ZIP/DMG, stapling, Gatekeeper, mounted-DMG и checksum прошли.
+Установленная старая копия не затрагивалась.
 
 ## Проверенный baseline
 
@@ -25,8 +22,8 @@
 | Address Sanitizer | `swift test --disable-sandbox --sanitize=address`: 260 XCTest, 4 skip, 0 failures; 4 Swift Testing проверки прошли |
 | Thread Sanitizer | `swift test --disable-sandbox --sanitize=thread`: 260 XCTest, 4 skip, 0 failures; 4 Swift Testing проверки прошли |
 | Strict build | `swift build --disable-sandbox -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors`: PASS |
-| Architecture | release executable: arm64; `Resources/Info.plist`: `1.11.0`, build `18` |
-| Website coherence | `ruby scripts/verify-site.rb`: PASS, public/source JSON and download согласованы на `1.10.0` |
+| Architecture | release executable: arm64; `Resources/Info.plist`: `1.12.0`, build `19` |
+| Website coherence | `ruby scripts/verify-site.rb`: PASS, public/source JSON and download согласованы на `1.12.0` |
 | Metadata | `plutil -lint Resources/Info.plist` and JSON parse of version/project/changelog/backlog: PASS |
 | Formatting | `git diff --check`: PASS |
 
@@ -95,3 +92,14 @@ Gatekeeper или public deployment.
 projection теперь строит индекс названий папок один раз на открытие меню.
 Debug, strict release, ASan и TSan повторены после этого патча; все 260 XCTest,
 4 Swift Testing проверки и предусмотренные opt-in skips совпали с baseline.
+
+## Release closure — 8 September 2026
+
+The initial blocker in this document was resolved: gitleaks 8.30.1 was
+installed and `scripts/secret-scan.sh` passed for 65 HEAD commits and one
+side-ref-only commit with no leaks. The exact commit
+`f0363c6561a9e59ba51f90490affd35e6a5d386e` was then built as 1.12.0/build 19.
+Apple accepted both notarization submissions, stapling and mounted-DMG
+Gatekeeper checks passed, and the public GitHub/site metadata was updated after
+artifact verification. The old `/Applications/NeClip.app` was intentionally
+left untouched; rollback artifacts remain under `dist/releases`.
