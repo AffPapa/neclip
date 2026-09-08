@@ -4,10 +4,10 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
-## Ready for publication in 2.0.1 / build 23
+## Published in 2.0.1 / build 23
 
-Local release gate passed on 8 September 2026. The current branch is ready for
-the GitHub release after the DMG is uploaded with its checksum.
+Release gate passed on 8 September 2026 and the signed DMG/checksum are live
+in the [GitHub release](https://github.com/AffPapa/neclip/releases/tag/v2.0.1).
 
 - Keep one chronological history list; remove the duplicate **В работе** view.
 - Keep saved snippet folders directly visible without a second ranking or

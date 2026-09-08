@@ -1,6 +1,6 @@
 # NeClip project map
 
-Updated: 8 September 2026. Release candidate: **2.0.1/build 23**.
+Updated: 8 September 2026. Public release: **2.0.1/build 23**.
 
 The 2.0.1 pass is the current minimal product direction: one chronological
 history list, with the newest copy first, and saved snippet folders directly in
@@ -8,17 +8,17 @@ the menu. The duplicate **В работе**/Focus Stack projection and its deriv
 `recentSnippets` snapshot are removed. Settings shows the installed version
 and the latest checked GitHub version at the bottom.
 
-The local 2.0.1 app and DMG passed signing, notarization, stapling, Gatekeeper,
-mounted-DMG and full-history secret checks. Public metadata is prepared in
-`docs/version.json`; the GitHub release upload is the final distribution step.
+The public 2.0.1 app and DMG passed signing, notarization, stapling, Gatekeeper,
+mounted-DMG and full-history secret checks. The signed DMG and checksum are in
+GitHub Release `v2.0.1`; `docs/version.json` is the update manifest.
 
 The 1.13 release removes pinning and history inspection from the product
 surface. Legacy pin flags are retired by migration `v8-retire-pins`; the
 history menu is one chronological list and the snippet editor no longer has
 the secondary duplicate action.
-`RELEASE-2.0.1-STATUS.md` records the current signed, notarized and
-independently verified candidate. The immutable previous 1.14.0 release
-remains the public rollback target. The global research compares 21
+`RELEASE-2.0.1-STATUS.md` records the signed, notarized and independently
+verified public release. The immutable previous 1.14.0 release remains the
+public rollback target. The global research compares 21
 clipboard/layout utilities in `RESEARCH-GLOBAL-1.12-2026-09-07-research.md`
 and keeps search, cloud, accounts, AI and plugins outside the product boundary.
 The 1.12 release keeps the Version pane and measured 1.11 hot-path work, then
