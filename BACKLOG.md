@@ -4,6 +4,16 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Candidate 2.1.0 / build 24
+
+- Reuse the bounded history snapshot and first-page slice when opening the menu.
+- Avoid the ordered trim delete while the indexed unpinned count is within the
+  configured limit.
+- Keep all existing storage migrations, permissions and the local-only product
+  boundary unchanged.
+
+Release evidence: [2.1.0 status](docs/RELEASE-2.1.0-STATUS.md).
+
 ## Published in 2.0.1 / build 23
 
 Release gate passed on 8 September 2026 and the signed DMG/checksum are live

@@ -287,8 +287,11 @@ final class StatusBarController: NSObject {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
         menu.addItem(.sectionHeader(title: "Недавние"))
-        let history = Array(snapshot.clips.prefix(100))
-        let firstPage = Array(history.prefix(10))
+        // refreshSnapshot() already bounds the snapshot to 100 rows. Keep the
+        // existing storage and first page as slices instead of copying them
+        // every time the menu opens.
+        let history = snapshot.clips
+        let firstPage = history.prefix(10)
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
                 ? "История пуста — запись приостановлена"

@@ -1438,20 +1438,35 @@ final class Storage: @unchecked Sendable {
             )
         }
         let limit = max(10, Settings.historyLimit)
-        try db.execute(
+        // Most captures are already within the configured limit. Avoid the
+        // ordered OFFSET delete (and its temp sort) in that hot path; the
+        // indexed count is substantially cheaper and keeps writes snappy.
+        let trimStats = try Row.fetchOne(
+            db,
             sql: """
-                DELETE FROM clip
-                WHERE id IN (
-                    SELECT id FROM clip
-                    WHERE isPinned = 0
-                    ORDER BY createdAt DESC, id DESC
-                    LIMIT -1 OFFSET ?
-                )
-                """,
-            arguments: [limit]
+                SELECT
+                    (SELECT COUNT(*) FROM clip WHERE isPinned = 0) AS unpinnedCount,
+                    COALESCE(SUM(contentBytes), 0) AS totalBytes
+                FROM clip
+                """
         )
+        let unpinnedCount: Int = trimStats?["unpinnedCount"] ?? 0
+        if unpinnedCount > limit {
+            try db.execute(
+                sql: """
+                    DELETE FROM clip
+                    WHERE id IN (
+                        SELECT id FROM clip
+                        WHERE isPinned = 0
+                        ORDER BY createdAt DESC, id DESC
+                        LIMIT -1 OFFSET ?
+                    )
+                    """,
+                arguments: [limit]
+            )
+        }
 
-        let total = try Int64.fetchOne(db, sql: "SELECT COALESCE(SUM(contentBytes), 0) FROM clip") ?? 0
+        let total: Int64 = trimStats?["totalBytes"] ?? 0
         if total > Self.maximumStorageBytes {
             let bytesToRemove = total - Self.maximumStorageBytes
             try db.execute(
