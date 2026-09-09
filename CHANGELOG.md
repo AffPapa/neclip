@@ -462,3 +462,8 @@ downloadable releases. Their improvements are now included in 1.8.0.
   accepted by Gatekeeper outside and inside the mounted image.
 - Public download: [NeClip 1.4.0](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 - SHA-256: `0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.
+## 2.2.0 — 9 September 2026
+
+- Unified the menu into one chronological feed: history stays first and snippet folders remain directly visible below it.
+- Renamed the low-frequency controls to `Ещё…` and removed per-application layout pinning from the user-facing menu.
+- Kept legacy layout metadata only for database compatibility; no stored history or snippets are changed.

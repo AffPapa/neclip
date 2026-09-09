@@ -1,6 +1,12 @@
 # NeClip project map
 
-Updated: 8 September 2026. Public release: **2.1.0/build 24**.
+Updated: 9 September 2026. Candidate release: **2.2.0/build 25**.
+
+The 2.2.0 simplification pass keeps the complete chronological history visible
+as the primary menu surface, keeps snippet folders directly below it, renames
+low-frequency controls to `Ещё…`, and removes per-application layout pinning
+from the menu. Legacy layout metadata remains migration-compatible but is no
+longer exposed as a user action.
 
 The 2.1.0 performance pass keeps the same small product surface while removing
 avoidable work from menu opening and history writes. Menu construction now

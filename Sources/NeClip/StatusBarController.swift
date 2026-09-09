@@ -420,11 +420,11 @@ final class StatusBarController: NSObject {
     }
 
     /// Keeps low-frequency controls one level below the history itself. The
-    /// root stays short and ClipMenu-like while every action remains reachable
-    /// from one clearly named native submenu.
+    /// root stays a single, chronological feed; rare actions remain reachable
+    /// without competing with history or snippets.
     private func utilityMenuItem() -> NSMenuItem {
-        let root = item("Управление", nil, symbol: "slider.horizontal.3")
-        let submenu = makeMenu(title: "Управление")
+        let root = item("Ещё…", nil, symbol: "ellipsis.circle")
+        let submenu = makeMenu(title: "Ещё")
         appendSequentialPasteControls(to: submenu)
         submenu.addItem(layoutMenuItem())
         submenu.addItem(.separator())
@@ -569,21 +569,6 @@ final class StatusBarController: NSObject {
         )
         remember.state = Settings.rememberLayoutPerApplication ? .on : .off
         submenu.addItem(remember)
-        if let bundleID = targetBundleID,
-           ApplicationLayoutMemoryPolicy.isEligible(
-               bundleID: bundleID,
-               ownBundleID: Bundle.main.bundleIdentifier,
-               userExcluded: Set(Settings.layoutExcludedApps)
-           ), KeyboardLayoutService.shared.currentSelectableSourceID() != nil {
-            let appName = AppMetadataStore.shared.metadata(for: bundleID).name
-            let fixed = item(
-                "Закрепить текущую для \(MenuTitleFormatter.format(appName, limit: 32))",
-                #selector(toggleFixedLayoutForTargetApplication),
-                symbol: "pin"
-            )
-            fixed.state = Settings.fixedLayoutSource(for: bundleID) == nil ? .off : .on
-            submenu.addItem(fixed)
-        }
         submenu.addItem(.separator())
         let automatic = item(
             "Автоматически исправлять (бета)",
@@ -987,18 +972,6 @@ final class StatusBarController: NSObject {
                 ? "раскладка приложений запоминается"
                 : "запоминание раскладки выключено"
         )
-    }
-
-    @objc private func toggleFixedLayoutForTargetApplication() {
-        guard let bundleID = targetBundleID else { return }
-        let appName = AppMetadataStore.shared.metadata(for: bundleID).name
-        if Settings.fixedLayoutSource(for: bundleID) != nil {
-            Settings.setFixedLayoutSource(nil, for: bundleID)
-            showFeedback("закрепление для \(appName) снято")
-        } else if let sourceID = KeyboardLayoutService.shared.currentSelectableSourceID() {
-            Settings.setFixedLayoutSource(sourceID, for: bundleID)
-            showFeedback("текущая раскладка закреплена для \(appName)")
-        }
     }
 
     @objc private func pauseForFifteenMinutes() {

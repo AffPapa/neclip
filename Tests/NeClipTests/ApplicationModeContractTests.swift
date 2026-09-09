@@ -45,7 +45,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(statusBar.contains("Вставить и удалить"))
         XCTAssertTrue(statusBar.contains("За последний час…"))
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
-        XCTAssertTrue(statusBar.contains("Закрепить текущую для"))
+        XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
         XCTAssertFalse(statusBar.contains("MenuSearchKeyPolicy"))
         XCTAssertFalse(

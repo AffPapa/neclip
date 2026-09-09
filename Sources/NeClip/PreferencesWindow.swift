@@ -880,7 +880,7 @@ private struct PreferencesView: View {
                         }
                         .disabled(fixedApplicationCount == 0)
                     }
-                    Text("Назначить текущую раскладку приложению можно в меню NeClip → «Управление» → «Раскладка». Она будет выбрана при переключении на это приложение.")
+                    Text("Запоминание раскладки для приложений доступно в меню NeClip → «Ещё…» → «Раскладка».")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } label: {
