@@ -8,6 +8,12 @@ final class MenuSimplificationContractTests: XCTestCase {
         return try String(contentsOf: root.appendingPathComponent("Sources/NeClip/StatusBarController.swift"), encoding: .utf8)
     }
 
+    private func screenshotSource() throws -> String {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        return try String(contentsOf: root.appendingPathComponent("Sources/NeClip/ScreenshotCoordinator.swift"), encoding: .utf8)
+    }
+
     func testBothRootsUseFoldersWithoutDuplicatedQuickListOrImplicitTopTarget() throws {
         let source = try source()
         XCTAssertEqual(source.components(separatedBy: "appendSnippetFolders(to: menu)").count - 1, 2)
@@ -84,5 +90,13 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains(".fullScreenScreenshot"))
         XCTAssertTrue(preferences.contains("\"Снимок всего экрана\", action: .fullScreenScreenshot"))
         XCTAssertTrue(hotKeys.contains("fullScreenScreenshotDefault"))
+    }
+
+    func testLargeDisplayCaptureScalesTheWholeSourceInsteadOfCropping() throws {
+        let source = try screenshotSource()
+        XCTAssertTrue(source.contains("configuration.scalesToFit = true"),
+                      "A bounded capture must scale the full display, not crop its top-left corner")
+        XCTAssertTrue(source.contains("configuration.preservesAspectRatio = true"),
+                      "A bounded capture must preserve the display aspect ratio")
     }
 }

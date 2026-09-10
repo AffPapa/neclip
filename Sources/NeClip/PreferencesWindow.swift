@@ -359,7 +359,6 @@ private struct PreferencesView: View {
         .onExitCommand(perform: onEscape)
         .onAppear {
             loginItemStatus = SMAppService.mainApp.status
-            updates.check()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginItemStatus = SMAppService.mainApp.status

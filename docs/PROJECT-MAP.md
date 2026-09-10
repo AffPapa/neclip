@@ -1,6 +1,26 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current public release: **2.5.0/build 29**. Public release metadata and Pages point to **2.5.0/build 29**.
+Updated: 10 September 2026. Current public release: **2.5.2/build 31**. The notarized artifact and checksum are recorded in `docs/version.json`.
+
+## 2.5.2 full audit and release
+
+`AUDIT-2.5.2-PLAN.md` defines the 100-point audit matrix and acceptance gates.
+The release pass fixed four concrete reliability defects: only unpinned history
+rows are eligible for next-text append; byte quota is re-read after count trim;
+opening Settings does not perform an implicit update request; and the layout
+event monitor retains itself until its event tap is removed. Regression coverage
+is in `StorageTests`, `MenuSimplificationContractTests`, and the existing full
+screen screenshot contracts. Full XCTest/Swift Testing, strict Swift 6,
+Developer ID, notarization, stapling, Gatekeeper and mounted-DMG checks passed.
+Evidence is in `RELEASE-2.5.2-STATUS.md`.
+
+## Screenshot reliability and 2.5.1 pass
+
+ScreenCaptureKit now sets `scalesToFit` and `preservesAspectRatio` whenever a
+large native Retina frame is bounded to the 32 MP working budget. Without this,
+ScreenCaptureKit could preserve the source geometry and return only the
+top-left portion after width/height were reduced. The complete display is now
+scaled into the bounded target for both area and full-screen capture.
 
 ## Screenshot reliability and 2.5.0 pass
 
