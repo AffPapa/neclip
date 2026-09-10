@@ -1,6 +1,41 @@
 # NeClip project map
 
-Updated: 9 September 2026. Candidate release: **2.2.0/build 25**.
+Updated: 10 September 2026. Local candidate: **2.3.0/build 26**. Public release: **2.2.0/build 25**.
+
+## Screenshot work in progress — 10 September 2026
+
+`SCREENSHOTS-PLAN.md` combines four research reports and records the decisions,
+rejections, UX contract and acceptance gates. This local module is **not yet a
+published screenshot release**. The user has authorized installing the signed
+candidate with rollback; public version metadata must remain unchanged until release acceptance.
+
+- `ScreenshotCoordinator.swift`: lazy, one-shot ScreenCaptureKit capture; permission
+  explanation on explicit request, one display/selection/editor at a time, Escape
+  and display-change cancellation. Native `ScreenshotSelectionView` owns the drag.
+- `ScreenshotDocument.swift`: bounded vector undo/redo; pixel geometry, detached
+  crop, shared preview/export renderer, final opaque redaction and ImageIO PNG/JPEG.
+- `ScreenshotEditorWindow.swift`: five tools, visible zoom, native text entry,
+  Copy/Save, busy/close guards, scoped folder bookmark and clipboard generation check.
+- `AppDelegate` / `HotKeyCoordinator` / `Settings` / `StatusBarController`:
+  sixth configurable shortcut (default ⌘⇧2), menu fallback and application-owned lifecycle.
+- `PreferencesWindow`: screenshot hotkey and destination folder in the existing
+  Keys pane; no new settings tab.
+- `ClipboardMonitor.recordScreenshot`: only the finished PNG is queued through the
+  existing privacy-cleanup barrier. Pause, one-shot ignore, image limits, source
+  exclusions and clipboard privacy still apply. Save-only never enters history.
+- `RuntimeIdentity` / `main.swift`: isolated screenshot QA has a private clipboard,
+  a separate data directory and a volatile capture/layout pause, including Finder relaunches.
+  AppDelegate is explicitly retained for the entire application run loop.
+- `ScreenshotTests.swift`: geometry, redaction independence, undo, bounded buffers,
+  clipboard race, privacy matrix, native editor structure and selection cancellation.
+
+No extra package, web runtime, raw screenshot file, background capture stream,
+OCR, cloud or account was added. First-release limitations: one display selected
+by pointer, at most 32 MP, SDR/sRGB, no video or scrolling capture. PNG preserves
+the normalized raster; sRGB conversion is not a promise to preserve the full P3/HDR gamut.
+Live Screen Recording permission/capture and interactive multi-display QA remain a release gate.
+
+## Previous releases
 
 The 2.2.0 simplification pass keeps the complete chronological history visible
 as the primary menu surface, keeps snippet folders directly below it, renames

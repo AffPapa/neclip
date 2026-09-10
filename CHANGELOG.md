@@ -4,6 +4,25 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.3.0 / build 26 — local screenshot candidate, 2026-09-10
+
+Native region screenshots, five annotation tools, opaque redaction, undo/redo,
+PNG clipboard output and PNG/JPEG file export. One configurable shortcut and
+a destination folder reuse the existing settings. No new package dependency,
+cloud service, gallery, background screen stream or raw screenshot file.
+
+The synthetic editor, all five tools, undo/redo, native PNG save and isolated
+clipboard copy have been exercised live. Real ScreenCaptureKit capture is the
+remaining installation acceptance gate. This candidate is not a public release.
+See `docs/SCREENSHOTS-IMPLEMENTATION-STATUS.md` for current evidence.
+
+## 2.2.0 / build 25 — published, 2026-09-09
+
+Chronological history, snippet folders directly in the menu and low-frequency
+commands grouped under `Ещё…`. Per-application layout pinning was removed from
+the menu without deleting compatible stored metadata.
+See `docs/RELEASE-2.2.0-STATUS.md` for signing and notarization evidence.
+
 ## 2.1.0 / build 24 — published, 2026-09-08
 
 Built from merge commit `93a836dfc65a97c5e6d592f9d70b6629a63963bc`.

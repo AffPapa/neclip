@@ -1,0 +1,358 @@
+import AppKit
+
+@MainActor
+final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelegate {
+    var onCopy: ((Data) -> Void)?
+    var onClose: (() -> Void)?
+    private let canvas: ScreenshotCanvas
+    private let pasteboard: NSPasteboard
+    private let copyButton = NSButton(title: "Копировать", target: nil, action: nil)
+    private let saveButton = NSButton(title: "Сохранить…", target: nil, action: nil)
+    private let undoButton = NSButton(title: "Отменить", target: nil, action: nil)
+    private let redoButton = NSButton(title: "Повторить", target: nil, action: nil)
+    private let status = NSTextField(labelWithString: "⌘Return — копировать · ⌘S — сохранить")
+    private var exporting = false
+    private var completed = false
+    private var toolButtons: [NSButton] = []
+    private var savePanel: NSSavePanel?
+    private let scroll = NSScrollView()
+    private let scale = NSPopUpButton()
+
+    init(image: CGImage, pasteboard: NSPasteboard = .general) {
+        canvas = ScreenshotCanvas(image: image)
+        self.pasteboard = pasteboard
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 860, height: 580),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        super.init(window: window)
+        window.title = "Скриншот · \(image.width) × \(image.height)"
+        window.isReleasedWhenClosed = false
+        window.minSize = CGSize(width: 660, height: 380)
+        window.delegate = self
+        RuntimeIdentity.configurePreviewWindow(window)
+        let tools = NSStackView()
+        tools.spacing = 6
+        for (index, tool) in ScreenshotTool.allCases.enumerated() {
+            let button = NSButton(title: tool.rawValue, target: self, action: #selector(selectTool(_:)))
+            button.tag = index
+            button.setButtonType(.pushOnPushOff)
+            button.bezelStyle = .rounded
+            button.toolTip = tool == .redact ? "Непрозрачная заливка. Надёжнее размытия." : tool.rawValue
+            button.state = tool == .redact ? .on : .off
+            tools.addArrangedSubview(button)
+            toolButtons.append(button)
+        }
+        scale.addItems(withTitles: ["По размеру", "100%", "200%"])
+        scale.setAccessibilityLabel("Масштаб снимка")
+        scale.target = self
+        scale.action = #selector(changeScale(_:))
+        tools.addArrangedSubview(scale)
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = true
+        scroll.allowsMagnification = true
+        scroll.minMagnification = 0.05
+        scroll.maxMagnification = 4
+        scroll.documentView = canvas
+        scroll.borderType = .bezelBorder
+        let actions = NSStackView(views: [undoButton, redoButton, NSView(), saveButton, copyButton])
+        actions.spacing = 8
+        for button in [copyButton, saveButton, undoButton, redoButton] { button.target = self; button.bezelStyle = .rounded }
+        copyButton.action = #selector(copyImage)
+        copyButton.keyEquivalent = "\r"
+        copyButton.keyEquivalentModifierMask = [.command]
+        saveButton.action = #selector(saveImage)
+        saveButton.keyEquivalent = "s"
+        saveButton.keyEquivalentModifierMask = [.command]
+        undoButton.action = #selector(undoEdit)
+        undoButton.keyEquivalent = "z"
+        undoButton.keyEquivalentModifierMask = [.command]
+        redoButton.action = #selector(redoEdit)
+        redoButton.keyEquivalent = "z"
+        redoButton.keyEquivalentModifierMask = [.command, .shift]
+        status.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        status.textColor = .secondaryLabelColor
+        status.maximumNumberOfLines = 3
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let root = NSView()
+        window.contentView = root
+        for view in [tools, scroll, actions, status] {
+            root.addSubview(view)
+            view.translatesAutoresizingMaskIntoConstraints = false
+        }
+        NSLayoutConstraint.activate([
+            tools.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+            tools.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            tools.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -12),
+            scroll.topAnchor.constraint(equalTo: tools.bottomAnchor, constant: 12),
+            scroll.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            scroll.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            scroll.bottomAnchor.constraint(equalTo: actions.topAnchor, constant: -12),
+            actions.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            actions.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            status.topAnchor.constraint(equalTo: actions.bottomAnchor, constant: 8),
+            status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            status.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -12)
+        ])
+        canvas.onChange = { [weak self] in self?.refresh() }
+        canvas.onLimit = { [weak self] in
+            self?.status.stringValue = "Лимит 128 пометок. Отмените одну, чтобы добавить новую."
+            self?.status.textColor = .systemRed
+        }
+        canvas.onCancel = { [weak window] in window?.performClose(nil) }
+        canvas.onTextRequested = { [weak self] point in self?.addText(at: point) }
+        window.center()
+        root.layoutSubtreeIfNeeded()
+        changeScale(scale)
+        window.makeFirstResponder(canvas)
+        refresh()
+    }
+    required init?(coder: NSCoder) { nil }
+
+    @objc private func selectTool(_ sender: NSButton) {
+        canvas.tool = ScreenshotTool.allCases[sender.tag]
+        for button in toolButtons { button.state = button === sender ? .on : .off }
+        window?.makeFirstResponder(canvas)
+    }
+    @objc private func undoEdit() { canvas.edits.undo(); refresh() }
+    @objc private func redoEdit() { canvas.edits.redo(); refresh() }
+
+    @objc private func changeScale(_ sender: NSPopUpButton) {
+        guard scroll.documentView != nil else { return }
+        let fit = min(scroll.contentSize.width / CGFloat(canvas.image.width),
+                      scroll.contentSize.height / CGFloat(canvas.image.height), scroll.maxMagnification)
+        // One document unit is an image pixel, not an AppKit point. At 100%,
+        // one image pixel must occupy one display pixel on Retina as well.
+        scroll.magnification = sender.indexOfSelectedItem == 0 ? max(scroll.minMagnification, fit)
+            : CGFloat(sender.indexOfSelectedItem) / (window?.backingScaleFactor ?? 1)
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        if scale.indexOfSelectedItem == 0 { changeScale(scale) }
+    }
+    func windowDidChangeBackingProperties(_ notification: Notification) { changeScale(scale) }
+
+    private func refresh() {
+        completed = false
+        canvas.needsDisplay = true
+        status.textColor = .secondaryLabelColor
+        canvas.isEditingEnabled = !exporting
+        undoButton.isEnabled = !exporting && !canvas.edits.annotations.isEmpty
+        redoButton.isEnabled = !exporting && !canvas.edits.undone.isEmpty
+        copyButton.isEnabled = !exporting
+        saveButton.isEnabled = !exporting
+        for button in toolButtons { button.isEnabled = !exporting }
+    }
+
+    private func addText(at point: CGPoint) {
+        guard let window else { return }
+        let alert = NSAlert()
+        alert.messageText = "Текст на снимке"
+        let field = NSTextField(frame: CGRect(x: 0, y: 0, width: 320, height: 24))
+        field.placeholderString = "Короткая подпись"
+        field.setAccessibilityLabel("Текст подписи")
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Добавить")
+        alert.addButton(withTitle: "Отмена")
+        alert.window.initialFirstResponder = field
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard response == .alertFirstButtonReturn, !field.stringValue.isEmpty else { return }
+            self?.canvas.edits.append(ScreenshotAnnotation(tool: .text, points: [point], text: String(field.stringValue.prefix(1000))))
+            self?.refresh()
+        }
+    }
+
+    @objc private func copyImage() {
+        let pasteboard = pasteboard
+        let generation = pasteboard.changeCount
+        export(format: .png) { [weak self] data in
+            try ScreenshotClipboard.write(data, to: pasteboard, expectedChangeCount: generation)
+            self?.onCopy?(data)
+        }
+    }
+
+    @objc private func saveImage() {
+        guard !exporting, let window else { return }
+        let panel = NSSavePanel()
+        savePanel = panel
+        panel.title = "Сохранить скриншот"
+        panel.nameFieldStringValue = "Скриншот-\(Date().formatted(.iso8601).replacingOccurrences(of: ":", with: "-"))-\(UUID().uuidString.prefix(4)).png"
+        panel.allowedContentTypes = [.png]
+        panel.canCreateDirectories = true
+        let folder = ScreenshotFolder.url
+        let folderAccess = folder?.startAccessingSecurityScopedResource() == true
+        panel.directoryURL = folder
+        let format = NSPopUpButton(frame: CGRect(x: 0, y: 0, width: 200, height: 26))
+        format.addItems(withTitles: ScreenshotFormat.allCases.map(\.rawValue))
+        format.target = self
+        format.action = #selector(changeSaveFormat(_:))
+        panel.accessoryView = format
+        panel.beginSheetModal(for: window) { [weak self] response in
+            defer {
+                if folderAccess { folder?.stopAccessingSecurityScopedResource() }
+                self?.savePanel = nil
+            }
+            guard response == .OK, let url = panel.url else { return }
+            let selected = ScreenshotFormat.allCases[format.indexOfSelectedItem]
+            self?.export(format: selected, fileURL: url)
+        }
+    }
+
+    @objc private func changeSaveFormat(_ sender: NSPopUpButton) {
+        guard let panel = savePanel else { return }
+        let format = ScreenshotFormat.allCases[sender.indexOfSelectedItem]
+        panel.allowedContentTypes = [format.type]
+        panel.nameFieldStringValue = (panel.nameFieldStringValue as NSString).deletingPathExtension + "." + format.suffix
+    }
+
+    private func export(format: ScreenshotFormat, fileURL: URL? = nil,
+                        publish: ((Data) throws -> Void)? = nil) {
+        guard !exporting else { return }
+        exporting = true
+        refresh()
+        status.stringValue = "Подготовка снимка…"
+        let image = canvas.image, annotations = canvas.edits.annotations
+        Task { [weak self] in
+            do {
+                let data = try await Task.detached(priority: .userInitiated) {
+                    try ScreenshotRenderer.encode(image, annotations: annotations, format: format)
+                }.value
+                guard let self, let window = self.window, window.isVisible else { return }
+                if let fileURL {
+                    try await Task.detached(priority: .userInitiated) {
+                        try ScreenshotFileExport.write(data, to: fileURL)
+                    }.value
+                } else { try publish?(data) }
+                exporting = false
+                completed = true
+                window.close()
+            } catch {
+                guard let self else { return }
+                exporting = false
+                refresh()
+                status.stringValue = (error as? ScreenshotFailure)?.errorDescription
+                    ?? "Не удалось сохранить снимок. Проверьте папку и повторите попытку."
+                status.textColor = .systemRed
+            }
+        }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !exporting else { return false }
+        guard !completed, !canvas.edits.annotations.isEmpty else { return true }
+        let alert = NSAlert()
+        alert.messageText = "Закрыть без сохранения?"
+        alert.informativeText = "Снимок и пометки будут удалены из памяти."
+        alert.addButton(withTitle: "Продолжить редактирование")
+        alert.addButton(withTitle: "Закрыть")
+        return alert.runModal() == .alertSecondButtonReturn
+    }
+    func windowWillClose(_ notification: Notification) { onClose?() }
+}
+
+@MainActor
+enum ScreenshotClipboard {
+    static func write(_ png: Data, to pasteboard: NSPasteboard, expectedChangeCount: Int) throws {
+        guard pasteboard.changeCount == expectedChangeCount else { throw ScreenshotFailure.clipboardChanged }
+        let item = NSPasteboardItem()
+        guard item.setData(png, forType: .png) else { throw ScreenshotFailure.clipboardWriteFailed }
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects([item]) else { throw ScreenshotFailure.clipboardWriteFailed }
+        if pasteboard.name == NSPasteboard.general.name {
+            ClipboardWriteGuard.shared.markOwnWrite(changeCount: pasteboard.changeCount)
+        }
+    }
+}
+
+@MainActor
+enum ScreenshotFolder {
+    private static let key = "screenshotFolderBookmark.v1"
+    static var url: URL? {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            return FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask).first
+        }
+        var stale = false
+        return try? URL(resolvingBookmarkData: data, options: [.withoutUI, .withSecurityScope],
+                        relativeTo: nil, bookmarkDataIsStale: &stale)
+    }
+    static func choose() throws -> URL? {
+        let panel = NSOpenPanel()
+        panel.title = "Папка для скриншотов"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = url
+        guard panel.runModal() == .OK, let selected = panel.url else { return nil }
+        let data = try selected.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
+        UserDefaults.standard.set(data, forKey: key)
+        return selected
+    }
+}
+
+@MainActor
+private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
+    let image: CGImage
+    var edits = ScreenshotEdits()
+    var tool = ScreenshotTool.redact
+    var isEditingEnabled = true
+    var onChange: (() -> Void)?
+    var onLimit: (() -> Void)?
+    var onCancel: (() -> Void)?
+    var onTextRequested: ((CGPoint) -> Void)?
+    private var draft: ScreenshotAnnotation?
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+    init(image: CGImage) {
+        self.image = image
+        super.init(frame: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        setAccessibilityLabel("Разметка снимка. Масштаб — жестом увеличения; отмена — Command Z.")
+    }
+    required init?(coder: NSCoder) { nil }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { onCancel?() } else { super.keyDown(with: event) }
+    }
+    @objc func undo(_ sender: Any?) { edits.undo(); onChange?() }
+    @objc func redo(_ sender: Any?) { edits.redo(); onChange?() }
+    func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(undo(_:)) { return isEditingEnabled && !edits.annotations.isEmpty }
+        if item.action == #selector(redo(_:)) { return isEditingEnabled && !edits.undone.isEmpty }
+        return false
+    }
+    override func mouseDown(with event: NSEvent) {
+        guard isEditingEnabled else { return }
+        guard edits.annotations.count < ScreenshotEdits.maximumAnnotations else { onLimit?(); return }
+        window?.makeFirstResponder(self)
+        let point = location(event)
+        if tool == .text { onTextRequested?(point); return }
+        draft = ScreenshotAnnotation(tool: tool, points: [point])
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard isEditingEnabled, var draft else { return }
+        let point = location(event)
+        if tool == .pen && !event.modifierFlags.contains(.shift) {
+            if draft.points.count < 4096 { draft.points.append(point) }
+        } else { draft.points = [draft.points[0], point] }
+        self.draft = draft
+        needsDisplay = true
+    }
+    override func mouseUp(with event: NSEvent) {
+        guard isEditingEnabled, draft != nil else { return }
+        mouseDragged(with: event)
+        if let draft { edits.append(draft) }
+        draft = nil
+        onChange?()
+    }
+    private func location(_ event: NSEvent) -> CGPoint {
+        let p = convert(event.locationInWindow, from: nil)
+        return CGPoint(x: min(bounds.width, max(0, p.x)), y: min(bounds.height, max(0, p.y)))
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+        context.translateBy(x: 0, y: CGFloat(image.height))
+        context.scaleBy(x: 1, y: -1)
+        ScreenshotRenderer.draw(image, annotations: edits.annotations + (draft.map { [$0] } ?? []), in: context)
+        context.restoreGState()
+    }
+}

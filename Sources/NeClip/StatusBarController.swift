@@ -340,6 +340,13 @@ final class StatusBarController: NSObject {
     /// Shared by initial, loading, empty, error and result states. Explicit
     /// targets keep Quit enabled in a menu-bar-only application.
     static func appendStandardFooter(to menu: NSMenu, target: AnyObject) {
+        let shortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
+        let screenshot = NSMenuItem(title: "Скриншот области…", action: #selector(takeScreenshot),
+                                    keyEquivalent: shortcut.keyEquivalent ?? "")
+        screenshot.target = target
+        screenshot.keyEquivalentModifierMask = shortcut.nsEventModifiers
+        screenshot.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: nil)
+        menu.addItem(screenshot)
         let settings = NSMenuItem(title: "Настройки…", action: #selector(openPreferences), keyEquivalent: ",")
         settings.target = target
         settings.keyEquivalentModifierMask = [.command]
@@ -350,6 +357,13 @@ final class StatusBarController: NSObject {
         quit.target = target
         quit.keyEquivalentModifierMask = [.command]
         menu.addItem(quit)
+    }
+
+    @objc private func takeScreenshot() {
+        activeMenu?.cancelTracking()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .neClipScreenshotRequested, object: nil)
+        }
     }
 
     private func appendSnippetFolders(to menu: NSMenu) {

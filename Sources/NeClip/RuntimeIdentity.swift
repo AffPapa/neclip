@@ -20,6 +20,15 @@ enum RuntimeIdentity {
 
     static var isIsolatedPreview: Bool { previewDataDirectory != nil }
 
+    static var isScreenshotQA: Bool {
+#if DEBUG
+        isIsolatedPreview && (ProcessInfo.processInfo.environment["NECLIP_UI_TEST_SCREENSHOT"] == "1"
+            || Bundle.main.object(forInfoDictionaryKey: "NeClipScreenshotQA") as? Bool == true)
+#else
+        false
+#endif
+    }
+
     static var displayName: String { isIsolatedPreview ? "NeClip Preview" : "NeClip" }
 
     @MainActor

@@ -15,14 +15,15 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.2.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "25")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.3.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "26")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
             encoding: .utf8
         )
         XCTAssertTrue(main.contains("setActivationPolicy(.accessory)"))
+        XCTAssertTrue(main.contains("withExtendedLifetime(delegate) { app.run() }"))
 
         let statusBar = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/StatusBarController.swift"),
