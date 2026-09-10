@@ -8,10 +8,10 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current public, signed and notarized version: **1.10.0 (build 17)**,
-released on 7 September 2026. Snippet folders appear directly in the menu;
+Current public, signed and notarized version: **2.3.1 (build 27)**,
+released on 10 September 2026. Snippet folders appear directly in the menu;
 search, new pins and implicit top-item actions are removed.
-Its [release evidence](docs/RELEASE-1.10.0-STATUS.md) and
+Its [release evidence](docs/RELEASE-2.3.1-STATUS.md) and
 [menu design decisions](docs/MENU-SIMPLIFICATION-2026-09-07.md) record the scope
 and verification. Both the app and DMG passed notarization, stapling and
 Gatekeeper. The independently downloaded public artifact matched the verified
@@ -28,17 +28,16 @@ The refreshed comparison of 19 clipboard products, 11 layout tools, 100
 candidate improvements and 27 selected refinements is in
 [docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
 
-[Download the signed and notarized NeClip 1.10.0 DMG](https://github.com/AffPapa/neclip/releases/download/v1.10.0/NeClip-1.10.0.dmg)
-(2,006,978 bytes).
+[Download the signed and notarized NeClip 2.3.1 DMG](https://github.com/AffPapa/neclip/releases/download/v2.3.1/NeClip-2.3.1.dmg)
+(2,034,114 bytes).
 SHA-256:
 `d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
-Artifact source: `60b26ad6182550e3e9b2646a0ee3bf319ea6e8ac`, merged through
-[PR #13](https://github.com/AffPapa/neclip/pull/13). Required CI and CodeQL passed.
-Each debug, strict release, ASan and TSan test run passed 245 checks (244 XCTest
-cases with three opt-in skips, plus four Swift Testing checks). The flat-menu
-pass removed a net 379 runtime source lines without removing privacy safeguards.
+Artifact source is recorded in the exact release JSON beside the DMG. Required
+CI and CodeQL are required before the tag is published. The release gate covers
+debug, strict release, ASan, TSan, notarization, stapling, Gatekeeper and the
+mounted-DMG check.
 
 ## Everyday workflow
 

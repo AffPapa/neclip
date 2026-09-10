@@ -1,13 +1,14 @@
 # NeClip project map
 
-Updated: 10 September 2026. Local candidate: **2.3.1/build 27**. Public release: **2.2.0/build 25**.
+Updated: 10 September 2026. Release candidate: **2.3.1/build 27**. Public release metadata is prepared for **2.3.1/build 27**.
 
 ## Screenshot work in progress — 10 September 2026
 
 `SCREENSHOTS-PLAN.md` combines four research reports and records the decisions,
-rejections, UX contract and acceptance gates. This local module is **not yet a
-published screenshot release**. The user has authorized installing the signed
-candidate with rollback; public version metadata must remain unchanged until release acceptance.
+rejections, UX contract and acceptance gates. The screenshot module is included
+in the 2.3.1 release candidate. The user authorized installing the signed
+candidate with rollback; final publication uses an exact source-commit-bound DMG
+and the matching `version.json`.
 
 - `ScreenshotCoordinator.swift`: lazy, one-shot ScreenCaptureKit capture; instant
   inert shell, own-window exclusion, generation-guarded cancellation on Escape or
