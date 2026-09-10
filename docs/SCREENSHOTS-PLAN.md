@@ -73,6 +73,8 @@ API: [SCScreenshotManager](https://developer.apple.com/documentation/screencaptu
 - [x] Реализован одноразовый SCK capture с permission UX и единственной сессией; реальный захват — pending.
 - [x] Затемнение показывается сразу; pending-shell инертен до кадра, свой overlay
   исключается по windowID, отмена защищена generation-токеном.
+- [x] Overlay объясняет действие до drag: центральная инструкция, отдельная
+  подсказка Esc и crosshair под курсором; после начала выделения подсказка уходит.
 - [x] Реализованы выделение, редактор, клавиатура и защита закрытия; native structure/drag/Escape проверены программно.
 - [x] Hotkey/menu/settings с конфликтами и сохранением.
 - [x] Copy/save, generation check и интеграция истории без исходника; live PNG save и copy в изолированный clipboard подтверждены.

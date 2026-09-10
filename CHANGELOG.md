@@ -16,6 +16,8 @@ ready; only that shell is excluded from ScreenCaptureKit. Cancellation is
 generation-safe and Retina crop runs off the main actor. The editor is now
 image-first with a transparent titlebar, proportion-aware initial size and one
 compact bottom toolbar of SF Symbols with Russian accessibility labels.
+The selection overlay now clearly explains the gesture before the first drag,
+shows a small crosshair, and removes the hint as soon as selection starts.
 
 The synthetic editor, all five tools, undo/redo, native PNG save and isolated
 clipboard copy have been exercised live. Real ScreenCaptureKit capture is the

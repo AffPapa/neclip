@@ -191,31 +191,63 @@ final class ScreenshotSelectionView: NSView {
     var onSelect: ((CGRect) -> Void)?
     private var start: CGPoint?
     private var selection = CGRect.zero
+    private var pointer = CGPoint.zero
+    private var pointerInside = false
+    private var hasDragged = false
+    private var trackingArea: NSTrackingArea?
     override var acceptsFirstResponder: Bool { true }
 
     init(frame: CGRect, image: CGImage?) {
         self.image = image.map { NSImage(cgImage: $0, size: frame.size) }
         super.init(frame: frame)
-        setAccessibilityLabel("Выделите область экрана мышью. Escape — отмена.")
+        setAccessibilityLabel("Нажмите и проведите мышью, чтобы выделить область экрана. Escape — отмена.")
     }
     required init?(coder: NSCoder) { nil }
     func setImage(_ image: CGImage) {
         self.image = NSImage(cgImage: image, size: bounds.size)
         start = nil
         selection = .zero
+        hasDragged = false
         needsDisplay = true
     }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
+    override func updateTrackingAreas() {
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(rect: bounds,
+                                  options: [.activeAlways, .mouseEnteredAndExited, .mouseMoved, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+        super.updateTrackingAreas()
+    }
+    override func mouseEntered(with event: NSEvent) {
+        pointerInside = true
+        pointer = convert(event.locationInWindow, from: nil)
+        needsDisplay = true
+    }
+    override func mouseMoved(with event: NSEvent) {
+        pointerInside = true
+        pointer = convert(event.locationInWindow, from: nil)
+        needsDisplay = true
+    }
+    override func mouseExited(with event: NSEvent) {
+        pointerInside = false
+        needsDisplay = true
+    }
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { onCancel?() }
     }
     override func mouseDown(with event: NSEvent) {
         guard image != nil else { return }
         start = convert(event.locationInWindow, from: nil)
+        pointer = start ?? .zero
+        hasDragged = false
     }
     override func mouseDragged(with event: NSEvent) {
         guard image != nil, let start else { return }
         let end = convert(event.locationInWindow, from: nil)
+        pointer = end
+        hasDragged = true
         selection = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
                            width: abs(start.x - end.x), height: abs(start.y - end.y)).intersection(bounds)
         needsDisplay = true
@@ -224,22 +256,25 @@ final class ScreenshotSelectionView: NSView {
         guard image != nil else { return }
         mouseDragged(with: event)
         if selection.width >= 2, selection.height >= 2 { onSelect?(selection) }
-        else { start = nil }
+        else { start = nil; hasDragged = false }
     }
     override func draw(_ dirtyRect: NSRect) {
         guard let image else {
             NSColor.black.withAlphaComponent(0.55).setFill()
             bounds.fill()
-            let hint = "Подготовка снимка…"
-            (hint as NSString).draw(at: CGPoint(x: 24, y: bounds.height - 44), withAttributes: [
-                .font: NSFont.systemFont(ofSize: 16, weight: .medium), .foregroundColor: NSColor.white
-            ])
+            drawInstruction(title: "Подготовка снимка…")
             return
         }
         image.draw(in: bounds)
         NSColor.black.withAlphaComponent(0.38).setFill()
-        if selection.isEmpty { bounds.fill() }
-        else {
+        if selection.isEmpty {
+            bounds.fill()
+            if pointerInside && !hasDragged { drawCrosshair() }
+            if !hasDragged {
+                drawInstruction(title: "Проведите мышью, чтобы выделить область",
+                                subtitle: "Esc — отмена")
+            }
+        } else {
             CGRect(x: 0, y: 0, width: bounds.width, height: selection.minY).fill()
             CGRect(x: 0, y: selection.maxY, width: bounds.width, height: bounds.height - selection.maxY).fill()
             CGRect(x: 0, y: selection.minY, width: selection.minX, height: selection.height).fill()
@@ -249,9 +284,41 @@ final class ScreenshotSelectionView: NSView {
             border.lineWidth = 1
             border.stroke()
         }
-        let hint = "Выделите область · Esc — отмена"
-        (hint as NSString).draw(at: CGPoint(x: 24, y: bounds.height - 44), withAttributes: [
-            .font: NSFont.systemFont(ofSize: 16, weight: .medium), .foregroundColor: NSColor.white
-        ])
+    }
+
+    private func drawInstruction(title: String, subtitle: String? = nil) {
+        let titleAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 18, weight: .semibold),
+            .foregroundColor: NSColor.white
+        ]
+        let subtitleAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 14, weight: .regular),
+            .foregroundColor: NSColor.white.withAlphaComponent(0.82)
+        ]
+        let titleSize = (title as NSString).size(withAttributes: titleAttributes)
+        let subtitleSize = subtitle.map { ($0 as NSString).size(withAttributes: subtitleAttributes) } ?? .zero
+        let width = max(titleSize.width, subtitleSize.width) + 40
+        let height = subtitle == nil ? titleSize.height + 28 : titleSize.height + subtitleSize.height + 36
+        let rect = CGRect(x: (bounds.width - width) / 2, y: (bounds.height - height) / 2,
+                          width: width, height: height)
+        NSColor.black.withAlphaComponent(0.72).setFill()
+        NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12).fill()
+        (title as NSString).draw(at: CGPoint(x: rect.minX + 20, y: rect.maxY - titleSize.height - 12),
+                                 withAttributes: titleAttributes)
+        if let subtitle {
+            (subtitle as NSString).draw(at: CGPoint(x: rect.minX + 20, y: rect.minY + 12),
+                                        withAttributes: subtitleAttributes)
+        }
+    }
+
+    private func drawCrosshair() {
+        NSColor.white.withAlphaComponent(0.72).setStroke()
+        let path = NSBezierPath()
+        path.lineWidth = 1
+        path.move(to: CGPoint(x: pointer.x - 18, y: pointer.y))
+        path.line(to: CGPoint(x: pointer.x + 18, y: pointer.y))
+        path.move(to: CGPoint(x: pointer.x, y: pointer.y - 18))
+        path.line(to: CGPoint(x: pointer.x, y: pointer.y + 18))
+        path.stroke()
     }
 }
