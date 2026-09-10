@@ -32,7 +32,7 @@ The scoped installer automatically restores it if replacement or verification fa
 
 ## Functional acceptance remains partial
 
-Live synthetic editor: all five tools, Russian text, undo/redo, PNG system save,
+Live synthetic editor: all five tools, Russian text, undo/redo, PNG and JPEG system save,
 and CmdReturn copy into a separate QA pasteboard passed. PNG and JPEG file I/O,
 pixel geometry, privacy gates and mask independence also pass automated tests.
 
@@ -40,8 +40,9 @@ The installed application has the user's Screen Recording permission visible in
 System Settings. A CmdShift2 attempt was made through UI automation, but its
 resulting region window could not be obtained (CUA AX timeout). Neither success
 nor a functional failure is inferred from that tool timeout. User confirmation /
-interactive verification of actual capture is still required. Live JPEG save and
-multi-display/Spaces scenarios remain unverified.
+interactive verification of actual capture is still required.
+The subsequent native JPEG save passed: 720x420, 23,656 bytes, decoded and visually
+checked. Multi-display/Spaces scenarios remain unverified.
 
 Public metadata and download remain 2.2.0. Notarization is artifact verification,
 not a claim that the screenshot feature passed its remaining live acceptance gate.

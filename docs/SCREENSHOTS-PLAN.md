@@ -74,7 +74,8 @@ API: [SCScreenshotManager](https://developer.apple.com/documentation/screencaptu
 - [x] Hotkey/menu/settings с конфликтами и сохранением.
 - [x] Copy/save, generation check и интеграция истории без исходника; live PNG save и copy в изолированный clipboard подтверждены.
 - [x] Изолированный редактор: пять инструментов, русская подпись, undo/redo и PNG сохранение проверены визуально на синтетике.
-- [ ] Реальный ScreenCaptureKit capture и live JPEG save. Повторные AX timeouts не засчитываются как успешный UI test.
+- [x] Live JPEG save: выбор формата, имени, папки, сохранение и декодирование результата.
+- [ ] Реальный ScreenCaptureKit capture. Повторные AX timeouts не засчитываются как успешный UI test.
 
 ### Gate перед handoff
 
