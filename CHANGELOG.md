@@ -11,6 +11,12 @@ PNG clipboard output and PNG/JPEG file export. One configurable shortcut and
 a destination folder reuse the existing settings. No new package dependency,
 cloud service, gallery, background screen stream or raw screenshot file.
 
+The capture shell now appears immediately and stays inert until the frame is
+ready; only that shell is excluded from ScreenCaptureKit. Cancellation is
+generation-safe and Retina crop runs off the main actor. The editor is now
+image-first with a transparent titlebar, proportion-aware initial size and one
+compact bottom toolbar of SF Symbols with Russian accessibility labels.
+
 The synthetic editor, all five tools, undo/redo, native PNG save and isolated
 clipboard copy have been exercised live. Real ScreenCaptureKit capture is the
 remaining installation acceptance gate. This candidate is not a public release.

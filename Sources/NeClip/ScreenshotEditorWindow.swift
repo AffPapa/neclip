@@ -10,7 +10,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     private let saveButton = NSButton(title: "Сохранить…", target: nil, action: nil)
     private let undoButton = NSButton(title: "Отменить", target: nil, action: nil)
     private let redoButton = NSButton(title: "Повторить", target: nil, action: nil)
-    private let status = NSTextField(labelWithString: "⌘Return — копировать · ⌘S — сохранить")
+    private let status = NSTextField(labelWithString: "Готово")
     private var exporting = false
     private var completed = false
     private var toolButtons: [NSButton] = []
@@ -21,10 +21,21 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     init(image: CGImage, pasteboard: NSPasteboard = .general) {
         canvas = ScreenshotCanvas(image: image)
         self.pasteboard = pasteboard
-        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 860, height: 580),
-                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let aspect = CGFloat(image.width) / CGFloat(max(image.height, 1))
+        let visible = NSScreen.main?.visibleFrame.insetBy(dx: 80, dy: 80).size
+            ?? CGSize(width: 1100, height: 760)
+        let maximumHeight = min(860, visible.height)
+        let maximumWidth = min(1280, visible.width)
+        let initialWidth = min(maximumWidth, max(660, maximumWidth * 0.82))
+        let initialHeight = min(maximumHeight, max(380, initialWidth / aspect + 84))
+        let window = NSWindow(contentRect: CGRect(origin: .zero,
+                                                   size: CGSize(width: initialWidth, height: initialHeight)),
+                              styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         super.init(window: window)
         window.title = "Скриншот · \(image.width) × \(image.height)"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.minSize = CGSize(width: 660, height: 380)
         window.delegate = self
@@ -32,12 +43,17 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         let tools = NSStackView()
         tools.spacing = 6
         for (index, tool) in ScreenshotTool.allCases.enumerated() {
-            let button = NSButton(title: tool.rawValue, target: self, action: #selector(selectTool(_:)))
+            let button = NSButton(image: NSImage(systemSymbolName: tool.symbolName, accessibilityDescription: tool.rawValue)!,
+                                  target: self, action: #selector(selectTool(_:)))
             button.tag = index
             button.setButtonType(.pushOnPushOff)
-            button.bezelStyle = .rounded
+            button.bezelStyle = .texturedRounded
+            button.imageScaling = .scaleProportionallyDown
+            button.setAccessibilityLabel(tool.rawValue)
             button.toolTip = tool == .redact ? "Непрозрачная заливка. Надёжнее размытия." : tool.rawValue
             button.state = tool == .redact ? .on : .off
+            button.widthAnchor.constraint(equalToConstant: 30).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
             tools.addArrangedSubview(button)
             toolButtons.append(button)
         }
@@ -45,6 +61,8 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         scale.setAccessibilityLabel("Масштаб снимка")
         scale.target = self
         scale.action = #selector(changeScale(_:))
+        tools.addArrangedSubview(NSView())
+        scale.widthAnchor.constraint(equalToConstant: 96).isActive = true
         tools.addArrangedSubview(scale)
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
@@ -52,10 +70,27 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         scroll.minMagnification = 0.05
         scroll.maxMagnification = 4
         scroll.documentView = canvas
-        scroll.borderType = .bezelBorder
+        scroll.borderType = .noBorder
+        scroll.drawsBackground = false
         let actions = NSStackView(views: [undoButton, redoButton, NSView(), saveButton, copyButton])
         actions.spacing = 8
-        for button in [copyButton, saveButton, undoButton, redoButton] { button.target = self; button.bezelStyle = .rounded }
+        let actionSymbols: [(NSButton, String, String)] = [
+            (undoButton, "arrow.uturn.backward", "Отменить"),
+            (redoButton, "arrow.uturn.forward", "Повторить"),
+            (saveButton, "square.and.arrow.down", "Сохранить"),
+            (copyButton, "doc.on.doc", "Копировать")
+        ]
+        for (button, symbol, label) in actionSymbols {
+            button.target = self
+            button.bezelStyle = .texturedRounded
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+            button.title = ""
+            button.imagePosition = .imageOnly
+            button.setAccessibilityLabel(label)
+            button.toolTip = label
+            button.widthAnchor.constraint(equalToConstant: 30).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        }
         copyButton.action = #selector(copyImage)
         copyButton.keyEquivalent = "\r"
         copyButton.keyEquivalentModifierMask = [.command]
@@ -72,26 +107,43 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         status.textColor = .secondaryLabelColor
         status.maximumNumberOfLines = 3
         status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let root = NSView()
+        let root = NSVisualEffectView()
+        root.material = .windowBackground
+        root.blendingMode = .behindWindow
+        root.state = .active
         window.contentView = root
-        for view in [tools, scroll, actions, status] {
+        let toolbar = NSVisualEffectView()
+        toolbar.material = .headerView
+        toolbar.blendingMode = .withinWindow
+        toolbar.state = .active
+        toolbar.wantsLayer = true
+        toolbar.layer?.cornerRadius = 10
+        toolbar.layer?.masksToBounds = true
+        for view in [scroll, toolbar] {
             root.addSubview(view)
             view.translatesAutoresizingMaskIntoConstraints = false
         }
+        toolbar.addSubview(tools)
+        toolbar.addSubview(actions)
+        toolbar.addSubview(status)
+        for view in [tools, actions, status] { view.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
-            tools.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
-            tools.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
-            tools.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -12),
-            scroll.topAnchor.constraint(equalTo: tools.bottomAnchor, constant: 12),
+            scroll.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
             scroll.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             scroll.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
-            scroll.bottomAnchor.constraint(equalTo: actions.topAnchor, constant: -12),
-            actions.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
-            actions.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
-            status.topAnchor.constraint(equalTo: actions.bottomAnchor, constant: 8),
-            status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
-            status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
-            status.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -12)
+            scroll.bottomAnchor.constraint(equalTo: toolbar.topAnchor, constant: -10),
+            toolbar.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            toolbar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            toolbar.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -12),
+            toolbar.heightAnchor.constraint(equalToConstant: 48),
+            tools.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 8),
+            tools.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+            actions.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -8),
+            actions.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+            status.centerXAnchor.constraint(equalTo: toolbar.centerXAnchor),
+            status.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+            status.leadingAnchor.constraint(greaterThanOrEqualTo: tools.trailingAnchor, constant: 12),
+            status.trailingAnchor.constraint(lessThanOrEqualTo: actions.leadingAnchor, constant: -12)
         ])
         canvas.onChange = { [weak self] in self?.refresh() }
         canvas.onLimit = { [weak self] in
@@ -209,7 +261,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         guard !exporting else { return }
         exporting = true
         refresh()
-        status.stringValue = "Подготовка снимка…"
+        status.stringValue = "Подготовка…"
         let image = canvas.image, annotations = canvas.edits.annotations
         Task { [weak self] in
             do {

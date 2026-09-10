@@ -6,6 +6,16 @@ import UniformTypeIdentifiers
 
 enum ScreenshotTool: String, CaseIterable, Sendable {
     case redact = "Скрыть", pen = "Перо", arrow = "Стрелка", rectangle = "Рамка", text = "Текст"
+
+    var symbolName: String {
+        switch self {
+        case .redact: "eye.slash"
+        case .pen: "pencil"
+        case .arrow: "arrow.up.right"
+        case .rectangle: "rectangle"
+        case .text: "textformat"
+        }
+    }
 }
 
 /// Coordinates are pixels, origin at the top left, independent of view zoom.

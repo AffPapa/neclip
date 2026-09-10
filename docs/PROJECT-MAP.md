@@ -9,13 +9,15 @@ rejections, UX contract and acceptance gates. This local module is **not yet a
 published screenshot release**. The user has authorized installing the signed
 candidate with rollback; public version metadata must remain unchanged until release acceptance.
 
-- `ScreenshotCoordinator.swift`: lazy, one-shot ScreenCaptureKit capture; permission
-  explanation on explicit request, one display/selection/editor at a time, Escape
-  and display-change cancellation. Native `ScreenshotSelectionView` owns the drag.
+- `ScreenshotCoordinator.swift`: lazy, one-shot ScreenCaptureKit capture; instant
+  inert shell, own-window exclusion, generation-guarded cancellation on Escape or
+  display changes, and detached crop before the editor. Native `ScreenshotSelectionView`
+  owns the drag only after the frame is ready.
 - `ScreenshotDocument.swift`: bounded vector undo/redo; pixel geometry, detached
   crop, shared preview/export renderer, final opaque redaction and ImageIO PNG/JPEG.
-- `ScreenshotEditorWindow.swift`: five tools, visible zoom, native text entry,
-  Copy/Save, busy/close guards, scoped folder bookmark and clipboard generation check.
+- `ScreenshotEditorWindow.swift`: image-first canvas, compact bottom SF Symbol toolbar,
+  five tools, visible zoom, native text entry, Copy/Save, busy/close guards, scoped
+  folder bookmark and clipboard generation check.
 - `AppDelegate` / `HotKeyCoordinator` / `Settings` / `StatusBarController`:
   sixth configurable shortcut (default ⌘⇧2), menu fallback and application-owned lifecycle.
 - `PreferencesWindow`: screenshot hotkey and destination folder in the existing

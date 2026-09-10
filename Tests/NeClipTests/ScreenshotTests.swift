@@ -69,11 +69,13 @@ final class ScreenshotTests: XCTestCase {
             (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
         }
         let all = buttons(root)
-        for tool in ScreenshotTool.allCases { XCTAssertEqual(all.filter { $0.title == tool.rawValue }.count, 1) }
-        XCTAssertEqual(all.first { $0.title == "Копировать" }?.keyEquivalent, "\r")
-        XCTAssertEqual(all.first { $0.title == "Сохранить…" }?.keyEquivalent, "s")
-        XCTAssertEqual(all.first { $0.title == "Отменить" }?.isEnabled, false)
-        XCTAssertEqual(all.first { $0.title == "Повторить" }?.isEnabled, false)
+        // The image-first editor intentionally uses compact icon buttons. Verify
+        // the stable accessibility labels instead of presentation titles.
+        for tool in ScreenshotTool.allCases { XCTAssertEqual(all.filter { $0.accessibilityLabel() == tool.rawValue }.count, 1) }
+        XCTAssertEqual(all.first { $0.accessibilityLabel() == "Копировать" }?.keyEquivalent, "\r")
+        XCTAssertEqual(all.first { $0.accessibilityLabel() == "Сохранить" }?.keyEquivalent, "s")
+        XCTAssertEqual(all.first { $0.accessibilityLabel() == "Отменить" }?.isEnabled, false)
+        XCTAssertEqual(all.first { $0.accessibilityLabel() == "Повторить" }?.isEnabled, false)
         XCTAssertEqual(window.minSize, CGSize(width: 660, height: 380))
         XCTAssertTrue(controller.windowShouldClose(window))
         let zoom = try XCTUnwrap(all.compactMap { $0 as? NSPopUpButton }.first)
@@ -136,6 +138,13 @@ final class ScreenshotTests: XCTestCase {
         view.keyDown(with: escape)
         XCTAssertTrue(cancelled)
         XCTAssertNil(result)
+
+        let pending = ScreenshotSelectionView(frame: CGRect(x: 0, y: 0, width: 100, height: 100), image: nil)
+        var pendingResult: CGRect?
+        pending.onSelect = { pendingResult = $0 }
+        pending.mouseDown(with: try mouse(.leftMouseDown, CGPoint(x: 10, y: 10)))
+        pending.mouseUp(with: try mouse(.leftMouseUp, CGPoint(x: 90, y: 90)))
+        XCTAssertNil(pendingResult, "The selection shell must stay inert until the frame is ready")
     }
 
     func testPixelRoundingUsesIndependentScales() {
