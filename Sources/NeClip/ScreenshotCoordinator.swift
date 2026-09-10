@@ -19,6 +19,7 @@ final class ScreenshotCoordinator {
     init(monitor: ClipboardMonitor) { self.monitor = monitor }
 
     func start() {
+        ScreenshotMetrics.mark("hotkey")
         if let editor { editor.showWindow(nil); editor.window?.makeKeyAndOrderFront(nil); return }
         if let selection { selection.makeKeyAndOrderFront(nil); return }
         guard captureTask == nil else { return }
@@ -52,6 +53,7 @@ final class ScreenshotCoordinator {
             defer { captureTask = nil }
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                ScreenshotMetrics.mark("content-ready")
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
                 guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
@@ -81,6 +83,7 @@ final class ScreenshotCoordinator {
                 configuration.colorSpaceName = CGColorSpace.sRGB
                 configuration.captureResolution = .best
                 let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
+                ScreenshotMetrics.mark("capture-ready")
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
                 guard image.width > 0, image.height > 0,
@@ -92,6 +95,7 @@ final class ScreenshotCoordinator {
                 }) else { throw ScreenshotFailure.invalidImage }
                 capturedImage = image
                 selection?.contentView.flatMap { $0 as? ScreenshotSelectionView }?.setImage(image)
+                ScreenshotMetrics.mark("selection-ready")
             } catch is CancellationError {
                 // Cancellation neither writes files nor changes the clipboard.
             } catch {
@@ -178,6 +182,7 @@ final class ScreenshotCoordinator {
         NSApp.activate(ignoringOtherApps: true)
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
+        ScreenshotMetrics.mark("editor-visible")
     }
 
     private func showError(_ message: String) {
@@ -203,6 +208,10 @@ final class ScreenshotSelectionView: NSView {
     private var pointer = CGPoint.zero
     private var pointerInside = false
     private var hasDragged = false
+    private var spaceHeld = false
+    private var movingSelection = false
+    private var moveOrigin = CGPoint.zero
+    private var selectionAtMoveStart = CGRect.zero
     private var trackingArea: NSTrackingArea?
     override var acceptsFirstResponder: Bool { true }
 
@@ -244,18 +253,42 @@ final class ScreenshotSelectionView: NSView {
         needsDisplay = true
     }
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { onCancel?() }
+        switch event.keyCode {
+        case 53: onCancel?()
+        case 49: spaceHeld = true
+        default: break
+        }
+    }
+    override func keyUp(with event: NSEvent) {
+        if event.keyCode == 49 { spaceHeld = false }
     }
     override func mouseDown(with event: NSEvent) {
         guard image != nil else { return }
-        start = convert(event.locationInWindow, from: nil)
+        let point = convert(event.locationInWindow, from: nil)
+        if spaceHeld, !selection.isEmpty, selection.contains(point) {
+            movingSelection = true
+            moveOrigin = point
+            selectionAtMoveStart = selection
+            return
+        }
+        start = point
         pointer = start ?? .zero
         hasDragged = false
     }
     override func mouseDragged(with event: NSEvent) {
-        guard image != nil, let start else { return }
+        guard image != nil else { return }
         let end = convert(event.locationInWindow, from: nil)
         pointer = end
+        if movingSelection {
+            let delta = CGPoint(x: end.x - moveOrigin.x, y: end.y - moveOrigin.y)
+            var moved = selectionAtMoveStart.offsetBy(dx: delta.x, dy: delta.y)
+            moved.origin.x = min(max(0, moved.origin.x), max(0, bounds.width - moved.width))
+            moved.origin.y = min(max(0, moved.origin.y), max(0, bounds.height - moved.height))
+            selection = moved
+            needsDisplay = true
+            return
+        }
+        guard let start else { return }
         hasDragged = true
         selection = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
                            width: abs(start.x - end.x), height: abs(start.y - end.y)).intersection(bounds)
@@ -263,6 +296,13 @@ final class ScreenshotSelectionView: NSView {
     }
     override func mouseUp(with event: NSEvent) {
         guard image != nil else { return }
+        if movingSelection {
+            movingSelection = false
+            moveOrigin = .zero
+            selectionAtMoveStart = .zero
+            needsDisplay = true
+            return
+        }
         mouseDragged(with: event)
         if selection.width >= 2, selection.height >= 2 { onSelect?(selection) }
         else { start = nil; hasDragged = false }
@@ -292,6 +332,7 @@ final class ScreenshotSelectionView: NSView {
             let border = NSBezierPath(rect: selection)
             border.lineWidth = 1
             border.stroke()
+            drawSelectionSize()
         }
     }
 
@@ -329,5 +370,19 @@ final class ScreenshotSelectionView: NSView {
         path.move(to: CGPoint(x: pointer.x, y: pointer.y - 18))
         path.line(to: CGPoint(x: pointer.x, y: pointer.y + 18))
         path.stroke()
+    }
+
+    private func drawSelectionSize() {
+        let text = "\(Int(selection.width.rounded())) × \(Int(selection.height.rounded()))"
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+            .foregroundColor: NSColor.white
+        ]
+        let size = (text as NSString).size(withAttributes: attributes)
+        let rect = CGRect(x: selection.minX, y: max(4, selection.minY - size.height - 10),
+                          width: size.width + 14, height: size.height + 6)
+        NSColor.black.withAlphaComponent(0.72).setFill()
+        NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
+        (text as NSString).draw(at: CGPoint(x: rect.minX + 7, y: rect.minY + 3), withAttributes: attributes)
     }
 }

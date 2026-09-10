@@ -4,6 +4,19 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.4.0 / build 28 — release candidate, 2026-09-10
+
+Screenshot UX and performance pass based on a fresh comparison of 15 macOS
+utilities and 50 documented features. The selection overlay now supports
+Space‑move and live dimensions; the editor accepts text directly on the image
+and `1…5` selects tools without opening a panel. Capture lifecycle is fail‑closed
+when the pending overlay cannot be excluded, crop uses one target buffer, and
+latency diagnostics record stages without content, paths or app names.
+
+No accounts, cloud, gallery, search, OCR, video or new package dependency were
+added. Full research and the deliberately rejected feature list are in
+`docs/RESEARCH-SCREENSHOTS-2026-09-10.md`.
+
 ## 2.3.1 / build 27 — published, 2026-09-10
 
 Native region screenshots, five annotation tools, opaque redaction, undo/redo,

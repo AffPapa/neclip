@@ -2,7 +2,15 @@ import CoreGraphics
 import CoreText
 import Foundation
 import ImageIO
+import os
 import UniformTypeIdentifiers
+
+/// Low-cost diagnostics for the latency gate. Stages never include pixels,
+/// clipboard contents, file paths or application names.
+enum ScreenshotMetrics {
+    private static let logger = Logger(subsystem: "org.affpapa.neclip", category: "Screenshot")
+    static func mark(_ stage: String) { logger.debug("stage=\(stage, privacy: .public)") }
+}
 
 enum ScreenshotTool: String, CaseIterable, Sendable {
     case redact = "Скрыть", pen = "Перо", arrow = "Стрелка", rectangle = "Рамка", text = "Текст"

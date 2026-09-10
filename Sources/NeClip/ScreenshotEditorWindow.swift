@@ -151,7 +151,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
             self?.status.textColor = .systemRed
         }
         canvas.onCancel = { [weak window] in window?.performClose(nil) }
-        canvas.onTextRequested = { [weak self] point in self?.addText(at: point) }
+        canvas.onTextCommitted = { [weak self] point, text in
+            self?.canvas.edits.append(ScreenshotAnnotation(tool: .text, points: [point], text: text))
+            self?.refresh()
+        }
+        canvas.onToolRequested = { [weak self] index in self?.selectTool(at: index) }
         window.center()
         root.layoutSubtreeIfNeeded()
         changeScale(scale)
@@ -161,8 +165,12 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     required init?(coder: NSCoder) { nil }
 
     @objc private func selectTool(_ sender: NSButton) {
-        canvas.tool = ScreenshotTool.allCases[sender.tag]
-        for button in toolButtons { button.state = button === sender ? .on : .off }
+        selectTool(at: sender.tag)
+    }
+    private func selectTool(at index: Int) {
+        guard ScreenshotTool.allCases.indices.contains(index) else { return }
+        canvas.tool = ScreenshotTool.allCases[index]
+        for button in toolButtons { button.state = button.tag == index ? .on : .off }
         window?.makeFirstResponder(canvas)
     }
     @objc private func undoEdit() { canvas.edits.undo(); refresh() }
@@ -193,24 +201,6 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         copyButton.isEnabled = !exporting
         saveButton.isEnabled = !exporting
         for button in toolButtons { button.isEnabled = !exporting }
-    }
-
-    private func addText(at point: CGPoint) {
-        guard let window else { return }
-        let alert = NSAlert()
-        alert.messageText = "Текст на снимке"
-        let field = NSTextField(frame: CGRect(x: 0, y: 0, width: 320, height: 24))
-        field.placeholderString = "Короткая подпись"
-        field.setAccessibilityLabel("Текст подписи")
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Добавить")
-        alert.addButton(withTitle: "Отмена")
-        alert.window.initialFirstResponder = field
-        alert.beginSheetModal(for: window) { [weak self] response in
-            guard response == .alertFirstButtonReturn, !field.stringValue.isEmpty else { return }
-            self?.canvas.edits.append(ScreenshotAnnotation(tool: .text, points: [point], text: String(field.stringValue.prefix(1000))))
-            self?.refresh()
-        }
     }
 
     @objc private func copyImage() {
@@ -259,6 +249,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     private func export(format: ScreenshotFormat, fileURL: URL? = nil,
                         publish: ((Data) throws -> Void)? = nil) {
         guard !exporting else { return }
+        ScreenshotMetrics.mark("export-start")
         exporting = true
         refresh()
         status.stringValue = "Подготовка…"
@@ -274,6 +265,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
                         try ScreenshotFileExport.write(data, to: fileURL)
                     }.value
                 } else { try publish?(data) }
+                ScreenshotMetrics.mark("export-finished")
                 exporting = false
                 completed = true
                 window.close()
@@ -342,6 +334,23 @@ enum ScreenshotFolder {
 }
 
 @MainActor
+private final class ScreenshotInlineTextField: NSTextField {
+    var onCommit: ((String) -> Void)?
+    var onCancel: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 36, 76:
+            onCommit?(stringValue)
+        case 53:
+            onCancel?()
+        default:
+            super.keyDown(with: event)
+        }
+    }
+}
+
+@MainActor
 private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     let image: CGImage
     var edits = ScreenshotEdits()
@@ -350,8 +359,10 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     var onChange: (() -> Void)?
     var onLimit: (() -> Void)?
     var onCancel: (() -> Void)?
-    var onTextRequested: ((CGPoint) -> Void)?
+    var onTextCommitted: ((CGPoint, String) -> Void)?
+    var onToolRequested: ((Int) -> Void)?
     private var draft: ScreenshotAnnotation?
+    private var textEntry: ScreenshotInlineTextField?
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     init(image: CGImage) {
@@ -362,7 +373,12 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     required init?(coder: NSCoder) { nil }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { onCancel?() } else { super.keyDown(with: event) }
+        if event.keyCode == 53 { onCancel?(); return }
+        if let value = event.charactersIgnoringModifiers.flatMap({ Int($0) }), (1...5).contains(value) {
+            onToolRequested?(value - 1)
+            return
+        }
+        super.keyDown(with: event)
     }
     @objc func undo(_ sender: Any?) { edits.undo(); onChange?() }
     @objc func redo(_ sender: Any?) { edits.redo(); onChange?() }
@@ -376,7 +392,7 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
         guard edits.annotations.count < ScreenshotEdits.maximumAnnotations else { onLimit?(); return }
         window?.makeFirstResponder(self)
         let point = location(event)
-        if tool == .text { onTextRequested?(point); return }
+        if tool == .text { beginTextEntry(at: point); return }
         draft = ScreenshotAnnotation(tool: tool, points: [point])
     }
     override func mouseDragged(with event: NSEvent) {
@@ -398,6 +414,38 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     private func location(_ event: NSEvent) -> CGPoint {
         let p = convert(event.locationInWindow, from: nil)
         return CGPoint(x: min(bounds.width, max(0, p.x)), y: min(bounds.height, max(0, p.y)))
+    }
+
+    func beginTextEntry(at point: CGPoint) {
+        textEntry?.removeFromSuperview()
+        let field = ScreenshotInlineTextField(frame: CGRect(x: min(max(8, point.x), max(8, bounds.width - 248)),
+                                                             y: min(max(8, point.y - 18), max(8, bounds.height - 42)),
+                                                             width: min(240, max(120, bounds.width - 16)), height: 34))
+        field.placeholderString = "Введите текст"
+        field.font = NSFont.systemFont(ofSize: 20, weight: .medium)
+        field.textColor = .labelColor
+        field.backgroundColor = .windowBackgroundColor
+        field.drawsBackground = true
+        field.isBordered = true
+        field.bezelStyle = .roundedBezel
+        field.focusRingType = .default
+        field.setAccessibilityLabel("Текст пометки")
+        field.onCommit = { [weak self, weak field] value in
+            guard let self, let field else { return }
+            let text = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
+            field.removeFromSuperview()
+            self.textEntry = nil
+            if !text.isEmpty { self.onTextCommitted?(point, text) }
+            self.window?.makeFirstResponder(self)
+        }
+        field.onCancel = { [weak self, weak field] in
+            field?.removeFromSuperview()
+            self?.textEntry = nil
+            self?.window?.makeFirstResponder(self)
+        }
+        addSubview(field)
+        textEntry = field
+        window?.makeFirstResponder(field)
     }
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
