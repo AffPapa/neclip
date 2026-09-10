@@ -1,6 +1,18 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current public release: **2.5.1/build 30**. The notarized artifact and checksum are recorded in `docs/version.json`.
+Updated: 10 September 2026. Current public release: **2.5.2/build 31**. The notarized artifact and checksum are recorded in `docs/version.json`.
+
+## 2.5.2 full audit and release
+
+`AUDIT-2.5.2-PLAN.md` defines the 100-point audit matrix and acceptance gates.
+The release pass fixed four concrete reliability defects: only unpinned history
+rows are eligible for next-text append; byte quota is re-read after count trim;
+opening Settings does not perform an implicit update request; and the layout
+event monitor retains itself until its event tap is removed. Regression coverage
+is in `StorageTests`, `MenuSimplificationContractTests`, and the existing full
+screen screenshot contracts. Full XCTest/Swift Testing, strict Swift 6,
+Developer ID, notarization, stapling, Gatekeeper and mounted-DMG checks passed.
+Evidence is in `RELEASE-2.5.2-STATUS.md`.
 
 ## Screenshot reliability and 2.5.1 pass
 
