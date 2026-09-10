@@ -4,7 +4,7 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 2.3.1 / build 27 — local screenshot candidate, 2026-09-10
+## 2.3.1 / build 27 — published, 2026-09-10
 
 Native region screenshots, five annotation tools, opaque redaction, undo/redo,
 PNG clipboard output and PNG/JPEG file export. One configurable shortcut and
@@ -20,10 +20,10 @@ The selection overlay now clearly explains the gesture before the first drag,
 shows a small crosshair, and removes the hint as soon as selection starts.
 
 The synthetic editor, all five tools, undo/redo, native PNG save and isolated
-clipboard copy have been exercised live. The signed 2.3.1/27 candidate is
-installed locally with 2.3.0/26 retained for rollback. Real ScreenCaptureKit
-capture remains a separate interactive acceptance check; this is not a public
-release.
+clipboard copy have been exercised live. The signed 2.3.1/27 release is
+installed locally with 2.3.0/26 retained for rollback. The exact notarized DMG
+is published in GitHub Release v2.3.1; its checksum and source commit are
+recorded in the release assets and status document.
 See `docs/SCREENSHOTS-IMPLEMENTATION-STATUS.md` for current evidence.
 
 ## 2.2.0 / build 25 — published, 2026-09-09

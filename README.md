@@ -31,7 +31,7 @@ candidate improvements and 27 selected refinements is in
 [Download the signed and notarized NeClip 2.3.1 DMG](https://github.com/AffPapa/neclip/releases/download/v2.3.1/NeClip-2.3.1.dmg)
 (2,034,114 bytes).
 SHA-256:
-`d1f52a358b716a14d1fe60d28870af9a486a7defe6094f6396000c742cee9d1c`.
+`31f598fa2b6a674576708e93949d350ac3b2bc46ec1865606b99aa77fdf13269`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
 Artifact source is recorded in the exact release JSON beside the DMG. Required
