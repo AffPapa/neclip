@@ -119,10 +119,14 @@ enum ScreenshotRenderer {
     static func crop(_ image: CGImage, to rect: CGRect) throws -> CGImage {
         let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
         let rect = rect.integral.intersection(bounds)
-        guard !rect.isNull, rect.width >= 1, rect.height >= 1,
-              let cropped = image.cropping(to: rect) else { throw ScreenshotFailure.emptySelection }
-        let context = try context(width: cropped.width, height: cropped.height)
-        context.draw(cropped, in: CGRect(x: 0, y: 0, width: cropped.width, height: cropped.height))
+        guard !rect.isNull, rect.width >= 1, rect.height >= 1 else {
+            throw ScreenshotFailure.emptySelection
+        }
+        // Draw directly into the detached target. This avoids retaining a
+        // source-backed cropped image while allocating the independent copy.
+        let context = try context(width: Int(rect.width), height: Int(rect.height))
+        context.draw(image, in: CGRect(x: -rect.minX, y: -rect.minY,
+                                       width: CGFloat(image.width), height: CGFloat(image.height)))
         guard let result = context.makeImage() else { throw ScreenshotFailure.invalidImage }
         return result
     }

@@ -62,8 +62,14 @@ final class ScreenshotCoordinator {
                 // every NeClip window would make it impossible to capture a window
                 // the user intentionally selected.
                 let overlayID = CGWindowID(selection?.windowNumber ?? 0)
-                let excluded = content.windows.filter { $0.windowID == overlayID }
-                let filter = SCContentFilter(display: display, excludingWindows: excluded)
+                guard overlayID != 0,
+                      let overlay = content.windows.first(where: { $0.windowID == overlayID }) else {
+                    // Never capture the pending black shell as if it were the
+                    // user's screen. A missing exclusion is unsafe, so fail
+                    // closed and let the user retry instead.
+                    throw ScreenshotFailure.invalidImage
+                }
+                let filter = SCContentFilter(display: display, excludingWindows: [overlay])
                 let configuration = SCStreamConfiguration()
                 configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
                 configuration.height = Int((filter.contentRect.height * CGFloat(filter.pointPixelScale)).rounded())
@@ -77,6 +83,9 @@ final class ScreenshotCoordinator {
                 let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: configuration)
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
+                guard image.width > 0, image.height > 0,
+                      image.width <= ScreenshotRenderer.maximumPixels / image.height,
+                      selection != nil else { return }
                 guard NSScreen.screens.contains(where: {
                     ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
                         && $0.frame == frame
