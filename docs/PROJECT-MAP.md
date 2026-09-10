@@ -1,6 +1,16 @@
 # NeClip project map
 
-Updated: 10 September 2026. Release candidate: **2.3.1/build 27**. Public release metadata is prepared for **2.3.1/build 27**.
+Updated: 10 September 2026. Current release: **2.4.0/build 28**. Public release metadata and Pages point to **2.4.0/build 28**.
+
+## Screenshot research and 2.4.0 pass
+
+`RESEARCH-SCREENSHOTS-2026-09-10.md` records 50 features from 15 macOS
+utilities and the 20-item selection. This pass keeps the product local and
+small: Space-move and live dimensions in the selection overlay, direct inline
+text entry, numeric tool shortcuts, fail-closed overlay exclusion, one-buffer
+crop, and privacy-safe latency marks. Window capture, repeat-area, drag source
+and availability-specific direct APIs remain deferred until their own QA can
+prove they do not slow or complicate the main flow.
 
 ## Screenshot work in progress — 10 September 2026
 

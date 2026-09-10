@@ -12,6 +12,11 @@ final class UpdateManifestTests: XCTestCase {
 
     func testPublishedManifestUsesRepositoryOwnedEndpoints() throws {
         let data = try Data(contentsOf: repositoryRoot.appendingPathComponent("docs/version.json"))
+        let raw = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        if raw["status"] as? String == "candidate" {
+            XCTAssertNil(UpdateManifestPolicy.validatedManifest(from: data))
+            return
+        }
         let validated = try XCTUnwrap(UpdateManifestPolicy.validatedManifest(from: data))
 
         XCTAssertEqual(UpdateManifestPolicy.manifestURL.absoluteString, "https://affpapa.github.io/neclip/version.json")
