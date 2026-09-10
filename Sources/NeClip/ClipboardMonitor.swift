@@ -205,6 +205,25 @@ final class ClipboardMonitor: @unchecked Sendable {
         }
     }
 
+    /// Explicit final screenshot ingestion uses the same queue as ordinary
+    /// captures, so stop-and-drain privacy cleanup also covers these writes.
+    @MainActor
+    func recordScreenshot(_ png: Data, width: Int, height: Int, sourceBundleID: String?) -> Bool {
+        let ignored = Settings.consumeIgnoreNextCopy()
+        guard ScreenshotHistoryPolicy.shouldStore(
+            running: isRunning, ignored: ignored, paused: Settings.isCapturePaused,
+            capturesImages: Settings.captureImages, clipboardAllowed: ClipboardAccess.current.permitsBackgroundRead,
+            sourceBundleID: sourceBundleID, excludedApps: Set(Settings.excludedApps),
+            excludedTransition: excludedTransitionUntil.map { $0 > Date() } ?? false,
+            byteCount: png.count, width: width, height: height) else { return false }
+        processingQueue.async { [weak self] in
+            self?.insert(ClipItem(kind: .image, title: "Скриншот \(width)×\(height)", data: png,
+                                 appBundleID: sourceBundleID, createdAt: Date(), contentBytes: Int64(png.count),
+                                 contentHash: ContentDigest.sha256(png)))
+        }
+        return true
+    }
+
     private func applicationDidActivate(_ notification: Notification) {
         precondition(Thread.isMainThread)
         let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication

@@ -12,7 +12,7 @@ final class MenuSimplificationContractTests: XCTestCase {
         let source = try source()
         XCTAssertEqual(source.components(separatedBy: "appendSnippetFolders(to: menu)").count - 1, 2)
         for retired in ["topEntry", "UndoDeletion", "firstResultActionsItem", "textTransformMenuItem",
-                        "Быстрый доступ", "Папки сниппетов"] {
+                        "Быстрый доступ", "Папки сниппетов", "Закрепить текущую для", "Управление"] {
             XCTAssertFalse(source.contains(retired), "Retired menu behavior: \(retired)")
         }
         let start = try XCTUnwrap(source.range(of: "private func buildSnippetsMenu()"))

@@ -139,6 +139,11 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
         modifiers: [.control, .command]
     )
 
+    static let screenshotDefault = ShortcutDescriptor(
+        keyCode: UInt32(kVK_ANSI_2),
+        modifiers: [.command, .shift]
+    )
+
     var keyLabel: String? {
         Self.keyLabels[keyCode]
     }

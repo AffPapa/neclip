@@ -1,0 +1,211 @@
+import CoreGraphics
+import CoreText
+import Foundation
+import ImageIO
+import UniformTypeIdentifiers
+
+enum ScreenshotTool: String, CaseIterable, Sendable {
+    case redact = "Скрыть", pen = "Перо", arrow = "Стрелка", rectangle = "Рамка", text = "Текст"
+
+    var symbolName: String {
+        switch self {
+        case .redact: "eye.slash"
+        case .pen: "pencil"
+        case .arrow: "arrow.up.right"
+        case .rectangle: "rectangle"
+        case .text: "textformat"
+        }
+    }
+}
+
+/// Coordinates are pixels, origin at the top left, independent of view zoom.
+struct ScreenshotAnnotation: Equatable, Sendable {
+    var tool: ScreenshotTool
+    var points: [CGPoint]
+    var text = ""
+
+    var rect: CGRect {
+        guard let first = points.first, let last = points.last else { return .zero }
+        return CGRect(x: min(first.x, last.x), y: min(first.y, last.y),
+                      width: abs(last.x - first.x), height: abs(last.y - first.y))
+    }
+}
+
+struct ScreenshotEdits: Sendable {
+    static let maximumAnnotations = 128
+    private(set) var annotations: [ScreenshotAnnotation] = []
+    private(set) var undone: [ScreenshotAnnotation] = []
+    mutating func append(_ annotation: ScreenshotAnnotation) {
+        guard annotations.count < Self.maximumAnnotations, !annotation.points.isEmpty else { return }
+        annotations.append(annotation)
+        undone.removeAll()
+    }
+    mutating func undo() { if let item = annotations.popLast() { undone.append(item) } }
+    mutating func redo() { if let item = undone.popLast() { annotations.append(item) } }
+}
+
+enum ScreenshotFailure: LocalizedError {
+    case invalidImage, displayTooLarge, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
+    var errorDescription: String? {
+        switch self {
+        case .invalidImage: "Не удалось подготовить изображение. Выберите меньшую область."
+        case .displayTooLarge: "Разрешение экрана превышает лимит 32 мегапикселя. Снимки с этого экрана пока недоступны."
+        case .emptySelection: "Выделите область экрана."
+        case .exportFailed: "Не удалось сохранить снимок. Проверьте папку и свободное место."
+        case .clipboardChanged: "Буфер уже изменился. Нажмите «Копировать» ещё раз, если хотите заменить его снимком."
+        case .clipboardWriteFailed: "Не удалось записать снимок в буфер. Попробуйте ещё раз."
+        }
+    }
+}
+
+enum ScreenshotFormat: String, CaseIterable, Sendable {
+    case png = "PNG", jpeg = "JPEG"
+    var type: UTType { self == .png ? .png : .jpeg }
+    var suffix: String { self == .png ? "png" : "jpg" }
+}
+
+enum ScreenshotFileExport {
+    /// Called only after NSSavePanel confirms a destination/replacement.
+    /// The input is the flattened export, never the source screenshot.
+    static func write(_ data: Data, to url: URL) throws {
+        let access = url.startAccessingSecurityScopedResource()
+        defer { if access { url.stopAccessingSecurityScopedResource() } }
+        try data.write(to: url, options: .atomic)
+    }
+}
+
+enum ScreenshotHistoryPolicy {
+    static func shouldStore(running: Bool, ignored: Bool, paused: Bool, capturesImages: Bool,
+                            clipboardAllowed: Bool, sourceBundleID: String?, excludedApps: Set<String>,
+                            excludedTransition: Bool, byteCount: Int, width: Int, height: Int) -> Bool {
+        running && !ignored && !paused && capturesImages && clipboardAllowed
+            && !ClipboardCapturePolicy.shouldRejectSource(bundleID: sourceBundleID,
+                excludedTransitionActive: excludedTransition, excludedApps: excludedApps)
+            && ClipboardCapturePolicy.acceptsImage(byteCount: byteCount, width: width, height: height)
+    }
+}
+
+enum ScreenshotRenderer {
+    // One 8-bit RGBA working image is at most 128 MB. No unbounded full-screen caches.
+    static let maximumPixels = 32_000_000
+
+    static func pixelRect(selection: CGRect, screen: CGRect, width: Int, height: Int) -> CGRect? {
+        guard screen.width > 0, screen.height > 0, width > 0, height > 0,
+              [selection.minX, selection.minY, selection.width, selection.height,
+               screen.minX, screen.minY, screen.width, screen.height].allSatisfy(\.isFinite) else { return nil }
+        let region = selection.intersection(screen)
+        guard !region.isNull, region.width > 0, region.height > 0 else { return nil }
+        let sx = CGFloat(width) / screen.width, sy = CGFloat(height) / screen.height
+        let left = floor((region.minX - screen.minX) * sx)
+        let top = floor((screen.maxY - region.maxY) * sy)
+        let right = ceil((region.maxX - screen.minX) * sx)
+        let bottom = ceil((screen.maxY - region.minY) * sy)
+        return CGRect(x: left, y: top, width: right - left, height: bottom - top)
+            .intersection(CGRect(x: 0, y: 0, width: width, height: height))
+    }
+
+    static func context(width: Int, height: Int) throws -> CGContext {
+        guard width > 0, height > 0, width <= maximumPixels / height,
+              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                      bytesPerRow: 0, space: colorSpace,
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+            throw ScreenshotFailure.invalidImage
+        }
+        return context
+    }
+
+    /// A real copy: releasing the full display image can release its backing buffer.
+    static func crop(_ image: CGImage, to rect: CGRect) throws -> CGImage {
+        let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let rect = rect.integral.intersection(bounds)
+        guard !rect.isNull, rect.width >= 1, rect.height >= 1,
+              let cropped = image.cropping(to: rect) else { throw ScreenshotFailure.emptySelection }
+        let context = try context(width: cropped.width, height: cropped.height)
+        context.draw(cropped, in: CGRect(x: 0, y: 0, width: cropped.width, height: cropped.height))
+        guard let result = context.makeImage() else { throw ScreenshotFailure.invalidImage }
+        return result
+    }
+
+    static func render(_ image: CGImage, annotations: [ScreenshotAnnotation]) throws -> CGImage {
+        let context = try context(width: image.width, height: image.height)
+        draw(image, annotations: annotations, in: context)
+        guard let result = context.makeImage() else { throw ScreenshotFailure.invalidImage }
+        return result
+    }
+
+    /// Shared by preview and export. Redaction always wins, even over later annotations.
+    static func draw(_ image: CGImage, annotations: [ScreenshotAnnotation], in context: CGContext) {
+        context.saveGState()
+        let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        context.clip(to: bounds)
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(bounds)
+        context.draw(image, in: bounds)
+        context.translateBy(x: 0, y: CGFloat(image.height))
+        context.scaleBy(x: 1, y: -1)
+        context.setStrokeColor(CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1))
+        context.setFillColor(CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1))
+        context.setLineWidth(4)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+        for annotation in annotations where annotation.tool != .redact {
+            guard let start = annotation.points.first, let end = annotation.points.last else { continue }
+            switch annotation.tool {
+            case .pen:
+                context.beginPath()
+                context.move(to: start)
+                for point in annotation.points.dropFirst() { context.addLine(to: point) }
+                if annotation.points.count == 1 { context.addLine(to: CGPoint(x: start.x + 0.1, y: start.y)) }
+                context.strokePath()
+            case .arrow:
+                context.beginPath()
+                context.move(to: start)
+                context.addLine(to: end)
+                let angle = atan2(end.y - start.y, end.x - start.x)
+                let size = min(18.0, hypot(end.x - start.x, end.y - start.y) * 0.4)
+                for offset in [-CGFloat.pi / 6, CGFloat.pi / 6] {
+                    context.move(to: end)
+                    context.addLine(to: CGPoint(x: end.x - size * cos(angle + offset),
+                                               y: end.y - size * sin(angle + offset)))
+                }
+                context.strokePath()
+            case .rectangle: context.stroke(annotation.rect)
+            case .text:
+                context.saveGState()
+                context.translateBy(x: start.x, y: start.y)
+                context.scaleBy(x: 1, y: -1)
+                context.textMatrix = .identity
+                context.textPosition = CGPoint(x: 0, y: -24)
+                let text = NSAttributedString(string: String(annotation.text.prefix(1000)), attributes: [
+                    NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 24, nil),
+                    NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1)
+                ])
+                CTLineDraw(CTLineCreateWithAttributedString(text), context)
+                context.restoreGState()
+            case .redact: break
+            }
+        }
+        context.setBlendMode(.copy)
+        context.setShouldAntialias(false)
+        context.setFillColor(CGColor(gray: 0, alpha: 1))
+        for annotation in annotations where annotation.tool == .redact {
+            context.fill(annotation.rect.integral)
+        }
+        context.restoreGState()
+    }
+
+    static func encode(_ image: CGImage, annotations: [ScreenshotAnnotation], format: ScreenshotFormat) throws -> Data {
+        let flattened = try render(image, annotations: annotations)
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, format.type.identifier as CFString, 1, nil) else {
+            throw ScreenshotFailure.exportFailed
+        }
+        // Construct from pixels, never pass source metadata or hidden annotation layers.
+        let properties: CFDictionary = (format == .jpeg
+            ? [kCGImageDestinationLossyCompressionQuality: 0.9] : [:]) as CFDictionary
+        CGImageDestinationAddImage(destination, flattened, properties)
+        guard CGImageDestinationFinalize(destination) else { throw ScreenshotFailure.exportFailed }
+        return data as Data
+    }
+}

@@ -15,14 +15,15 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.1.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "24")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.3.1")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "27")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
             encoding: .utf8
         )
         XCTAssertTrue(main.contains("setActivationPolicy(.accessory)"))
+        XCTAssertTrue(main.contains("withExtendedLifetime(delegate) { app.run() }"))
 
         let statusBar = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/StatusBarController.swift"),
@@ -45,7 +46,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(statusBar.contains("Вставить и удалить"))
         XCTAssertTrue(statusBar.contains("За последний час…"))
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
-        XCTAssertTrue(statusBar.contains("Закрепить текущую для"))
+        XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
         XCTAssertFalse(statusBar.contains("MenuSearchKeyPolicy"))
         XCTAssertFalse(

@@ -3,6 +3,7 @@ import Foundation
 enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
     case history
     case snippets
+    case screenshot
     case sequentialPaste
     case manualCorrection
     case disableAutomaticCorrection
@@ -11,6 +12,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
         switch self {
         case .history: .historyDefault
         case .snippets: .snippetsDefault
+        case .screenshot: .screenshotDefault
         case .sequentialPaste: .sequentialPasteDefault
         case .manualCorrection: .defaultManualLayout
         case .disableAutomaticCorrection: .defaultDisableAutomaticLayout
@@ -25,6 +27,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
         switch self {
         case .history: "история доступна через значок NeClip"
         case .snippets: "папки сниппетов доступны по правому клику на NeClip"
+        case .screenshot: "скриншот доступен через меню NeClip"
         case .sequentialPaste: "последовательная вставка доступна в меню NeClip"
         case .manualCorrection: "ручное исправление доступно в меню"
         case .disableAutomaticCorrection: "автоисправление можно выключить в меню"
@@ -45,7 +48,7 @@ enum ShortcutUpdateResult: Equatable, Sendable {
 
 /// The single owner of every global shortcut. A replacement is registered
 /// before the working token or persisted setting changes. Reset releases and
-/// restores all five registrations as one transaction, which also supports
+/// restores all registrations as one transaction, which also supports
 /// valid cross-assignments without leaving a partial shortcut set behind.
 @MainActor
 final class HotKeyCoordinator {
@@ -87,11 +90,13 @@ final class HotKeyCoordinator {
         snippetsAction: @escaping GlobalHotKey.Action,
         sequentialPasteAction: @escaping GlobalHotKey.Action,
         manualCorrectionAction: @escaping GlobalHotKey.Action,
-        disableAutomaticCorrectionAction: @escaping GlobalHotKey.Action
+        disableAutomaticCorrectionAction: @escaping GlobalHotKey.Action,
+        screenshotAction: @escaping GlobalHotKey.Action = {}
     ) {
         callbacks = [
             .history: historyAction,
             .snippets: snippetsAction,
+            .screenshot: screenshotAction,
             .sequentialPaste: sequentialPasteAction,
             .manualCorrection: manualCorrectionAction,
             .disableAutomaticCorrection: disableAutomaticCorrectionAction

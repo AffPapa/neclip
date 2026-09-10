@@ -4,6 +4,35 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.3.1 / build 27 — local screenshot candidate, 2026-09-10
+
+Native region screenshots, five annotation tools, opaque redaction, undo/redo,
+PNG clipboard output and PNG/JPEG file export. One configurable shortcut and
+a destination folder reuse the existing settings. No new package dependency,
+cloud service, gallery, background screen stream or raw screenshot file.
+
+The capture shell now appears immediately and stays inert until the frame is
+ready; only that shell is excluded from ScreenCaptureKit. Cancellation is
+generation-safe and Retina crop runs off the main actor. The editor is now
+image-first with a transparent titlebar, proportion-aware initial size and one
+compact bottom toolbar of SF Symbols with Russian accessibility labels.
+The selection overlay now clearly explains the gesture before the first drag,
+shows a small crosshair, and removes the hint as soon as selection starts.
+
+The synthetic editor, all five tools, undo/redo, native PNG save and isolated
+clipboard copy have been exercised live. The signed 2.3.1/27 candidate is
+installed locally with 2.3.0/26 retained for rollback. Real ScreenCaptureKit
+capture remains a separate interactive acceptance check; this is not a public
+release.
+See `docs/SCREENSHOTS-IMPLEMENTATION-STATUS.md` for current evidence.
+
+## 2.2.0 / build 25 — published, 2026-09-09
+
+Chronological history, snippet folders directly in the menu and low-frequency
+commands grouped under `Ещё…`. Per-application layout pinning was removed from
+the menu without deleting compatible stored metadata.
+See `docs/RELEASE-2.2.0-STATUS.md` for signing and notarization evidence.
+
 ## 2.1.0 / build 24 — published, 2026-09-08
 
 Built from merge commit `93a836dfc65a97c5e6d592f9d70b6629a63963bc`.
@@ -462,3 +491,8 @@ downloadable releases. Their improvements are now included in 1.8.0.
   accepted by Gatekeeper outside and inside the mounted image.
 - Public download: [NeClip 1.4.0](https://github.com/AffPapa/neclip/releases/download/v1.4.0/NeClip-1.4.0.dmg).
 - SHA-256: `0dc548a6625a74c6fac22bb4bf128ae174ab192631025cf7095a4d7fcceaf612`.
+## 2.2.0 — 9 September 2026
+
+- Unified the menu into one chronological feed: history stays first and snippet folders remain directly visible below it.
+- Renamed the low-frequency controls to `Ещё…` and removed per-application layout pinning from the user-facing menu.
+- Kept legacy layout metadata only for database compatibility; no stored history or snippets are changed.

@@ -4,12 +4,18 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController!
     private let monitor = ClipboardMonitor()
+    private lazy var screenshots = ScreenshotCoordinator(monitor: monitor)
     private var hotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
     private let automaticLayoutCorrection = AutoLayoutController()
     private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+#if DEBUG
+        if RuntimeIdentity.isIsolatedPreview, ProcessInfo.processInfo.environment["NECLIP_QA_STARTUP_REPORT"] == "1" {
+            print("NeClip QA: applicationDidFinishLaunching")
+        }
+#endif
         HistoryCleanupCoordinator.shared.attach(monitor)
         configureApplicationMenu()
         statusBar = StatusBarController()
@@ -43,9 +49,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             disableAutomaticCorrectionAction: { [weak self] in
                 MainActor.assumeIsolated { self?.disableAutomaticLayoutCorrection() }
+            },
+            screenshotAction: { [weak self] in
+                MainActor.assumeIsolated { self?.screenshots.start() }
             }
         )
         refreshHotKeyWarnings()
+
+        NotificationCenter.default.addObserver(self, selector: #selector(screenshotRequested),
+                                               name: .neClipScreenshotRequested, object: nil)
 
         automaticLayoutCorrection.onFeedback = { [weak self] message in
             self?.statusBar.showLayoutFeedback(message)
@@ -76,18 +88,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #if DEBUG
         let qaEnvironment = ProcessInfo.processInfo.environment
         if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1"
+            || RuntimeIdentity.isScreenshotQA
             || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil
             || qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             // QA builds temporarily behave like a regular app so automated
             // accessibility inspection can address the panel by bundle ID.
             NSApp.setActivationPolicy(.regular)
         }
-        if qaEnvironment["NECLIP_UI_TEST_SKIP_ONBOARDING"] != "1" {
+        if qaEnvironment["NECLIP_UI_TEST_SKIP_ONBOARDING"] != "1", !RuntimeIdentity.isScreenshotQA {
             startMonitorAroundOnboarding()
         } else {
             monitor.start()
         }
-        if qaEnvironment["NECLIP_UI_TEST_ONBOARDING"] == "1", RuntimeIdentity.isIsolatedPreview {
+        if RuntimeIdentity.isScreenshotQA {
+            // Synthetic pixels only: UI checks need no screen recording permission.
+            DispatchQueue.main.async { [weak self] in
+                guard let context = try? ScreenshotRenderer.context(width: 720, height: 420) else { return }
+                context.setFillColor(CGColor(gray: 1, alpha: 1))
+                context.fill(CGRect(x: 0, y: 0, width: 720, height: 420))
+                context.setFillColor(CGColor(srgbRed: 0.15, green: 0.4, blue: 0.8, alpha: 1))
+                context.fill(CGRect(x: 30, y: 240, width: 300, height: 150))
+                guard let base = context.makeImage(), let image = try? ScreenshotRenderer.render(base, annotations: [
+                    ScreenshotAnnotation(tool: .text, points: [CGPoint(x: 40, y: 210)], text: "NeClip · synthetic screenshot"),
+                    ScreenshotAnnotation(tool: .text, points: [CGPoint(x: 40, y: 270)], text: "TEST SECRET 12345")
+                ]) else { return }
+                self?.screenshots.showEditor(image: image, sourceBundleID: "org.neclip.synthetic-fixture")
+            }
+        } else if qaEnvironment["NECLIP_UI_TEST_ONBOARDING"] == "1", RuntimeIdentity.isIsolatedPreview {
             DispatchQueue.main.async { OnboardingWindowController.shared.show() }
         } else if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             DispatchQueue.main.async {
@@ -113,17 +140,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        screenshots.cancel()
         monitor.stop()
         automaticLayoutCorrection.disable()
         applicationLayoutMemory.stop()
         NotificationCenter.default.removeObserver(self)
     }
 
+    @objc private func screenshotRequested() { screenshots.start() }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         PreferencesWindowController.shared.commitPendingEdits()
         guard SnippetsEditorWindowController.shared.prepareForTermination() else {
             return .terminateCancel
         }
+        guard screenshots.prepareForTermination() else { return .terminateCancel }
         guard Settings.clearHistoryOnQuit else { return .terminateNow }
         monitor.stopAndDrain()
         do {
