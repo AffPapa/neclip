@@ -83,7 +83,9 @@
     "atomic provenance-bound local release staging",
     "one chronological history with direct saved snippet folders",
     "bounded menu snapshots reuse storage without per-open history copies",
-    "history trimming avoids ordered deletion until the indexed limit is exceeded"
+    "history trimming avoids ordered deletion until the indexed limit is exceeded",
+    "bounded native screenshot capture with separate area and full-screen flows",
+    "proportional downscale for oversized Retina displays and fail-closed overlay exclusion"
   ],
   "shortcuts": [
     {
@@ -94,6 +96,16 @@
     {
       "action": "open-snippets",
       "keys": "Command-Shift-B",
+      "customizable": true
+    },
+    {
+      "action": "screenshot-area",
+      "keys": "Command-Shift-2",
+      "customizable": true
+    },
+    {
+      "action": "screenshot-full-screen",
+      "keys": "Command-Option-3",
       "customizable": true
     },
     {
