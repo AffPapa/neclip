@@ -1,6 +1,6 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current release candidate: **2.5.1/build 30**. The candidate fixes full-screen Retina capture cropping; publication follows the release gate.
+Updated: 10 September 2026. Current public release: **2.5.1/build 30**. The notarized artifact and checksum are recorded in `docs/version.json`.
 
 ## Screenshot reliability and 2.5.1 pass
 

@@ -28,5 +28,7 @@ continue through the same privacy-safe renderer.
 - Release publication additionally requires Developer ID signing, Apple
   notarization, stapling, Gatekeeper and mounted-DMG verification.
 
-The exact notarized artifact, SHA-256 and source commit are recorded in
-`docs/version.json` after the release gate.
+The notarized artifact is `NeClip-2.5.1.dmg` (2,042,306 bytes), SHA-256
+`fff531d1f1055f61da2b5b5fcc945f556fce516b3d6c51ecb45ad4acfdbec2b1`, built
+from source commit `20ba44d347dac993e7c192d2782ac8b3ac9f13fd`. The matching
+GitHub Release and `docs/version.json` are the public source of truth.

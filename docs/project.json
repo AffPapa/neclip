@@ -20,7 +20,7 @@
   "sourceCandidate": {
     "version": "2.5.1",
     "build": 30,
-    "status": "candidate",
+    "status": "released",
     "publicVersion": "2.5.1"
   },
   "canonical": {
@@ -146,5 +146,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "2.5.1 candidate; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "2.5.1 released; exact downloadable artifact is identified by version.json"
 }

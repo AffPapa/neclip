@@ -4,13 +4,16 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 2.5.1 / build 30 — release candidate, 2026-09-10
+## 2.5.1 / build 30 — published, 2026-09-10
 
 Исправлен снимок всего экрана и больших областей на Retina-дисплеях. Когда
 исходный кадр больше безопасного лимита ScreenCaptureKit, полный экран теперь
 пропорционально масштабируется в целевой размер (`scalesToFit`) вместо обрезки
 сверху слева. Соотношение сторон сохраняется; режим области и режим всего
 экрана используют один и тот же безопасный путь.
+
+Подписанный и нотарифицированный arm64 DMG прошёл stapling, Gatekeeper и
+проверку смонтированного образа. SHA-256: `fff531d1f1055f61da2b5b5fcc945f556fce516b3d6c51ecb45ad4acfdbec2b1`.
 
 ## 2.5.0 / build 29 — published, 2026-09-10
 
