@@ -8,7 +8,7 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current public, signed and notarized version: **2.4.0 (build 28)**,
+Current release candidate: **2.5.0 (build 29)**,
 released on 10 September 2026. Snippet folders appear directly in the menu;
 search, new pins and implicit top-item actions are removed.
 Its [release evidence](docs/RELEASE-2.4.0-STATUS.md) and

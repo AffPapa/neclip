@@ -4,6 +4,17 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.5.0 / build 29 — release candidate
+
+Большой Retina-экран больше не блокирует снимок области: кадр автоматически
+пропорционально уменьшается до безопасного лимита 32 Мп. Добавлен отдельный
+снимок всего экрана без overlay с независимой клавишей `⌘⌥3`; область остаётся
+на `⌘⇧2`. Меню и настройки используют короткие единые подписи, а проверки
+покрывают масштабирование, пиксельный бюджет и сохранение хоткеев.
+
+Публикация произойдёт только после подписания, notarization, stapling,
+Gatekeeper и live checksum-проверки.
+
 ## 2.4.0 / build 28 — published, 2026-09-10
 
 Screenshot UX and performance pass based on a fresh comparison of 15 macOS

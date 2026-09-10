@@ -4,6 +4,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
     case history
     case snippets
     case screenshot
+    case fullScreenScreenshot
     case sequentialPaste
     case manualCorrection
     case disableAutomaticCorrection
@@ -13,6 +14,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
         case .history: .historyDefault
         case .snippets: .snippetsDefault
         case .screenshot: .screenshotDefault
+        case .fullScreenScreenshot: .fullScreenScreenshotDefault
         case .sequentialPaste: .sequentialPasteDefault
         case .manualCorrection: .defaultManualLayout
         case .disableAutomaticCorrection: .defaultDisableAutomaticLayout
@@ -28,6 +30,7 @@ enum NeClipShortcutAction: CaseIterable, Hashable, Sendable {
         case .history: "история доступна через значок NeClip"
         case .snippets: "папки сниппетов доступны по правому клику на NeClip"
         case .screenshot: "скриншот доступен через меню NeClip"
+        case .fullScreenScreenshot: "снимок всего экрана доступен через меню NeClip"
         case .sequentialPaste: "последовательная вставка доступна в меню NeClip"
         case .manualCorrection: "ручное исправление доступно в меню"
         case .disableAutomaticCorrection: "автоисправление можно выключить в меню"
@@ -91,12 +94,14 @@ final class HotKeyCoordinator {
         sequentialPasteAction: @escaping GlobalHotKey.Action,
         manualCorrectionAction: @escaping GlobalHotKey.Action,
         disableAutomaticCorrectionAction: @escaping GlobalHotKey.Action,
-        screenshotAction: @escaping GlobalHotKey.Action = {}
+        screenshotAction: @escaping GlobalHotKey.Action = {},
+        fullScreenScreenshotAction: @escaping GlobalHotKey.Action = {}
     ) {
         callbacks = [
             .history: historyAction,
             .snippets: snippetsAction,
             .screenshot: screenshotAction,
+            .fullScreenScreenshot: fullScreenScreenshotAction,
             .sequentialPaste: sequentialPasteAction,
             .manualCorrection: manualCorrectionAction,
             .disableAutomaticCorrection: disableAutomaticCorrectionAction

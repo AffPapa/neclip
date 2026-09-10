@@ -6,6 +6,8 @@ final class SettingsPersistenceTests: XCTestCase {
     private let shortcutKeys: [(NeClipShortcutAction, String)] = [
         (.history, "historyShortcut.v1"),
         (.snippets, "snippetsShortcut.v1"),
+        (.screenshot, "screenshotShortcut.v1"),
+        (.fullScreenScreenshot, "fullScreenScreenshotShortcut.v1"),
         (.sequentialPaste, "sequentialPasteShortcut.v1"),
         (.manualCorrection, "manualLayoutShortcut.v1"),
         (.disableAutomaticCorrection, "disableAutomaticLayoutShortcut.v1")

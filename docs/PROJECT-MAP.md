@@ -1,6 +1,13 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current release: **2.4.0/build 28**. Public release metadata and Pages point to **2.4.0/build 28**.
+Updated: 10 September 2026. Current release candidate: **2.5.0/build 29**. Public release metadata remains on **2.4.0/build 28** until the new artifact passes the release gate.
+
+## Screenshot reliability and 2.5.0 pass
+
+The area capture now downscales oversized Retina source frames instead of
+rejecting them before selection. A separate full-screen command (`⌘⌥3` by
+default) bypasses the selection overlay; area capture remains `⌘⇧2`. Both
+commands share the bounded renderer, privacy path and editor.
 
 ## Screenshot research and 2.4.0 pass
 
@@ -30,7 +37,8 @@ and the matching `version.json`.
   five tools, visible zoom, native text entry, Copy/Save, busy/close guards, scoped
   folder bookmark and clipboard generation check.
 - `AppDelegate` / `HotKeyCoordinator` / `Settings` / `StatusBarController`:
-  sixth configurable shortcut (default ⌘⇧2), menu fallback and application-owned lifecycle.
+  separate area/full-screen shortcuts (defaults ⌘⇧2 and ⌘⌥3), menu fallback and
+  application-owned lifecycle.
 - `PreferencesWindow`: screenshot hotkey and destination folder in the existing
   Keys pane; no new settings tab.
 - `ClipboardMonitor.recordScreenshot`: only the finished PNG is queued through the
@@ -43,8 +51,9 @@ and the matching `version.json`.
   clipboard race, privacy matrix, native editor structure and selection cancellation.
 
 No extra package, web runtime, raw screenshot file, background capture stream,
-OCR, cloud or account was added. First-release limitations: one display selected
-by pointer, at most 32 MP, SDR/sRGB, no video or scrolling capture. PNG preserves
+OCR, cloud or account was added. Current limitations: one display selected by
+pointer for area mode, at most 32 MP after proportional downscale, SDR/sRGB,
+no video or scrolling capture. PNG preserves
 the normalized raster; sRGB conversion is not a promise to preserve the full P3/HDR gamut.
 Live Screen Recording permission/capture and interactive multi-display QA remain a release gate.
 

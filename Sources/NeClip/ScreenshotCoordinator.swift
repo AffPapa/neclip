@@ -3,6 +3,12 @@ import ScreenCaptureKit
 
 extension Notification.Name {
     static let neClipScreenshotRequested = Notification.Name("org.affpapa.neclip.screenshotRequested")
+    static let neClipFullScreenScreenshotRequested = Notification.Name("org.affpapa.neclip.fullScreenScreenshotRequested")
+}
+
+enum ScreenshotCaptureMode: Sendable {
+    case area
+    case fullScreen
 }
 
 /// Owns at most one capture/selection/editor. There is no launch-time screen access.
@@ -15,14 +21,21 @@ final class ScreenshotCoordinator {
     private let monitor: ClipboardMonitor
     private var capturedImage: CGImage?
     private var captureGeneration: UInt = 0
+    private var cropTask: Task<Void, Never>?
 
     init(monitor: ClipboardMonitor) { self.monitor = monitor }
 
-    func start() {
+    func start() { start(mode: .area) }
+
+    func startFullScreen() { start(mode: .fullScreen) }
+
+    private func start(mode: ScreenshotCaptureMode) {
         ScreenshotMetrics.mark("hotkey")
         if let editor { editor.showWindow(nil); editor.window?.makeKeyAndOrderFront(nil); return }
         if let selection { selection.makeKeyAndOrderFront(nil); return }
         guard captureTask == nil else { return }
+        cropTask?.cancel()
+        cropTask = nil
         let sourceBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main,
               let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return }
@@ -30,10 +43,13 @@ final class ScreenshotCoordinator {
         let displayID = CGDirectDisplayID(number.uint32Value)
         captureGeneration &+= 1
         let generation = captureGeneration
-        // Put the lightweight selection shell on screen before the asynchronous
-        // shareable-content query. The user gets immediate visual feedback;
-        // drag remains disabled until the frozen frame arrives.
-        showSelectionPlaceholder(frame: frame, sourceBundleID: sourceBundleID)
+        if mode == .area {
+            // Put the lightweight selection shell on screen before the
+            // asynchronous shareable-content query. The user gets immediate
+            // visual feedback; drag remains disabled until the frozen frame
+            // arrives.
+            showSelectionPlaceholder(frame: frame, sourceBundleID: sourceBundleID)
+        }
         // Asking only here keeps ordinary clipboard use free of Screen Recording prompts.
         guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
             closeSelection()
@@ -57,28 +73,43 @@ final class ScreenshotCoordinator {
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
                 guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
-                    throw ScreenshotFailure.invalidImage
+                    throw ScreenshotFailure.overlayUnavailable
                 }
                 // The selection shell is already visible to make the shortcut feel
                 // instant. Exclude only that shell from the frozen frame; excluding
                 // every NeClip window would make it impossible to capture a window
                 // the user intentionally selected.
                 let overlayID = CGWindowID(selection?.windowNumber ?? 0)
-                guard overlayID != 0,
-                      let overlay = content.windows.first(where: { $0.windowID == overlayID }) else {
-                    // Never capture the pending black shell as if it were the
-                    // user's screen. A missing exclusion is unsafe, so fail
-                    // closed and let the user retry instead.
-                    throw ScreenshotFailure.invalidImage
+                let filter: SCContentFilter
+                if mode == .fullScreen {
+                    // No NeClip overlay exists in this mode, so a plain
+                    // display filter is both faster and more faithful.
+                    filter = SCContentFilter(display: display, excludingWindows: [])
+                } else if overlayID != 0,
+                   let overlay = content.windows.first(where: { $0.windowID == overlayID }) {
+                    filter = SCContentFilter(display: display, excludingWindows: [overlay])
+                } else if let application = content.applications.first(where: {
+                    $0.bundleIdentifier == Bundle.main.bundleIdentifier
+                }) {
+                    // WindowServer can omit a newly-created borderless window
+                    // from `content.windows` for one frame. Excluding the
+                    // owning application is the safe full-screen fallback: it
+                    // removes the selection shell without hiding any other app.
+                    // Never fall back to an unfiltered display.
+                    filter = SCContentFilter(display: display,
+                                              excludingApplications: [application],
+                                              exceptingWindows: [])
+                    ScreenshotMetrics.mark("filter-app-fallback")
+                } else {
+                    throw ScreenshotFailure.overlayUnavailable
                 }
-                let filter = SCContentFilter(display: display, excludingWindows: [overlay])
+                guard let pixelSize = ScreenshotRenderer.capturePixelSize(
+                    contentRect: filter.contentRect,
+                    pointPixelScale: CGFloat(filter.pointPixelScale)
+                ) else { throw ScreenshotFailure.filterUnavailable }
                 let configuration = SCStreamConfiguration()
-                configuration.width = Int((filter.contentRect.width * CGFloat(filter.pointPixelScale)).rounded())
-                configuration.height = Int((filter.contentRect.height * CGFloat(filter.pointPixelScale)).rounded())
-                guard configuration.width > 0, configuration.height > 0,
-                      configuration.width <= ScreenshotRenderer.maximumPixels / configuration.height else {
-                    throw ScreenshotFailure.displayTooLarge
-                }
+                configuration.width = pixelSize.width
+                configuration.height = pixelSize.height
                 configuration.showsCursor = false
                 configuration.colorSpaceName = CGColorSpace.sRGB
                 configuration.captureResolution = .best
@@ -87,12 +118,18 @@ final class ScreenshotCoordinator {
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
                 guard image.width > 0, image.height > 0,
-                      image.width <= ScreenshotRenderer.maximumPixels / image.height,
-                      selection != nil else { return }
+                      image.width <= ScreenshotRenderer.maximumPixels / image.height else {
+                    throw ScreenshotFailure.displayTooLarge
+                }
                 guard NSScreen.screens.contains(where: {
                     ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
                         && $0.frame == frame
-                }) else { throw ScreenshotFailure.invalidImage }
+                }) else { throw ScreenshotFailure.displayChanged }
+                if mode == .fullScreen {
+                    showEditor(image: image, sourceBundleID: sourceBundleID)
+                    return
+                }
+                guard selection != nil else { return }
                 capturedImage = image
                 selection?.contentView.flatMap { $0 as? ScreenshotSelectionView }?.setImage(image)
                 ScreenshotMetrics.mark("selection-ready")
@@ -109,6 +146,8 @@ final class ScreenshotCoordinator {
     func cancel() {
         captureGeneration &+= 1
         captureTask?.cancel()
+        cropTask?.cancel()
+        cropTask = nil
         closeSelection()
     }
 
@@ -137,13 +176,17 @@ final class ScreenshotCoordinator {
             }
             // Cropping a Retina display can allocate tens of megabytes. Keep the
             // main actor free so the editor opens without a visible hitch.
-            Task { [weak self] in
+            let generation = captureGeneration
+            cropTask = Task { [weak self] in
+                defer { self?.cropTask = nil }
                 do {
                     let cropped = try await Task.detached(priority: .userInitiated) {
                         try ScreenshotRenderer.crop(image, to: pixels)
                     }.value
-                    self?.showEditor(image: cropped, sourceBundleID: sourceBundleID)
+                    guard let self, !Task.isCancelled, self.captureGeneration == generation else { return }
+                    self.showEditor(image: cropped, sourceBundleID: sourceBundleID)
                 } catch {
+                    guard !Task.isCancelled else { return }
                     self?.showError("Не удалось выделить область. Попробуйте снова.")
                 }
             }

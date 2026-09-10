@@ -53,10 +53,13 @@ struct ScreenshotEdits: Sendable {
 }
 
 enum ScreenshotFailure: LocalizedError {
-    case invalidImage, displayTooLarge, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
+    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
     var errorDescription: String? {
         switch self {
         case .invalidImage: "Не удалось подготовить изображение. Выберите меньшую область."
+        case .overlayUnavailable: "Не удалось начать снимок экрана. Повторите попытку."
+        case .filterUnavailable: "Не удалось подготовить область снимка. Повторите попытку."
+        case .displayChanged: "Экран изменился во время снимка. Повторите попытку."
         case .displayTooLarge: "Разрешение экрана превышает лимит 32 мегапикселя. Снимки с этого экрана пока недоступны."
         case .emptySelection: "Выделите область экрана."
         case .exportFailed: "Не удалось сохранить снимок. Проверьте папку и свободное место."
@@ -96,6 +99,29 @@ enum ScreenshotHistoryPolicy {
 enum ScreenshotRenderer {
     // One 8-bit RGBA working image is at most 128 MB. No unbounded full-screen caches.
     static let maximumPixels = 32_000_000
+
+    /// Returns a native-size capture when it fits the working-image budget and
+    /// an aspect-preserving preview size otherwise. Large Retina displays can
+    /// exceed the budget before the user has selected a small area; refusing
+    /// the whole display makes the area tool appear broken. The selected crop
+    /// remains bounded by the same limit and maps through the returned image
+    /// dimensions, so no coordinate mismatch is introduced.
+    static func capturePixelSize(contentRect: CGRect, pointPixelScale: CGFloat) -> (width: Int, height: Int)? {
+        guard contentRect.width.isFinite, contentRect.height.isFinite,
+              pointPixelScale.isFinite, contentRect.width > 0,
+              contentRect.height > 0, pointPixelScale > 0 else { return nil }
+        let nativeWidth = Double(contentRect.width) * Double(pointPixelScale)
+        let nativeHeight = Double(contentRect.height) * Double(pointPixelScale)
+        guard nativeWidth.isFinite, nativeHeight.isFinite,
+              nativeWidth >= 1, nativeHeight >= 1 else { return nil }
+        let area = nativeWidth * nativeHeight
+        guard area.isFinite else { return nil }
+        let factor = min(1, sqrt(Double(maximumPixels) / area))
+        let width = Int(max(1, floor(nativeWidth * factor)))
+        let height = Int(max(1, floor(nativeHeight * factor)))
+        guard width > 0, height > 0, width <= maximumPixels / height else { return nil }
+        return (width, height)
+    }
 
     static func pixelRect(selection: CGRect, screen: CGRect, width: Int, height: Int) -> CGRect? {
         guard screen.width > 0, screen.height > 0, width > 0, height > 0,

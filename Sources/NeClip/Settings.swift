@@ -65,6 +65,7 @@ enum Settings {
             case .history: "historyShortcut.v1"
             case .snippets: "snippetsShortcut.v1"
             case .screenshot: "screenshotShortcut.v1"
+            case .fullScreenScreenshot: "fullScreenScreenshotShortcut.v1"
             case .sequentialPaste: "sequentialPasteShortcut.v1"
             case .manualCorrection: "manualLayoutShortcut.v1"
             case .disableAutomaticCorrection: "disableAutomaticLayoutShortcut.v1"
