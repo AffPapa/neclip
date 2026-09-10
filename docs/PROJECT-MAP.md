@@ -1,6 +1,6 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current release candidate: **2.5.0/build 29**. Public release metadata remains on **2.4.0/build 28** until the new artifact passes the release gate.
+Updated: 10 September 2026. Current public release: **2.5.0/build 29**. Public release metadata and Pages point to **2.5.0/build 29**.
 
 ## Screenshot reliability and 2.5.0 pass
 
