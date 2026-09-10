@@ -8,7 +8,7 @@ traffic. A network request is made only when the user explicitly chooses
 NeClip is a menu-bar-only app: its icon stays in the macOS menu bar and no
 application icon is added to the Dock.
 
-Current public, signed and notarized version: **2.5.0 (build 29)**,
+Current public, signed and notarized version: **2.5.1 (build 30)**,
 released on 10 September 2026. Snippet folders appear directly in the menu;
 search, new pins and implicit top-item actions are removed.
 Its [release evidence](docs/RELEASE-2.4.0-STATUS.md) and
@@ -28,10 +28,10 @@ The refreshed comparison of 19 clipboard products, 11 layout tools, 100
 candidate improvements and 27 selected refinements is in
 [docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
 
-[Download the signed and notarized NeClip 2.5.0 DMG](https://github.com/AffPapa/neclip/releases/download/v2.5.0/NeClip-2.5.0.dmg)
-(2,042,306 bytes).
+[Download the signed and notarized NeClip 2.5.1 DMG](https://github.com/AffPapa/neclip/releases/download/v2.5.1/NeClip-2.5.1.dmg)
+(release artifact; checksum is published beside the DMG).
 SHA-256:
-`7cd94b6d29a892c07e51fe743e463a434d41d4dbb38142d8e276fe586e4de96f`.
+`published in docs/version.json after the release gate`.
 It is also published beside the DMG and in [`docs/version.json`](docs/version.json).
 
 Artifact source is recorded in the exact release JSON beside the DMG. Required

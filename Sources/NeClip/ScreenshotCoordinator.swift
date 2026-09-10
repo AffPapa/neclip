@@ -110,6 +110,12 @@ final class ScreenshotCoordinator {
                 let configuration = SCStreamConfiguration()
                 configuration.width = pixelSize.width
                 configuration.height = pixelSize.height
+                // If the safe working size is smaller than a Retina display,
+                // ScreenCaptureKit otherwise keeps the source size and crops
+                // from the top-left. Scale the complete display into the
+                // bounded target while preserving its aspect ratio.
+                configuration.scalesToFit = true
+                configuration.preservesAspectRatio = true
                 configuration.showsCursor = false
                 configuration.colorSpaceName = CGColorSpace.sRGB
                 configuration.captureResolution = .best

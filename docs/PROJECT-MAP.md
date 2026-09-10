@@ -1,6 +1,14 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current public release: **2.5.0/build 29**. Public release metadata and Pages point to **2.5.0/build 29**.
+Updated: 10 September 2026. Current release candidate: **2.5.1/build 30**. The candidate fixes full-screen Retina capture cropping; publication follows the release gate.
+
+## Screenshot reliability and 2.5.1 pass
+
+ScreenCaptureKit now sets `scalesToFit` and `preservesAspectRatio` whenever a
+large native Retina frame is bounded to the 32 MP working budget. Without this,
+ScreenCaptureKit could preserve the source geometry and return only the
+top-left portion after width/height were reduced. The complete display is now
+scaled into the bounded target for both area and full-screen capture.
 
 ## Screenshot reliability and 2.5.0 pass
 
