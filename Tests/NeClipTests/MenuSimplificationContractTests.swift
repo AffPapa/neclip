@@ -53,4 +53,36 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(source.contains("Storage.shared.fetchSnippet(id: id)"))
         XCTAssertTrue(source.contains("SnippetRenderer.render(snippet.content, clipboard: clipboard)"))
     }
+
+    func testScreenshotEntryUsesOneClearAreaActionEverywhere() throws {
+        let statusBar = try source()
+        let preferencesURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/NeClip/PreferencesWindow.swift")
+        let preferences = try String(contentsOf: preferencesURL, encoding: .utf8)
+
+        XCTAssertEqual(statusBar.components(separatedBy: "title: \"Снимок области…\"").count - 1, 1)
+        XCTAssertFalse(statusBar.contains("title: \"Скриншот области…\""))
+        XCTAssertTrue(preferences.contains("\"Снимок области\", action: .screenshot"))
+        XCTAssertTrue(preferences.contains("Text(\"Папка для сохранения\")"))
+        XCTAssertTrue(preferences.contains("Выделите область → при желании добавьте пометки → скопируйте или сохраните."))
+        XCTAssertFalse(preferences.contains("Папка сохранения"))
+    }
+
+    func testScreenshotOffersExplicitFullScreenModeAndShortcut() throws {
+        let statusBar = try source()
+        let preferencesURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/NeClip/PreferencesWindow.swift")
+        let preferences = try String(contentsOf: preferencesURL, encoding: .utf8)
+        let hotKeysURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/NeClip/ShortcutDescriptor.swift")
+        let hotKeys = try String(contentsOf: hotKeysURL, encoding: .utf8)
+
+        XCTAssertTrue(statusBar.contains("Снимок всего экрана"))
+        XCTAssertTrue(statusBar.contains(".fullScreenScreenshot"))
+        XCTAssertTrue(preferences.contains("\"Снимок всего экрана\", action: .fullScreenScreenshot"))
+        XCTAssertTrue(hotKeys.contains("fullScreenScreenshotDefault"))
+    }
 }

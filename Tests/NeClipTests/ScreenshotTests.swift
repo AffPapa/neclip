@@ -4,6 +4,45 @@ import XCTest
 @testable import NeClip
 
 final class ScreenshotTests: XCTestCase {
+    func testCapturePixelSizeKeepsNativeRetinaSizeWhenItFits() {
+        XCTAssertEqual(
+            ScreenshotRenderer.capturePixelSize(
+                contentRect: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                pointPixelScale: 2
+            )?.width,
+            3456
+        )
+        XCTAssertEqual(
+            ScreenshotRenderer.capturePixelSize(
+                contentRect: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+                pointPixelScale: 2
+            )?.height,
+            2234
+        )
+    }
+
+    func testCapturePixelSizeDownscalesLargeRetinaDisplayWithoutExceedingBudget() {
+        let size = ScreenshotRenderer.capturePixelSize(
+            contentRect: CGRect(x: 0, y: 0, width: 7680, height: 4320),
+            pointPixelScale: 1
+        )
+        guard let pixels = size else { return XCTFail("A valid large-display preview size is expected") }
+        XCTAssertLessThanOrEqual(pixels.width * pixels.height, ScreenshotRenderer.maximumPixels)
+        XCTAssertLessThan(pixels.width, 7680)
+        XCTAssertLessThan(pixels.height, 4320)
+        XCTAssertEqual(Double(pixels.width) / Double(pixels.height), 7680.0 / 4320.0, accuracy: 0.001)
+    }
+
+    func testCapturePixelSizeRejectsInvalidInput() {
+        XCTAssertNil(ScreenshotRenderer.capturePixelSize(contentRect: .zero, pointPixelScale: 2))
+        XCTAssertNil(ScreenshotRenderer.capturePixelSize(
+            contentRect: CGRect(x: 0, y: 0, width: 100, height: 100), pointPixelScale: 0
+        ))
+        XCTAssertNil(ScreenshotRenderer.capturePixelSize(
+            contentRect: CGRect(x: 0, y: 0, width: CGFloat.infinity, height: 100), pointPixelScale: 2
+        ))
+    }
+
     func testSaveWritesOnlyFlattenedPNGAndJPEGAndReplacesConfirmedTarget() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-export-test-\(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)

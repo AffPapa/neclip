@@ -341,12 +341,19 @@ final class StatusBarController: NSObject {
     /// targets keep Quit enabled in a menu-bar-only application.
     static func appendStandardFooter(to menu: NSMenu, target: AnyObject) {
         let shortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
-        let screenshot = NSMenuItem(title: "Скриншот области…", action: #selector(takeScreenshot),
+        let screenshot = NSMenuItem(title: "Снимок области…", action: #selector(takeScreenshot),
                                     keyEquivalent: shortcut.keyEquivalent ?? "")
         screenshot.target = target
         screenshot.keyEquivalentModifierMask = shortcut.nsEventModifiers
         screenshot.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: nil)
         menu.addItem(screenshot)
+        let fullScreenShortcut = HotKeyCoordinator.shared.shortcut(for: .fullScreenScreenshot)
+        let fullScreen = NSMenuItem(title: "Снимок всего экрана", action: #selector(takeFullScreenScreenshot),
+                                    keyEquivalent: fullScreenShortcut.keyEquivalent ?? "")
+        fullScreen.target = target
+        fullScreen.keyEquivalentModifierMask = fullScreenShortcut.nsEventModifiers
+        fullScreen.image = NSImage(systemSymbolName: "rectangle.inset.filled", accessibilityDescription: nil)
+        menu.addItem(fullScreen)
         let settings = NSMenuItem(title: "Настройки…", action: #selector(openPreferences), keyEquivalent: ",")
         settings.target = target
         settings.keyEquivalentModifierMask = [.command]
@@ -363,6 +370,13 @@ final class StatusBarController: NSObject {
         activeMenu?.cancelTracking()
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .neClipScreenshotRequested, object: nil)
+        }
+    }
+
+    @objc private func takeFullScreenScreenshot() {
+        activeMenu?.cancelTracking()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .neClipFullScreenScreenshotRequested, object: nil)
         }
     }
 

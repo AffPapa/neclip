@@ -144,6 +144,13 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
         modifiers: [.command, .shift]
     )
 
+    /// Capture the entire display without showing the selection shell. Option
+    /// is intentional: macOS reserves ⌘⇧3 for its own screenshot service.
+    static let fullScreenScreenshotDefault = ShortcutDescriptor(
+        keyCode: UInt32(kVK_ANSI_3),
+        modifiers: [.command, .option]
+    )
+
     var keyLabel: String? {
         Self.keyLabels[keyCode]
     }

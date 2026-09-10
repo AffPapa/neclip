@@ -295,6 +295,7 @@ private struct PreferencesView: View {
     @State private var historyShortcut = Settings.historyShortcut
     @State private var snippetsShortcut = Settings.snippetsShortcut
     @State private var screenshotShortcut = Settings.shortcut(for: .screenshot)
+    @State private var fullScreenScreenshotShortcut = Settings.shortcut(for: .fullScreenScreenshot)
     @State private var screenshotFolderName = ScreenshotFolder.url?.lastPathComponent ?? "Выбрать…"
     @State private var sequentialPasteShortcut = Settings.sequentialPasteShortcut
     @State private var manualLayoutShortcut = Settings.manualLayoutShortcut
@@ -372,6 +373,7 @@ private struct PreferencesView: View {
             historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
             snippetsShortcut = HotKeyCoordinator.shared.shortcut(for: .snippets)
             screenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
+            fullScreenScreenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .fullScreenScreenshot)
             sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)
             manualLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .manualCorrection)
             disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
@@ -538,21 +540,27 @@ private struct PreferencesView: View {
         Form {
             Section("Скриншоты") {
                 shortcutRow(
-                    "Выделить область экрана", action: .screenshot, shortcut: screenshotShortcut,
+                    "Снимок области", action: .screenshot, shortcut: screenshotShortcut,
                     accessibilityLabel: "Сочетание для создания скриншота",
                     onCandidate: { applyShortcut(.screenshot, candidate: $0) }
                 )
+                shortcutRow(
+                    "Снимок всего экрана", action: .fullScreenScreenshot,
+                    shortcut: fullScreenScreenshotShortcut,
+                    accessibilityLabel: "Сочетание для снимка всего экрана",
+                    onCandidate: { applyShortcut(.fullScreenScreenshot, candidate: $0) }
+                )
                 HStack {
-                    Text("Папка сохранения")
+                    Text("Папка для сохранения")
                     Spacer()
                     Button(screenshotFolderName) {
                         do {
                             if let url = try ScreenshotFolder.choose() { screenshotFolderName = url.lastPathComponent }
                         } catch { feedback = "Не удалось запомнить папку. Выберите её ещё раз." }
                     }
-                    .help("Папка по умолчанию для кнопки «Сохранить…»")
+                    .help("Папка по умолчанию для кнопки «Сохранить…» в редакторе")
                 }
-                Text("Область → пометки → буфер или файл. Исходный снимок не сохраняется.")
+                Text("Выделите область → при желании добавьте пометки → скопируйте или сохраните. Исходный снимок не сохраняется.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Открытие и вставка") {
@@ -1148,6 +1156,7 @@ private struct PreferencesView: View {
 
     private func refreshShortcutState() {
         screenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
+        fullScreenScreenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .fullScreenScreenshot)
         historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
         snippetsShortcut = HotKeyCoordinator.shared.shortcut(for: .snippets)
         sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)

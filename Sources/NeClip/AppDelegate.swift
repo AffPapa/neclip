@@ -52,12 +52,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             screenshotAction: { [weak self] in
                 MainActor.assumeIsolated { self?.screenshots.start() }
+            },
+            fullScreenScreenshotAction: { [weak self] in
+                MainActor.assumeIsolated { self?.screenshots.startFullScreen() }
             }
         )
         refreshHotKeyWarnings()
 
         NotificationCenter.default.addObserver(self, selector: #selector(screenshotRequested),
                                                name: .neClipScreenshotRequested, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(fullScreenScreenshotRequested),
+                                               name: .neClipFullScreenScreenshotRequested, object: nil)
 
         automaticLayoutCorrection.onFeedback = { [weak self] message in
             self?.statusBar.showLayoutFeedback(message)
@@ -148,6 +153,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func screenshotRequested() { screenshots.start() }
+
+    @objc private func fullScreenScreenshotRequested() { screenshots.startFullScreen() }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         PreferencesWindowController.shared.commitPendingEdits()
