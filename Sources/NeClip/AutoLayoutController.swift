@@ -104,8 +104,11 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         startResult = false
         lock.unlock()
         let semaphore = DispatchSemaphore(value: 0)
-        let thread = Thread { [weak self] in
-            self?.run(semaphore: semaphore)
+        // Keep the monitor alive until its run loop has removed the event tap.
+        // A weak capture here lets `disable()` release the monitor while the
+        // callback still contains an unretained userInfo pointer.
+        let thread = Thread { [self] in
+            self.run(semaphore: semaphore)
         }
         thread.name = "NeClip layout input monitor"
         thread.qualityOfService = .userInteractive

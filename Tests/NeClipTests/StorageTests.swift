@@ -278,6 +278,30 @@ final class StorageTests: XCTestCase {
         XCTAssertEqual(try storage.fetchClip(id: firstID)?.text, "alpha")
     }
 
+    func testAppendNextTextNeverMutatesPinnedHistory() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let olderID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "older",
+            text: "older text",
+            createdAt: Date(timeIntervalSince1970: 10)
+        )))
+        let pinnedID = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text,
+            title: "pinned",
+            text: "pinned text",
+            createdAt: Date(timeIntervalSince1970: 20)
+        )))
+        try storage.setPinned(id: pinnedID, pinned: true)
+
+        XCTAssertEqual(try storage.appendToLatestUnpinnedText(
+            "added", appBundleID: "test.source",
+            createdAt: Date(timeIntervalSince1970: 30), maximumBytes: 1_024
+        ), .appended(olderID))
+        XCTAssertEqual(try storage.fetchClip(id: pinnedID)?.text, "pinned text")
+        XCTAssertTrue(try storage.fetchClip(id: pinnedID)?.isPinned == true)
+    }
+
     func testAppendNextTextReusesExistingDuplicateInsteadOfCreatingTwoRows() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         _ = try storage.insert(ClipItem(
@@ -338,6 +362,36 @@ final class StorageTests: XCTestCase {
         XCTAssertNotNil(try storage.fetchClip(id: middleID))
         XCTAssertNotNil(try storage.fetchClip(id: newestID))
         XCTAssertEqual(storage.count, 2)
+    }
+
+    func testCountTrimRecomputesByteQuotaBeforeEvictingMoreHistory() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        Settings.historyLimit = 10
+
+        // Ten records fit under the byte quota. The eleventh exceeds both
+        // limits; removing the oldest record for the count limit already
+        // brings the total below the byte quota. A stale byte total would
+        // nevertheless remove one more recent record.
+        for index in 0..<10 {
+            _ = try storage.insert(ClipItem(
+                kind: .text,
+                title: "count-" + String(index),
+                text: "count payload " + String(index),
+                createdAt: Date(timeIntervalSince1970: TimeInterval(index)),
+                contentBytes: 24 * 1024 * 1024
+            ))
+        }
+        _ = try storage.insert(ClipItem(
+            kind: .text,
+            title: "newest",
+            text: "newest count payload",
+            createdAt: Date(timeIntervalSince1970: 100),
+            contentBytes: 30 * 1024 * 1024
+        ))
+
+        XCTAssertEqual(storage.count, 10)
+        XCTAssertNotNil(try storage.fetchClip(id: 2))
+        XCTAssertNotNil(try storage.fetchClip(id: 11))
     }
 
     func testOCRTextIsCountedAgainstPinnedHardCap() throws {

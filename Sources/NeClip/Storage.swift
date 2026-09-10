@@ -619,6 +619,7 @@ final class Storage: @unchecked Sendable {
         let result = try dbQueue.write { db -> AppendTextResult in
             guard var latest = try ClipItem
                 .filter(Column("kind") == ClipKind.text.rawValue)
+                .filter(Column("isPinned") == false)
                 .order(Column("createdAt").desc, Column("id").desc)
                 .fetchOne(db),
                 let latestID = latest.id,
@@ -1466,7 +1467,14 @@ final class Storage: @unchecked Sendable {
             )
         }
 
-        let total: Int64 = trimStats?["totalBytes"] ?? 0
+        // The count trim above may have removed a large payload. Re-read the
+        // byte total before calculating the quota excess; using the initial
+        // snapshot would evict an additional, unnecessary prefix of recent
+        // history after a count-based deletion.
+        let total: Int64 = try Int64.fetchOne(
+            db,
+            sql: "SELECT COALESCE(SUM(contentBytes), 0) FROM clip"
+        ) ?? 0
         if total > Self.maximumStorageBytes {
             let bytesToRemove = total - Self.maximumStorageBytes
             try db.execute(
