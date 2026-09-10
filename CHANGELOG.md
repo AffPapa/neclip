@@ -4,7 +4,7 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 2.3.0 / build 26 — local screenshot candidate, 2026-09-10
+## 2.3.1 / build 27 — local screenshot candidate, 2026-09-10
 
 Native region screenshots, five annotation tools, opaque redaction, undo/redo,
 PNG clipboard output and PNG/JPEG file export. One configurable shortcut and
@@ -21,7 +21,8 @@ shows a small crosshair, and removes the hint as soon as selection starts.
 
 The synthetic editor, all five tools, undo/redo, native PNG save and isolated
 clipboard copy have been exercised live. Real ScreenCaptureKit capture is the
-remaining installation acceptance gate. This candidate is not a public release.
+remaining installation acceptance gate. This candidate supersedes local
+2.3.0/26 and is not a public release.
 See `docs/SCREENSHOTS-IMPLEMENTATION-STATUS.md` for current evidence.
 
 ## 2.2.0 / build 25 — published, 2026-09-09

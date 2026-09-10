@@ -1,6 +1,6 @@
 # NeClip project map
 
-Updated: 10 September 2026. Local candidate: **2.3.0/build 26**. Public release: **2.2.0/build 25**.
+Updated: 10 September 2026. Local candidate: **2.3.1/build 27**. Public release: **2.2.0/build 25**.
 
 ## Screenshot work in progress — 10 September 2026
 
