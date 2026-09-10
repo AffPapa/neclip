@@ -1,6 +1,6 @@
 # NeClip project map
 
-Updated: 10 September 2026. Release candidate: **2.4.0/build 28**. Public release metadata is prepared for **2.4.0/build 28**.
+Updated: 10 September 2026. Current release: **2.4.0/build 28**. Public release metadata and Pages point to **2.4.0/build 28**.
 
 ## Screenshot research and 2.4.0 pass
 
