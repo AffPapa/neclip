@@ -341,7 +341,7 @@ final class StatusBarController: NSObject {
     /// targets keep Quit enabled in a menu-bar-only application.
     static func appendStandardFooter(to menu: NSMenu, target: AnyObject) {
         let shortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
-        let screenshot = NSMenuItem(title: "Скриншот области…", action: #selector(takeScreenshot),
+        let screenshot = NSMenuItem(title: "Снимок области…", action: #selector(takeScreenshot),
                                     keyEquivalent: shortcut.keyEquivalent ?? "")
         screenshot.target = target
         screenshot.keyEquivalentModifierMask = shortcut.nsEventModifiers

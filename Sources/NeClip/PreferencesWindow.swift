@@ -538,21 +538,21 @@ private struct PreferencesView: View {
         Form {
             Section("Скриншоты") {
                 shortcutRow(
-                    "Выделить область экрана", action: .screenshot, shortcut: screenshotShortcut,
+                    "Снимок области", action: .screenshot, shortcut: screenshotShortcut,
                     accessibilityLabel: "Сочетание для создания скриншота",
                     onCandidate: { applyShortcut(.screenshot, candidate: $0) }
                 )
                 HStack {
-                    Text("Папка сохранения")
+                    Text("Папка для сохранения")
                     Spacer()
                     Button(screenshotFolderName) {
                         do {
                             if let url = try ScreenshotFolder.choose() { screenshotFolderName = url.lastPathComponent }
                         } catch { feedback = "Не удалось запомнить папку. Выберите её ещё раз." }
                     }
-                    .help("Папка по умолчанию для кнопки «Сохранить…»")
+                    .help("Папка по умолчанию для кнопки «Сохранить…» в редакторе")
                 }
-                Text("Область → пометки → буфер или файл. Исходный снимок не сохраняется.")
+                Text("Выделите область → при желании добавьте пометки → скопируйте или сохраните. Исходный снимок не сохраняется.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Открытие и вставка") {

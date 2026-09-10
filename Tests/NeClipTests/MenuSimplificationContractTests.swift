@@ -53,4 +53,19 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(source.contains("Storage.shared.fetchSnippet(id: id)"))
         XCTAssertTrue(source.contains("SnippetRenderer.render(snippet.content, clipboard: clipboard)"))
     }
+
+    func testScreenshotEntryUsesOneClearAreaActionEverywhere() throws {
+        let statusBar = try source()
+        let preferencesURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/NeClip/PreferencesWindow.swift")
+        let preferences = try String(contentsOf: preferencesURL, encoding: .utf8)
+
+        XCTAssertEqual(statusBar.components(separatedBy: "title: \"Снимок области…\"").count - 1, 1)
+        XCTAssertFalse(statusBar.contains("title: \"Скриншот области…\""))
+        XCTAssertTrue(preferences.contains("\"Снимок области\", action: .screenshot"))
+        XCTAssertTrue(preferences.contains("Text(\"Папка для сохранения\")"))
+        XCTAssertTrue(preferences.contains("Выделите область → при желании добавьте пометки → скопируйте или сохраните."))
+        XCTAssertFalse(preferences.contains("Папка сохранения"))
+    }
 }
