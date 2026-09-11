@@ -114,16 +114,13 @@ final class ScreenshotCoordinator {
                 let configuration = SCStreamConfiguration()
                 configuration.width = pixelSize.width
                 configuration.height = pixelSize.height
-                // If the safe working size is smaller than a Retina display,
-                // ScreenCaptureKit otherwise keeps the source size and crops
-                // from the top-left. Scale the complete display into the
-                // bounded target while preserving its aspect ratio.
-                // Never allow ScreenCaptureKit to upscale a display capture.
-                // The target size above is derived from this filter's own
-                // logical geometry and pointPixelScale, so false preserves
-                // native pixels and only permits the explicit safety
-                // downscale for displays larger than our working-image limit.
-                configuration.scalesToFit = false
+                // Make the source and destination explicit. Without this,
+                // ScreenCaptureKit may place a display-sized source in the
+                // configured canvas's top-left when dimensions differ on
+                // Retina/scaled displays, leaving blank margins and breaking
+                // the selection-to-image correspondence.
+                configuration.sourceRect = filter.contentRect
+                configuration.scalesToFit = true
                 configuration.preservesAspectRatio = true
                 configuration.showsCursor = false
                 configuration.colorSpaceName = CGColorSpace.sRGB
