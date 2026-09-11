@@ -103,7 +103,12 @@ final class ScreenshotCoordinator {
                 } else {
                     throw ScreenshotFailure.overlayUnavailable
                 }
+                let displayPixels = (
+                    width: CGDisplayPixelsWide(displayID),
+                    height: CGDisplayPixelsHigh(displayID)
+                )
                 guard let pixelSize = ScreenshotRenderer.capturePixelSize(
+                    displayPixels: displayPixels.width > 0 && displayPixels.height > 0 ? displayPixels : nil,
                     contentRect: filter.contentRect,
                     pointPixelScale: CGFloat(filter.pointPixelScale)
                 ) else { throw ScreenshotFailure.filterUnavailable }

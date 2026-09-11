@@ -4,6 +4,17 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.5.3 / build 32 — published, 2026-09-11
+
+Исправлен неполный или увеличенный скриншот на Retina и внешних дисплеях:
+конфигурация захвата теперь использует фактические физические размеры
+`CGDisplayPixelsWide/High`, а не потенциально неточную логическую геометрию
+ScreenCaptureKit. Добавлен регрессионный тест; остальные пути сохраняют
+пропорциональный лимит 32 Мп и `scalesToFit`.
+
+DMG: 2,042,306 bytes. SHA-256:
+`b950b17a35d942a4eb8a34e375642d0ad86a6757a1b405b5d588464c528c5bcd`.
+
 ## 2.5.2 / build 31 — published, 2026-09-10
 
 Полный аудит исправил четыре надёжностные проблемы: автодобавление следующего

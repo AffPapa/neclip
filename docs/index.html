@@ -21,16 +21,16 @@
       <div class="navlinks"><a href="#features">Возможности</a><a href="#versions">Версии</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>2.5.2 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>2.5.3 · выпущена</span>
       <h1>Скопировал.<br>Выбрал. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.5.2/NeClip-2.5.2.dmg">Скачать NeClip 2.5.2</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.5.3/NeClip-2.5.3.dmg">Скачать NeClip 2.5.3</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. История всегда идёт от последнего копирования. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.2-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. История всегда идёт от последнего копирования. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.3-STATUS.md">Проверки выпуска</a>.</p>
       <p class="fine">Уже пользуетесь NeClip? Перед обновлением сохраните копию базы и экспорт сниппетов. Для отката сохраните предыдущую версию. <a href="https://github.com/AffPapa/neclip/releases/tag/v2.4.0">Подробнее об обновлении</a>.</p>
     </div>
   </header>
@@ -72,9 +72,9 @@
     <section class="wrap" id="versions">
       <h2>Версии</h2>
       <p class="section-lead">Что изменилось и какие проверки прошла каждая опубликованная версия.</p>
-      <p>В 2.5.2 исправлены четыре надёжностные проблемы хранения, настроек и event tap, а полноэкранный снимок на больших Retina-экранах сохраняет весь кадр. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.2-STATUS.md">Проверка выпуска</a>.</p>
+      <p>В 2.5.3 исправлен неполный или увеличенный снимок на Retina и внешних дисплеях: используется физический размер экрана, а полный кадр сохраняется целиком. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.3-STATUS.md">Проверка выпуска</a>.</p>
       <div class="timeline">
-        <article class="card release"><div><strong>2.5.2</strong><br><span class="status">выпущена · 10 сентября</span></div><div><b>Надёжность без лишней сложности.</b><ul><li>Закреплённая история больше не изменяется автодобавлением текста</li><li>Обрезка лимитов не удаляет лишние свежие записи</li><li>Настройки не делают скрытый сетевой запрос</li><li>Event tap раскладки безопасен до полного удаления; Retina-кадр остаётся целым</li></ul><p>267 XCTest, 4 ожидаемых пропуска, 3 Swift Testing, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.2-STATUS.md">Результаты проверки</a></div></article>
+        <article class="card release"><div><strong>2.5.3</strong><br><span class="status">выпущена · 11 сентября</span></div><div><b>Полный кадр на любом Retina-дисплее.</b><ul><li>Размер захвата берётся из физических пикселей дисплея</li><li>Убрана причина увеличенного или обрезанного изображения</li><li>Сохранены пропорциональный лимит 32 Мп и безопасный crop</li><li>Добавлен отдельный регрессионный тест внешнего Retina-дисплея</li></ul><p>268 XCTest, 4 ожидаемых пропуска, 3 Swift Testing, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.3-STATUS.md">Результаты проверки</a></div></article>
         <article class="card release"><div><strong>2.4.0</strong><br><span class="status">выпущена · 10 сентября</span></div><div><b>Снимок без лишних движений.</b><ul><li>Space‑перемещение и размеры выделения</li><li>Inline‑текст и клавиши 1–5</li><li>Fail‑closed capture и меньше копирований памяти</li><li>Latency‑метки без пользовательских данных</li></ul><p>Исследование 15 программ, 50 функций, 20 выбранных решений; подписанный DMG опубликован после полного release‑gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-SCREENSHOTS-2026-09-10.md">Исследование и границы</a></div></article>
       </div>
       <div class="timeline">
