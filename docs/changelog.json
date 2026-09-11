@@ -1,6 +1,16 @@
 {
   "versions": [
     {
+      "version": "2.5.5",
+      "build": 34,
+      "status": "released",
+      "changes": [
+        "Crop области теперь переводит выделение из NSScreen.frame в фактический ScreenCaptureKit contentRect",
+        "Убраны пустые поля и смещение после выделения на Retina, масштабированных и смешанных дисплеях",
+        "Добавлен регрессионный тест с разной геометрией overlay и источника"
+      ]
+    },
+    {
       "version": "2.5.4",
       "build": 33,
       "status": "released",

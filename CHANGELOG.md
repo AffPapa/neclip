@@ -4,6 +4,12 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.5.5 / build 34 — release candidate
+
+Исправлен crop области: выделение в overlay теперь переводится в фактический
+`contentRect` ScreenCaptureKit, поэтому на Retina, масштабированных и смешанных
+дисплеях не появляются пустые поля и захватывается ровно выбранная область.
+
 ## 2.5.4 / build 33 — release candidate
 
 Исправлена причина мягкого и увеличенного Retina-превью: редактор теперь
