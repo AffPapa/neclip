@@ -13,6 +13,8 @@
 | P0 | area crop на Retina/смешанных дисплеях мог использовать несовпадающие overlay/source coordinates | `NSScreen.frame` и `SCContentFilter.contentRect` не обязаны совпадать | нормализованное отображение выбора в source geometry, независимые X/Y scales и ориентация canvas | geometry, negative-origin, Retina и top-left regression tests |
 | P0 | canvas мог отдавать drag окну, а transient WindowServer error завершал сценарий | movable-by-background и одноразовый content query | canvas принимает drag; shareable content имеет один ограниченный fallback; permission message отделён от transient error | native editor contract + full suite + TSan/ASan |
 | P1 | текст мог остаться незакоммиченным при потере фокуса, цвет не принадлежал конкретной пометке | text field завершался только по клавише, renderer имел один цвет | idempotent commit/cancel при resign; цвет хранится в `ScreenshotAnnotation` | flattened text export и per-annotation color tests |
+| P1 | live editor показывал «Жёлтый» при красном цвете первого штриха | AppKit popup selection расходился с `canvas.annotationColor` после построения toolbar | после layout popup синхронизируется из единственного источника истины canvas | native editor test проверяет selected title; повторный live QA |
+| P0 | popup показывал выбранный синий, но новая shape оставалась красной | draft создавался с default color вместо `canvas.annotationColor` | shape получает текущий цвет явно; text фиксирует цвет в момент начала ввода | event-level canvas test для drag и focus-loss commit |
 | P1 | локальные docs утверждали 2.5.6, а public GitHub Release/Pages ещё показывали 2.5.5 | ветка release-candidate не была слита/опубликована | публикация остаётся закрыта до exact-commit build, required CI и cache-busted live check | `gh pr checks`, Release API, public `version.json`, checksum |
 
 ## Карта владельцев и границ
@@ -64,10 +66,14 @@
 
 ## Проверки этого прохода
 
-- Debug: 274 XCTest, 4 ожидаемых opt-in skip, 3 Swift Testing, 0 ошибок.
-- Targeted screenshot suite после P0 fix: 22/22.
-- Strict Swift 6 release with complete concurrency and warnings-as-errors: green.
-- AddressSanitizer and ThreadSanitizer: те же 274 XCTest + 3 Swift Testing, green.
+- Final debug, strict Swift 6 release, AddressSanitizer and ThreadSanitizer:
+  каждый прогон — 276 XCTest, 4 ожидаемых opt-in skip, 3 Swift Testing, 0 ошибок.
+- Targeted screenshot suite после P0/color fixes: 23/23.
+- Первый параллельный четырёхпроцессный запуск дал два debug и один TSan test
+  failure без sanitizer report из-за совместного использования глобальных
+  AppKit/pasteboard ресурсов. Это не было скрыто: debug и TSan повторены
+  последовательно на тех же binaries и полностью прошли; release gate всегда
+  использует последовательный запуск.
 - Реальная SQLite: миграционный тест прошёл на disposable online backup; оригинал
   не изменялся, копия удалена сразу после теста.
 - Hot paths: menu full median 1.740 ms / p95 2.220 ms; clips 0.681/0.842 ms;
@@ -79,10 +85,11 @@
 
 ## Ограничения доказательства
 
-- Live Screen Recording capture, multi-display pointer routing and interactive
-  text focus require the installed signed candidate and remain release smoke.
+- Live Screen Recording capture and multi-display pointer routing require the
+  final installed signed candidate and remain release smoke. Isolated live QA
+  подтвердил стартовый красный выбор и синюю рамку после смены palette; focus
+  commit дополнительно подтверждён event-level native test.
 - Cold launch and real capture latency cannot be honestly inferred from unit
   benchmarks; latency stages are content-free and проверяются на installed app.
 - Public 2.5.6 is not proven until PR, required CodeQL Swift job, GitHub Release,
   Pages manifest and independently downloaded checksum all agree.
-

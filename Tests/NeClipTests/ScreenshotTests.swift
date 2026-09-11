@@ -138,7 +138,10 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertFalse(window.isMovableByWindowBackground,
                        "Dragging the canvas must draw instead of moving the editor window")
         XCTAssertTrue(controller.windowShouldClose(window))
-        let zoom = try XCTUnwrap(all.compactMap { $0 as? NSPopUpButton }.first)
+        let popups = all.compactMap { $0 as? NSPopUpButton }
+        let zoom = try XCTUnwrap(popups.first { $0.accessibilityLabel() == "Масштаб снимка" })
+        let palette = try XCTUnwrap(popups.first { $0.accessibilityLabel() == "Цвет пометок" })
+        XCTAssertEqual(palette.titleOfSelectedItem, ScreenshotMarkupColor.red.rawValue)
         func scrollView(_ view: NSView) -> NSScrollView? {
             (view as? NSScrollView) ?? view.subviews.compactMap(scrollView).first
         }
@@ -277,6 +280,33 @@ final class ScreenshotTests: XCTestCase {
         let redPNG = try ScreenshotRenderer.encode(image, annotations: [red], format: .png)
         let bluePNG = try ScreenshotRenderer.encode(image, annotations: [blue], format: .png)
         XCTAssertNotEqual(redPNG, bluePNG, "Changing the palette must affect new marks")
+    }
+
+    @MainActor
+    func testCanvasStoresSelectedColorOnShapeAndFocusCommittedText() throws {
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.4))
+        canvas.annotationColor = .blue
+        canvas.tool = .rectangle
+        func mouse(_ type: NSEvent.EventType, _ point: CGPoint) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        canvas.mouseDown(with: try mouse(.leftMouseDown, CGPoint(x: 3, y: 4)))
+        canvas.mouseDragged(with: try mouse(.leftMouseDragged, CGPoint(x: 20, y: 24)))
+        canvas.mouseUp(with: try mouse(.leftMouseUp, CGPoint(x: 20, y: 24)))
+        XCTAssertEqual(canvas.edits.annotations.first?.color, .blue)
+
+        var committed: ScreenshotAnnotation?
+        canvas.onTextCommitted = { point, text, color in
+            committed = ScreenshotAnnotation(tool: .text, points: [point], text: text, color: color)
+        }
+        canvas.annotationColor = .yellow
+        canvas.beginTextEntry(at: CGPoint(x: 5, y: 20))
+        let field = try XCTUnwrap(canvas.subviews.compactMap { $0 as? NSTextField }.first)
+        field.stringValue = "Фокус сохранён"
+        XCTAssertTrue(field.resignFirstResponder())
+        XCTAssertEqual(committed?.text, "Фокус сохранён")
+        XCTAssertEqual(committed?.color, .yellow)
     }
 
     func testTextAnnotationIsIncludedInFlattenedExport() throws {

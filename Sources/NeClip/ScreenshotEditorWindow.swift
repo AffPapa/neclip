@@ -170,6 +170,10 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         canvas.onToolRequested = { [weak self] index in self?.selectTool(at: index) }
         window.center()
         root.layoutSubtreeIfNeeded()
+        // The canvas owns the current color. Re-apply it after AppKit has
+        // finished constructing the popup so the visible choice cannot drift
+        // from the color used for the first annotation.
+        color.selectItem(withTitle: canvas.annotationColor.rawValue)
         changeScale(scale)
         window.makeFirstResponder(canvas)
         refresh()
@@ -390,7 +394,7 @@ private final class ScreenshotInlineTextField: NSTextField {
 }
 
 @MainActor
-private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
+final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     let image: CGImage
     var edits = ScreenshotEdits()
     var tool = ScreenshotTool.redact
@@ -434,7 +438,7 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
         window?.makeFirstResponder(self)
         let point = location(event)
         if tool == .text { beginTextEntry(at: point); return }
-        draft = ScreenshotAnnotation(tool: tool, points: [point])
+        draft = ScreenshotAnnotation(tool: tool, points: [point], color: annotationColor)
     }
     override func mouseDragged(with event: NSEvent) {
         guard isEditingEnabled, var draft else { return }
@@ -460,6 +464,7 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     func beginTextEntry(at point: CGPoint) {
         textEntry?.cancel()
         textEntry?.removeFromSuperview()
+        let markupColor = annotationColor
         let field = ScreenshotInlineTextField(frame: CGRect(x: min(max(8, point.x), max(8, bounds.width - 248)),
                                                              y: min(max(8, point.y - 18), max(8, bounds.height - 42)),
                                                              width: min(240, max(120, bounds.width - 16)), height: 34))
@@ -477,7 +482,7 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
             let text = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
             field.removeFromSuperview()
             self.textEntry = nil
-            if !text.isEmpty { self.onTextCommitted?(point, text, self.annotationColor) }
+            if !text.isEmpty { self.onTextCommitted?(point, text, markupColor) }
             self.window?.makeFirstResponder(self)
         }
         field.onCancel = { [weak self, weak field] in
