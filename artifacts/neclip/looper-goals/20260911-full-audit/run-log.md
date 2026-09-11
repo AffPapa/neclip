@@ -37,3 +37,10 @@
   app/database/preferences backup remains preserved outside the repository.
 - Production global-hotkey automation did not expose a capturable overlay, so
   that single live capture check remains partial rather than being inferred.
+- Required CI for metadata commit `b8356c6` is green, including CodeQL Swift
+  (19m39s), Swift 6 CI, full-history secret scans and CodeQL actions/ruby.
+- Published immutable GitHub Release `v2.5.6` from exact artifact source commit
+  `61618d03ed266cc764c08fb23bc00de25c3003fb` with DMG, checksum and provenance
+  JSON. It is neither draft nor prerelease.
+- Anonymous re-download matched 2,048,962 bytes and the expected SHA-256;
+  Gatekeeper accepted the downloaded DMG as Notarized Developer ID.

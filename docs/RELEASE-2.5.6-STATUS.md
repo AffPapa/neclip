@@ -38,6 +38,15 @@ production-базы прошла `integrity_check` и `foreign_key_check`.
 
 ## Public verification
 
-- Required CI: pending final branch push.
-- GitHub Release `v2.5.6`: pending required CI.
-- Pages manifest and anonymous checksum: pending release and merge.
+- Required CI for `b8356c61002f042bf2f7f5c16ef87f08c89c1198`: Swift 6
+  CI twice, full-history secret scan twice, CodeQL Swift/actions/ruby and the
+  repository CodeQL gate — all green. The final evidence-only commit is still
+  subject to the same required checks before merge.
+- GitHub Release `v2.5.6` published at `2026-09-11T10:21:35Z`, not draft or
+  prerelease, targeting exact artifact source commit
+  `61618d03ed266cc764c08fb23bc00de25c3003fb`.
+- Release API reports the DMG asset as 2,048,962 bytes with digest
+  `sha256:340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb`.
+- Anonymous re-download independently matched that size and SHA-256; Gatekeeper
+  accepted the downloaded DMG as Notarized Developer ID.
+- Cache-busted Pages manifest and rendered website: pending PR merge/deploy.
