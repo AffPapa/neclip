@@ -4,6 +4,12 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.5.6 / build 35 — published, 2026-09-11
+
+Уточнён источник ScreenCaptureKit (`sourceRect`) и включено безопасное
+масштабирование полного источника в выходной canvas. Исправлены пустые поля и
+смещённый crop выбранной области на Retina и масштабированных дисплеях.
+
 ## 2.5.5 / build 34 — release candidate
 
 Исправлен crop области: выделение в overlay теперь переводится в фактический

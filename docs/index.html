@@ -21,16 +21,16 @@
       <div class="navlinks"><a href="#features">Возможности</a><a href="#versions">Версии</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>2.5.5 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>2.5.6 · выпущена</span>
       <h1>Скопировал.<br>Выбрал. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.5.5/NeClip-2.5.5.dmg">Скачать NeClip 2.5.5</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg">Скачать NeClip 2.5.6</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. История всегда идёт от последнего копирования. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.5-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. История всегда идёт от последнего копирования. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Проверки выпуска</a>.</p>
       <p class="fine">Уже пользуетесь NeClip? Перед обновлением сохраните копию базы и экспорт сниппетов. Для отката сохраните предыдущую версию. <a href="https://github.com/AffPapa/neclip/releases/tag/v2.4.0">Подробнее об обновлении</a>.</p>
     </div>
   </header>
@@ -72,9 +72,9 @@
     <section class="wrap" id="versions">
       <h2>Версии</h2>
       <p class="section-lead">Что изменилось и какие проверки прошла каждая опубликованная версия.</p>
-      <p>В 2.5.5 исправлены пустые поля после выделения области: crop переводится в фактическую геометрию ScreenCaptureKit и вырезает ровно выбранный участок. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.5-STATUS.md">Проверка выпуска</a>.</p>
+      <p>В 2.5.6 исправлены пустые поля после выделения области: источник ScreenCaptureKit теперь явно задаётся и полностью вписывается в canvas. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Проверка выпуска</a>.</p>
       <div class="timeline">
-        <article class="card release"><div><strong>2.5.5</strong><br><span class="status">выпущена · 11 сентября</span></div><div><b>Ровно выбранная область без полей.</b><ul><li>Overlay и contentRect переводятся через нормализованные координаты</li><li>Убраны пустые поля и смещение на Retina</li><li>Сохранены резкость и пропорции исходного кадра</li><li>Добавлен регрессионный тест разных геометрий дисплея</li></ul><p>271 XCTest, 4 ожидаемых пропуска, 3 Swift Testing, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.5-STATUS.md">Результаты проверки</a></div></article>
+        <article class="card release"><div><strong>2.5.6</strong><br><span class="status">выпущена · 11 сентября</span></div><div><b>Ровно выбранная область без полей.</b><ul><li>Явный sourceRect ScreenCaptureKit</li><li>Полный источник вписывается в output canvas</li><li>Сохранены резкость и пропорции исходного кадра</li><li>Добавлен регрессионный тест разных геометрий дисплея</li></ul><p>271 XCTest, 4 ожидаемых пропуска, 3 Swift Testing, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Результаты проверки</a></div></article>
         <article class="card release"><div><strong>2.4.0</strong><br><span class="status">выпущена · 10 сентября</span></div><div><b>Снимок без лишних движений.</b><ul><li>Space‑перемещение и размеры выделения</li><li>Inline‑текст и клавиши 1–5</li><li>Fail‑closed capture и меньше копирований памяти</li><li>Latency‑метки без пользовательских данных</li></ul><p>Исследование 15 программ, 50 функций, 20 выбранных решений; подписанный DMG опубликован после полного release‑gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-SCREENSHOTS-2026-09-10.md">Исследование и границы</a></div></article>
       </div>
       <div class="timeline">

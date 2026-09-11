@@ -1,6 +1,12 @@
 # NeClip project map
 
-Updated: 11 September 2026. Current public release: **2.5.5/build 34**. The notarized artifact and checksum are recorded in `docs/version.json`.
+Updated: 11 September 2026. Current public release: **2.5.6/build 35**. The notarized artifact and checksum are recorded in `docs/version.json`.
+
+## 2.5.6 exact source canvas
+
+ScreenCaptureKit receives an explicit `sourceRect` and fits the complete source
+into the output canvas, preventing blank margins and offset crops on scaled
+Retina and mixed-resolution displays.
 
 ## 2.5.5 exact area crop
 
