@@ -30,18 +30,23 @@ codesign strict и Gatekeeper дают accepted / Notarized Developer ID. SQLite
 production-базы прошла `integrity_check` и `foreign_key_check`.
 
 Изолированный live QA подтвердил корректный начальный красный цвет и реально
-синюю рамку после выбора `Синий`. Production hotkey smoke через UI automation
-не показал наблюдаемый overlay, поэтому реальный production capture не считается
-полностью подтверждённым этим проходом. Публикация считается доказанной только
-после green required checks, GitHub Release, cache-busted Pages manifest и
-независимого скачивания с совпавшим checksum; итог этих шагов фиксируется ниже.
+синюю рамку после выбора `Синий`. Дополнительный production-smoke установленного
+приложения (PID 31680) через команду статусного меню `Снимок области…`
+подтвердил всю цепочку `hotkey -> content-ready -> capture-ready ->
+selection-ready -> editor-visible`: открылся редактор снимка 916 × 455 с
+ожидаемыми инструментами и начальным цветом `Красный`. Редактор закрыт без
+`Копировать` и `Сохранить`. Инъекция именно глобального сочетания клавиш через
+UI automation не дала отдельного доказательства его физического нажатия;
+регистрация и обработка сочетания покрыты тестами. Публикация считается
+доказанной только после green required checks, GitHub Release, cache-busted
+Pages manifest и независимого скачивания с совпавшим checksum; итог этих шагов
+фиксируется ниже.
 
 ## Public verification
 
-- Required CI for `b8356c61002f042bf2f7f5c16ef87f08c89c1198`: Swift 6
-  CI twice, full-history secret scan twice, CodeQL Swift/actions/ruby and the
-  repository CodeQL gate — all green. The final evidence-only commit is still
-  subject to the same required checks before merge.
+- Required CI for final PR head `8729dd44fe61d160cb1943c7e237b4f8ce06b70f`:
+  Swift 6 CI twice, full-history secret scan twice, CodeQL Swift/actions/ruby
+  and the repository CodeQL gate — all green.
 - GitHub Release `v2.5.6` published at `2026-09-11T10:21:35Z`, not draft or
   prerelease, targeting exact artifact source commit
   `61618d03ed266cc764c08fb23bc00de25c3003fb`.
@@ -49,4 +54,14 @@ production-базы прошла `integrity_check` и `foreign_key_check`.
   `sha256:340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb`.
 - Anonymous re-download independently matched that size and SHA-256; Gatekeeper
   accepted the downloaded DMG as Notarized Developer ID.
-- Cache-busted Pages manifest and rendered website: pending PR merge/deploy.
+- PR #32 merged normally without admin bypass as
+  `738789498f150284722f2c0225c1d6dfa72e2723` at `2026-09-11T10:50:24Z`.
+- GitHub Pages built that exact merge commit successfully. Cache-busted
+  `version.json` reports 2.5.6/build 35, the exact release/checksum URLs,
+  2,048,962 bytes and the expected SHA-256. The rendered page exposes the
+  2.5.6 download and release-evidence link.
+- A second post-deploy anonymous download matched the manifest, checksum file
+  and asset digest; Gatekeeper again accepted the downloaded DMG.
+- Live repeat audit found and corrected stale public copy that still claimed
+  271 tests and omitted the fallback/color fixes. That docs-only correction is
+  isolated from the already verified app artifact and must pass its own PR CI.

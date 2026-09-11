@@ -7,7 +7,9 @@
       "changes": [
         "ScreenCaptureKit получает явный sourceRect и масштабирует весь источник в выходной canvas",
         "Исправлены пустые поля и смещённая область после выделения на Retina и масштабированных дисплеях",
-        "Добавлен релизный gate с полной notarization и Gatekeeper-проверкой"
+        "Fallback и финальная проверка используют один фактически выбранный display ID",
+        "Выбранный цвет применяется к новым фигурам и тексту; drag canvas и focus-loss commit покрыты тестами",
+        "Пройдены 276 XCTest, strict Swift 6, ASan, TSan, notarization и Gatekeeper"
       ]
     },
     {

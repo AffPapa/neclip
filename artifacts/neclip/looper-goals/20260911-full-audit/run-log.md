@@ -35,8 +35,8 @@
   launched from `/Applications/NeClip.app`.
 - Production SQLite integrity and foreign-key checks are clean. The rollback
   app/database/preferences backup remains preserved outside the repository.
-- Production global-hotkey automation did not expose a capturable overlay, so
-  that single live capture check remains partial rather than being inferred.
+- Production global-hotkey injection through UI automation did not prove the
+  physical shortcut event; registration and handling remain covered by tests.
 - Required CI for metadata commit `b8356c6` is green, including CodeQL Swift
   (19m39s), Swift 6 CI, full-history secret scans and CodeQL actions/ruby.
 - Published immutable GitHub Release `v2.5.6` from exact artifact source commit
@@ -44,3 +44,22 @@
   JSON. It is neither draft nor prerelease.
 - Anonymous re-download matched 2,048,962 bytes and the expected SHA-256;
   Gatekeeper accepted the downloaded DMG as Notarized Developer ID.
+
+## Delivery 3
+
+- PR #32 merged normally after explicit user authorization and all required
+  checks, producing main commit `738789498f150284722f2c0225c1d6dfa72e2723`.
+- GitHub Pages built that exact commit successfully. Cache-busted live
+  `version.json`, `changelog.json` and rendered HTML report 2.5.6/build 35 and
+  point to the immutable v2.5.6 assets.
+- A second anonymous post-deploy DMG download matched 2,048,962 bytes and
+  SHA-256 `340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb`;
+  the checksum file and Gatekeeper result agree.
+- Repeat live audit caught stale rendered copy claiming 271 rather than 276
+  XCTest and omitting final fallback/color fixes. A minimal docs-only follow-up
+  corrects the public page, changelog feed and release evidence.
+- A direct production status-menu smoke on the installed app (PID 31680)
+  recorded `hotkey -> content-ready -> capture-ready -> selection-ready ->
+  editor-visible` and exposed a 916 × 455 editor with the expected controls and
+  initial red palette. The editor was closed without copying or saving private
+  screen content.
