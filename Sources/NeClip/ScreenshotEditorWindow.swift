@@ -17,6 +17,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     private var savePanel: NSSavePanel?
     private let scroll = NSScrollView()
     private let scale = NSPopUpButton()
+    private let color = NSPopUpButton()
 
     init(image: CGImage, pasteboard: NSPasteboard = .general) {
         canvas = ScreenshotCanvas(image: image)
@@ -35,7 +36,10 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         window.title = "Скриншот · \(image.width) × \(image.height)"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
+        // The canvas must receive drag events for drawing annotations. Moving
+        // the window from its background steals those events and makes a pen
+        // stroke drag the entire editor instead.
+        window.isMovableByWindowBackground = false
         window.isReleasedWhenClosed = false
         window.minSize = CGSize(width: 660, height: 380)
         window.delegate = self
@@ -64,6 +68,14 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         tools.addArrangedSubview(NSView())
         scale.widthAnchor.constraint(equalToConstant: 96).isActive = true
         tools.addArrangedSubview(scale)
+        color.addItems(withTitles: ScreenshotMarkupColor.allCases.map(\.rawValue))
+        color.selectItem(at: ScreenshotMarkupColor.allCases.firstIndex(of: .red) ?? 0)
+        color.setAccessibilityLabel("Цвет пометок")
+        color.toolTip = "Цвет пометок"
+        color.target = self
+        color.action = #selector(changeColor(_:))
+        color.widthAnchor.constraint(equalToConstant: 100).isActive = true
+        tools.addArrangedSubview(color)
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
         scroll.allowsMagnification = true
@@ -151,13 +163,17 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
             self?.status.textColor = .systemRed
         }
         canvas.onCancel = { [weak window] in window?.performClose(nil) }
-        canvas.onTextCommitted = { [weak self] point, text in
-            self?.canvas.edits.append(ScreenshotAnnotation(tool: .text, points: [point], text: text))
+        canvas.onTextCommitted = { [weak self] point, text, markupColor in
+            self?.canvas.edits.append(ScreenshotAnnotation(tool: .text, points: [point], text: text, color: markupColor))
             self?.refresh()
         }
         canvas.onToolRequested = { [weak self] index in self?.selectTool(at: index) }
         window.center()
         root.layoutSubtreeIfNeeded()
+        // The canvas owns the current color. Re-apply it after AppKit has
+        // finished constructing the popup so the visible choice cannot drift
+        // from the color used for the first annotation.
+        color.selectItem(withTitle: canvas.annotationColor.rawValue)
         changeScale(scale)
         window.makeFirstResponder(canvas)
         refresh()
@@ -171,6 +187,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         guard ScreenshotTool.allCases.indices.contains(index) else { return }
         canvas.tool = ScreenshotTool.allCases[index]
         for button in toolButtons { button.state = button.tag == index ? .on : .off }
+        window?.makeFirstResponder(canvas)
+    }
+    @objc private func changeColor(_ sender: NSPopUpButton) {
+        guard ScreenshotMarkupColor.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
+        canvas.annotationColor = ScreenshotMarkupColor.allCases[sender.indexOfSelectedItem]
         window?.makeFirstResponder(canvas)
     }
     @objc private func undoEdit() { canvas.edits.undo(); refresh() }
@@ -341,13 +362,31 @@ enum ScreenshotFolder {
 private final class ScreenshotInlineTextField: NSTextField {
     var onCommit: ((String) -> Void)?
     var onCancel: (() -> Void)?
+    private var finished = false
+
+    func commit() {
+        guard !finished else { return }
+        finished = true
+        onCommit?(stringValue)
+    }
+
+    func cancel() {
+        guard !finished else { return }
+        finished = true
+        onCancel?()
+    }
+
+    override func resignFirstResponder() -> Bool {
+        commit()
+        return super.resignFirstResponder()
+    }
 
     override func keyDown(with event: NSEvent) {
         switch event.keyCode {
         case 36, 76:
-            onCommit?(stringValue)
+            commit()
         case 53:
-            onCancel?()
+            cancel()
         default:
             super.keyDown(with: event)
         }
@@ -355,7 +394,7 @@ private final class ScreenshotInlineTextField: NSTextField {
 }
 
 @MainActor
-private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
+final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     let image: CGImage
     var edits = ScreenshotEdits()
     var tool = ScreenshotTool.redact
@@ -363,8 +402,9 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     var onChange: (() -> Void)?
     var onLimit: (() -> Void)?
     var onCancel: (() -> Void)?
-    var onTextCommitted: ((CGPoint, String) -> Void)?
+    var onTextCommitted: ((CGPoint, String, ScreenshotMarkupColor) -> Void)?
     var onToolRequested: ((Int) -> Void)?
+    var annotationColor: ScreenshotMarkupColor = .red
     private var draft: ScreenshotAnnotation?
     private var textEntry: ScreenshotInlineTextField?
     override var isFlipped: Bool { true }
@@ -393,11 +433,12 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     }
     override func mouseDown(with event: NSEvent) {
         guard isEditingEnabled else { return }
+        textEntry?.commit()
         guard edits.annotations.count < ScreenshotEdits.maximumAnnotations else { onLimit?(); return }
         window?.makeFirstResponder(self)
         let point = location(event)
         if tool == .text { beginTextEntry(at: point); return }
-        draft = ScreenshotAnnotation(tool: tool, points: [point])
+        draft = ScreenshotAnnotation(tool: tool, points: [point], color: annotationColor)
     }
     override func mouseDragged(with event: NSEvent) {
         guard isEditingEnabled, var draft else { return }
@@ -421,7 +462,9 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     }
 
     func beginTextEntry(at point: CGPoint) {
+        textEntry?.cancel()
         textEntry?.removeFromSuperview()
+        let markupColor = annotationColor
         let field = ScreenshotInlineTextField(frame: CGRect(x: min(max(8, point.x), max(8, bounds.width - 248)),
                                                              y: min(max(8, point.y - 18), max(8, bounds.height - 42)),
                                                              width: min(240, max(120, bounds.width - 16)), height: 34))
@@ -439,7 +482,7 @@ private final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
             let text = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
             field.removeFromSuperview()
             self.textEntry = nil
-            if !text.isEmpty { self.onTextCommitted?(point, text) }
+            if !text.isEmpty { self.onTextCommitted?(point, text, markupColor) }
             self.window?.makeFirstResponder(self)
         }
         field.onCancel = { [weak self, weak field] in

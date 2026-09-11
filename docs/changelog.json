@@ -1,6 +1,16 @@
 {
   "versions": [
     {
+      "version": "2.5.6",
+      "build": 35,
+      "status": "released",
+      "changes": [
+        "ScreenCaptureKit получает явный sourceRect и масштабирует весь источник в выходной canvas",
+        "Исправлены пустые поля и смещённая область после выделения на Retina и масштабированных дисплеях",
+        "Добавлен релизный gate с полной notarization и Gatekeeper-проверкой"
+      ]
+    },
+    {
       "version": "2.5.5",
       "build": 34,
       "status": "released",

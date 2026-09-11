@@ -11,6 +11,14 @@ enum ScreenshotCaptureMode: Sendable {
     case fullScreen
 }
 
+enum ScreenshotDisplayPolicy {
+    static func resolvedID(preferred: CGDirectDisplayID,
+                           available: [CGDirectDisplayID]) -> CGDirectDisplayID? {
+        if available.contains(preferred) { return preferred }
+        return available.count == 1 ? available[0] : nil
+    }
+}
+
 /// Owns at most one capture/selection/editor. There is no launch-time screen access.
 @MainActor
 final class ScreenshotCoordinator {
@@ -72,11 +80,26 @@ final class ScreenshotCoordinator {
             guard let self else { return }
             defer { captureTask = nil }
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                let content: SCShareableContent
+                do {
+                    content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                } catch {
+                    // WindowServer can briefly return no on-screen content while
+                    // Spaces or a full-screen app is switching. A single broad
+                    // retry avoids turning that transient state into a failure.
+                    ScreenshotMetrics.mark("content-retry")
+                    content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+                }
                 ScreenshotMetrics.mark("content-ready")
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
-                guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
+                // Prefer the display under the pointer. If WindowServer reports
+                // a stale NSScreenNumber during a Space transition, use the
+                // sole available display instead of failing before capture.
+                guard let resolvedDisplayID = ScreenshotDisplayPolicy.resolvedID(
+                    preferred: displayID,
+                    available: content.displays.map(\.displayID)
+                ), let display = content.displays.first(where: { $0.displayID == resolvedDisplayID }) else {
                     throw ScreenshotFailure.overlayUnavailable
                 }
                 // The selection shell is already visible to make the shortcut feel
@@ -114,16 +137,12 @@ final class ScreenshotCoordinator {
                 let configuration = SCStreamConfiguration()
                 configuration.width = pixelSize.width
                 configuration.height = pixelSize.height
-                // If the safe working size is smaller than a Retina display,
-                // ScreenCaptureKit otherwise keeps the source size and crops
-                // from the top-left. Scale the complete display into the
-                // bounded target while preserving its aspect ratio.
-                // Never allow ScreenCaptureKit to upscale a display capture.
-                // The target size above is derived from this filter's own
-                // logical geometry and pointPixelScale, so false preserves
-                // native pixels and only permits the explicit safety
-                // downscale for displays larger than our working-image limit.
-                configuration.scalesToFit = false
+                // For a display filter, ScreenCaptureKit's default source is
+                // the complete display. Do not set sourceRect here: its
+                // coordinate space is not the display's logical contentRect
+                // for SCScreenshotManager and would capture only the
+                // top-left portion into a full-size canvas.
+                configuration.scalesToFit = true
                 configuration.preservesAspectRatio = true
                 configuration.showsCursor = false
                 configuration.colorSpaceName = CGColorSpace.sRGB
@@ -137,7 +156,7 @@ final class ScreenshotCoordinator {
                     throw ScreenshotFailure.displayTooLarge
                 }
                 guard NSScreen.screens.contains(where: {
-                    ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
+                    ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == resolvedDisplayID
                         && $0.frame == frame
                 }) else { throw ScreenshotFailure.displayChanged }
                 if mode == .fullScreen {
@@ -153,8 +172,14 @@ final class ScreenshotCoordinator {
                 // Cancellation neither writes files nor changes the clipboard.
             } catch {
                 closeSelection()
-                showError((error as? ScreenshotFailure)?.errorDescription
-                    ?? "Не удалось сделать снимок. Проверьте разрешение записи экрана и повторите попытку.")
+                let message: String
+                if !CGPreflightScreenCaptureAccess() {
+                    message = ScreenshotFailure.permissionDenied.errorDescription!
+                } else {
+                    message = (error as? ScreenshotFailure)?.errorDescription
+                        ?? "Не удалось сделать снимок. Повторите попытку через секунду."
+                }
+                showError(message)
             }
         }
     }
@@ -184,9 +209,13 @@ final class ScreenshotCoordinator {
         view.onSelect = { [weak self] rect in
             guard let self, let image = capturedImage else { return }
             let sourceRect = self.capturedSourceRect
+            // Mouse events are local to the overlay. Convert them back to the
+            // global display coordinate space used by NSScreen and
+            // ScreenCaptureKit before calculating the pixel crop.
+            let globalSelection = rect.offsetBy(dx: frame.minX, dy: frame.minY)
             closeSelection()
             guard let pixels = ScreenshotRenderer.pixelRect(
-                selection: rect, screen: CGRect(origin: .zero, size: frame.size),
+                selection: globalSelection, screen: frame,
                 sourceRect: sourceRect,
                 width: image.width, height: image.height) else {
                 showError("Не удалось выделить область. Попробуйте снова.")

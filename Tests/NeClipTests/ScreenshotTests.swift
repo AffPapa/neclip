@@ -59,7 +59,7 @@ final class ScreenshotTests: XCTestCase {
             backingScale: 2,
             maximum: 4
         )
-        XCTAssertEqual(fit, 0.25, accuracy: 0.001)
+        XCTAssertEqual(fit, 0.5, accuracy: 0.001)
     }
 
     func testSaveWritesOnlyFlattenedPNGAndJPEGAndReplacesConfirmedTarget() throws {
@@ -135,8 +135,13 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(all.first { $0.accessibilityLabel() == "Отменить" }?.isEnabled, false)
         XCTAssertEqual(all.first { $0.accessibilityLabel() == "Повторить" }?.isEnabled, false)
         XCTAssertEqual(window.minSize, CGSize(width: 660, height: 380))
+        XCTAssertFalse(window.isMovableByWindowBackground,
+                       "Dragging the canvas must draw instead of moving the editor window")
         XCTAssertTrue(controller.windowShouldClose(window))
-        let zoom = try XCTUnwrap(all.compactMap { $0 as? NSPopUpButton }.first)
+        let popups = all.compactMap { $0 as? NSPopUpButton }
+        let zoom = try XCTUnwrap(popups.first { $0.accessibilityLabel() == "Масштаб снимка" })
+        let palette = try XCTUnwrap(popups.first { $0.accessibilityLabel() == "Цвет пометок" })
+        XCTAssertEqual(palette.titleOfSelectedItem, ScreenshotMarkupColor.red.rawValue)
         func scrollView(_ view: NSView) -> NSScrollView? {
             (view as? NSScrollView) ?? view.subviews.compactMap(scrollView).first
         }
@@ -163,12 +168,19 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(ScreenshotRenderer.pixelRect(
             selection: CGRect(x: -1400, y: 700, width: 100, height: 50),
             screen: screen, width: 2880, height: 1800),
-            CGRect(x: 80, y: 100, width: 200, height: 100))
+            CGRect(x: 80, y: 1600, width: 200, height: 100))
         XCTAssertEqual(ScreenshotRenderer.pixelRect(
             selection: CGRect(x: -1450, y: 780, width: 30, height: 40),
             screen: screen, width: 2880, height: 1800),
-            CGRect(x: 0, y: 0, width: 40, height: 40))
+            CGRect(x: 0, y: 1760, width: 40, height: 40))
         XCTAssertNil(ScreenshotRenderer.pixelRect(selection: .zero, screen: screen, width: 2880, height: 1800))
+    }
+
+    func testDisplayRecoveryUsesTheActuallyAvailableDisplayID() {
+        XCTAssertEqual(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: [3, 7]), 7)
+        XCTAssertEqual(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: [3]), 3)
+        XCTAssertNil(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: [3, 4]))
+        XCTAssertNil(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: []))
     }
 
     func testCropMapsOverlaySelectionIntoDifferentCaptureGeometry() {
@@ -178,7 +190,17 @@ final class ScreenshotTests: XCTestCase {
             sourceRect: CGRect(x: 0, y: 0, width: 1200, height: 1000),
             width: 2400, height: 2000
         )
-        XCTAssertEqual(result, CGRect(x: 240, y: 1500, width: 480, height: 250))
+        XCTAssertEqual(result, CGRect(x: 200, y: 200, width: 400, height: 200))
+    }
+
+    func testCropHonorsGlobalDisplayOriginInsteadOfNormalizingItAway() {
+        let result = ScreenshotRenderer.pixelRect(
+            selection: CGRect(x: 120, y: 620, width: 200, height: 100),
+            screen: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+            sourceRect: CGRect(x: 0, y: 0, width: 1728, height: 1080),
+            width: 3456, height: 2160
+        )
+        XCTAssertEqual(result, CGRect(x: 240, y: 1240, width: 400, height: 200))
     }
 
     @MainActor
@@ -219,7 +241,7 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(ScreenshotRenderer.pixelRect(
             selection: CGRect(x: 0.2, y: 5.2, width: 1, height: 1),
             screen: CGRect(x: 0, y: 0, width: 10, height: 10), width: 20, height: 30),
-            CGRect(x: 0, y: 11, width: 3, height: 4))
+            CGRect(x: 0, y: 15, width: 3, height: 4))
     }
 
     func testContextRejectsOversizedOrInvalidBuffers() {
@@ -243,6 +265,59 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(edits.undone.isEmpty)
         for _ in 0..<200 { edits.append(a) }
         XCTAssertEqual(edits.annotations.count, 128)
+    }
+
+    func testMarkupPaletteIsStoredPerAnnotationAndChangesRenderedOutput() throws {
+        let image = try fixture(secret: 0.4)
+        let red = ScreenshotAnnotation(tool: .arrow,
+                                       points: [CGPoint(x: 3, y: 3), CGPoint(x: 28, y: 20)],
+                                       color: .red)
+        let blue = ScreenshotAnnotation(tool: .arrow,
+                                        points: [CGPoint(x: 3, y: 3), CGPoint(x: 28, y: 20)],
+                                        color: .blue)
+        XCTAssertNotEqual(red, blue)
+        XCTAssertEqual(ScreenshotMarkupColor.allCases.count, 5)
+        let redPNG = try ScreenshotRenderer.encode(image, annotations: [red], format: .png)
+        let bluePNG = try ScreenshotRenderer.encode(image, annotations: [blue], format: .png)
+        XCTAssertNotEqual(redPNG, bluePNG, "Changing the palette must affect new marks")
+    }
+
+    @MainActor
+    func testCanvasStoresSelectedColorOnShapeAndFocusCommittedText() throws {
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.4))
+        canvas.annotationColor = .blue
+        canvas.tool = .rectangle
+        func mouse(_ type: NSEvent.EventType, _ point: CGPoint) throws -> NSEvent {
+            try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        }
+        canvas.mouseDown(with: try mouse(.leftMouseDown, CGPoint(x: 3, y: 4)))
+        canvas.mouseDragged(with: try mouse(.leftMouseDragged, CGPoint(x: 20, y: 24)))
+        canvas.mouseUp(with: try mouse(.leftMouseUp, CGPoint(x: 20, y: 24)))
+        XCTAssertEqual(canvas.edits.annotations.first?.color, .blue)
+
+        var committed: ScreenshotAnnotation?
+        canvas.onTextCommitted = { point, text, color in
+            committed = ScreenshotAnnotation(tool: .text, points: [point], text: text, color: color)
+        }
+        canvas.annotationColor = .yellow
+        canvas.beginTextEntry(at: CGPoint(x: 5, y: 20))
+        let field = try XCTUnwrap(canvas.subviews.compactMap { $0 as? NSTextField }.first)
+        field.stringValue = "Фокус сохранён"
+        XCTAssertTrue(field.resignFirstResponder())
+        XCTAssertEqual(committed?.text, "Фокус сохранён")
+        XCTAssertEqual(committed?.color, .yellow)
+    }
+
+    func testTextAnnotationIsIncludedInFlattenedExport() throws {
+        let image = try fixture(secret: 0.4)
+        let annotation = ScreenshotAnnotation(tool: .text,
+                                               points: [CGPoint(x: 4, y: 24)],
+                                               text: "Сохранено",
+                                               color: .blue)
+        let original = try ScreenshotRenderer.encode(image, annotations: [], format: .png)
+        let edited = try ScreenshotRenderer.encode(image, annotations: [annotation], format: .png)
+        XCTAssertNotEqual(original, edited, "Committed text must be part of copy/save output")
     }
 
     func testRedactedSecretsProduceIdenticalPNGAndJPEG() throws {

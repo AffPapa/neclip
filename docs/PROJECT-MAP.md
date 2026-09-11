@@ -1,6 +1,24 @@
 # NeClip project map
 
-Updated: 11 September 2026. Current public release: **2.5.5/build 34**. The notarized artifact and checksum are recorded in `docs/version.json`.
+Updated: 11 September 2026. Audited release: **2.5.6/build 35**; public release
+at the start of the final audit was **2.5.5/build 34**. Required CI, immutable
+GitHub Release and live Pages evidence are recorded in
+`docs/RELEASE-2.5.6-STATUS.md`.
+
+## 2.5.6 final audit recovery
+
+`ScreenshotDisplayPolicy` resolves the preferred ScreenCaptureKit display or
+the sole safe fallback. Capture and post-capture screen validation use the same
+resolved ID, so a transient Space/display recovery cannot select one display
+and then reject it using stale metadata. Text commit is idempotent on Enter or
+focus loss, and each annotation owns its selected markup color. Full evidence
+and module ownership are in `CODE-AUDIT-2.5.6.md`.
+
+## 2.5.6 exact source canvas
+
+ScreenCaptureKit receives an explicit `sourceRect` and fits the complete source
+into the output canvas, preventing blank margins and offset crops on scaled
+Retina and mixed-resolution displays.
 
 ## 2.5.5 exact area crop
 

@@ -94,8 +94,10 @@ final class MenuSimplificationContractTests: XCTestCase {
 
     func testLargeDisplayCaptureScalesTheWholeSourceInsteadOfCropping() throws {
         let source = try screenshotSource()
-        XCTAssertTrue(source.contains("configuration.scalesToFit = false"),
-                      "A display capture must never upscale or stretch the source")
+        XCTAssertFalse(source.contains("configuration.sourceRect = filter.contentRect"),
+                       "Display capture must use the filter's complete default source")
+        XCTAssertTrue(source.contains("configuration.scalesToFit = true"),
+                      "A bounded capture must fit the complete source into its output canvas")
         XCTAssertTrue(source.contains("configuration.preservesAspectRatio = true"),
                       "A bounded capture must preserve the display aspect ratio")
     }

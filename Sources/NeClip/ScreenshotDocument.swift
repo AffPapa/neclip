@@ -26,11 +26,33 @@ enum ScreenshotTool: String, CaseIterable, Sendable {
     }
 }
 
+/// A deliberately small palette keeps markup discoverable without opening a
+/// second system window. The value is stored with each annotation so changing
+/// the current colour never changes existing marks.
+enum ScreenshotMarkupColor: String, CaseIterable, Sendable {
+    case red = "Красный"
+    case yellow = "Жёлтый"
+    case blue = "Синий"
+    case white = "Белый"
+    case black = "Чёрный"
+
+    var cgColor: CGColor {
+        switch self {
+        case .red: CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1)
+        case .yellow: CGColor(srgbRed: 1.0, green: 0.72, blue: 0.05, alpha: 1)
+        case .blue: CGColor(srgbRed: 0.10, green: 0.42, blue: 0.95, alpha: 1)
+        case .white: CGColor(gray: 1, alpha: 1)
+        case .black: CGColor(gray: 0, alpha: 1)
+        }
+    }
+}
+
 /// Coordinates are pixels, origin at the top left, independent of view zoom.
 struct ScreenshotAnnotation: Equatable, Sendable {
     var tool: ScreenshotTool
     var points: [CGPoint]
     var text = ""
+    var color: ScreenshotMarkupColor = .red
 
     var rect: CGRect {
         guard let first = points.first, let last = points.last else { return .zero }
@@ -53,7 +75,7 @@ struct ScreenshotEdits: Sendable {
 }
 
 enum ScreenshotFailure: LocalizedError {
-    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
+    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, permissionDenied, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
     var errorDescription: String? {
         switch self {
         case .invalidImage: "Не удалось подготовить изображение. Выберите меньшую область."
@@ -61,6 +83,7 @@ enum ScreenshotFailure: LocalizedError {
         case .filterUnavailable: "Не удалось подготовить область снимка. Повторите попытку."
         case .displayChanged: "Экран изменился во время снимка. Повторите попытку."
         case .displayTooLarge: "Разрешение экрана превышает лимит 32 мегапикселя. Снимки с этого экрана пока недоступны."
+        case .permissionDenied: "macOS не разрешила запись экрана для NeClip. Включите NeClip в Системные настройки → Конфиденциальность и безопасность → Запись экрана, затем перезапустите приложение."
         case .emptySelection: "Выделите область экрана."
         case .exportFailed: "Не удалось сохранить снимок. Проверьте папку и свободное место."
         case .clipboardChanged: "Буфер уже изменился. Нажмите «Копировать» ещё раз, если хотите заменить его снимком."
@@ -101,19 +124,17 @@ enum ScreenshotRenderer {
     static let maximumPixels = 32_000_000
 
     /// Magnification that fits an image's pixel canvas into a point-sized
-    /// scroll viewport. AppKit applies the window backing scale after the
-    /// scroll magnification; including it here prevents Retina canvases from
-    /// being displayed at 2x and clipped at the bottom/right edges.
+    /// scroll viewport. NSScrollView magnification is already expressed in
+    /// logical view units; applying the window backing scale here would fit
+    /// the image twice as small and leave large blank margins on Retina.
     static func fittingMagnification(contentSize: CGSize, imageSize: CGSize,
                                      backingScale: CGFloat, maximum: CGFloat) -> CGFloat {
         guard contentSize.width > 0, contentSize.height > 0,
               imageSize.width > 0, imageSize.height > 0,
-              backingScale.isFinite, backingScale > 0,
               maximum.isFinite, maximum > 0 else { return 0 }
-        let scale = max(1, backingScale)
         return min(maximum,
-                   contentSize.width / (imageSize.width * scale),
-                   contentSize.height / (imageSize.height * scale))
+                   contentSize.width / imageSize.width,
+                   contentSize.height / imageSize.height)
     }
 
     /// Returns a native-size capture when it fits the working-image budget and
@@ -152,10 +173,9 @@ enum ScreenshotRenderer {
         pixelRect(selection: selection, screen: screen, sourceRect: screen, width: width, height: height)
     }
 
-    /// Maps a selection made in the overlay's screen coordinate space into
-    /// the source coordinate space reported by ScreenCaptureKit. The two
-    /// spaces normally match, but can differ on scaled displays, menu-bar
-    /// exclusions, and mixed-resolution monitor layouts.
+    /// Maps a selection in global screen coordinates into the source geometry
+    /// reported by ScreenCaptureKit. Both rectangles use the display's global
+    /// coordinate space; only their sizes/scales may differ.
     static func pixelRect(selection: CGRect, screen: CGRect, sourceRect: CGRect,
                          width: Int, height: Int) -> CGRect? {
         guard screen.width > 0, screen.height > 0, width > 0, height > 0,
@@ -165,17 +185,17 @@ enum ScreenshotRenderer {
               sourceRect.width > 0, sourceRect.height > 0 else { return nil }
         let region = selection.intersection(screen)
         guard !region.isNull, region.width > 0, region.height > 0 else { return nil }
-        let sourceRegion = CGRect(
-            x: sourceRect.minX + (region.minX - screen.minX) / screen.width * sourceRect.width,
-            y: sourceRect.minY + (region.minY - screen.minY) / screen.height * sourceRect.height,
-            width: region.width / screen.width * sourceRect.width,
-            height: region.height / screen.height * sourceRect.height
-        )
+        let sourceRegion = region.intersection(sourceRect)
+        guard !sourceRegion.isNull, sourceRegion.width > 0, sourceRegion.height > 0 else { return nil }
         let sx = CGFloat(width) / sourceRect.width, sy = CGFloat(height) / sourceRect.height
         let left = floor((sourceRegion.minX - sourceRect.minX) * sx)
-        let top = floor((sourceRect.maxY - sourceRegion.maxY) * sy)
+        // ScreenCaptureKit CGImages and the selection overlay both expose
+        // their visual top edge as the smaller Y value for this pipeline.
+        // Do not invert Y here: doing so shifts a selection to content below
+        // it (for example selecting 1.9.0 produced 1.8.0/1.4.0).
+        let top = floor((sourceRegion.minY - sourceRect.minY) * sy)
         let right = ceil((sourceRegion.maxX - sourceRect.minX) * sx)
-        let bottom = ceil((sourceRect.maxY - sourceRegion.minY) * sy)
+        let bottom = ceil((sourceRegion.maxY - sourceRect.minY) * sy)
         return CGRect(x: left, y: top, width: right - left, height: bottom - top)
             .intersection(CGRect(x: 0, y: 0, width: width, height: height))
     }
@@ -224,13 +244,13 @@ enum ScreenshotRenderer {
         context.draw(image, in: bounds)
         context.translateBy(x: 0, y: CGFloat(image.height))
         context.scaleBy(x: 1, y: -1)
-        context.setStrokeColor(CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1))
-        context.setFillColor(CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1))
         context.setLineWidth(4)
         context.setLineCap(.round)
         context.setLineJoin(.round)
         for annotation in annotations where annotation.tool != .redact {
             guard let start = annotation.points.first, let end = annotation.points.last else { continue }
+            context.setStrokeColor(annotation.color.cgColor)
+            context.setFillColor(annotation.color.cgColor)
             switch annotation.tool {
             case .pen:
                 context.beginPath()
@@ -259,7 +279,7 @@ enum ScreenshotRenderer {
                 context.textPosition = CGPoint(x: 0, y: -24)
                 let text = NSAttributedString(string: String(annotation.text.prefix(1000)), attributes: [
                     NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 24, nil),
-                    NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1)
+                    NSAttributedString.Key(kCTForegroundColorAttributeName as String): annotation.color.cgColor
                 ])
                 CTLineDraw(CTLineCreateWithAttributedString(text), context)
                 context.restoreGState()
