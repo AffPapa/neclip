@@ -171,6 +171,16 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertNil(ScreenshotRenderer.pixelRect(selection: .zero, screen: screen, width: 2880, height: 1800))
     }
 
+    func testCropMapsOverlaySelectionIntoDifferentCaptureGeometry() {
+        let result = ScreenshotRenderer.pixelRect(
+            selection: CGRect(x: 100, y: 100, width: 200, height: 100),
+            screen: CGRect(x: 0, y: 0, width: 1000, height: 800),
+            sourceRect: CGRect(x: 0, y: 0, width: 1200, height: 1000),
+            width: 2400, height: 2000
+        )
+        XCTAssertEqual(result, CGRect(x: 240, y: 1500, width: 480, height: 250))
+    }
+
     @MainActor
     func testSelectionClampsDragAndEscapeCancelsWithoutPublishing() throws {
         let view = ScreenshotSelectionView(frame: CGRect(x: 0, y: 0, width: 100, height: 100),

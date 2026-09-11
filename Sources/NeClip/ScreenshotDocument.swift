@@ -149,16 +149,33 @@ enum ScreenshotRenderer {
     }
 
     static func pixelRect(selection: CGRect, screen: CGRect, width: Int, height: Int) -> CGRect? {
+        pixelRect(selection: selection, screen: screen, sourceRect: screen, width: width, height: height)
+    }
+
+    /// Maps a selection made in the overlay's screen coordinate space into
+    /// the source coordinate space reported by ScreenCaptureKit. The two
+    /// spaces normally match, but can differ on scaled displays, menu-bar
+    /// exclusions, and mixed-resolution monitor layouts.
+    static func pixelRect(selection: CGRect, screen: CGRect, sourceRect: CGRect,
+                         width: Int, height: Int) -> CGRect? {
         guard screen.width > 0, screen.height > 0, width > 0, height > 0,
               [selection.minX, selection.minY, selection.width, selection.height,
-               screen.minX, screen.minY, screen.width, screen.height].allSatisfy(\.isFinite) else { return nil }
+               screen.minX, screen.minY, screen.width, screen.height,
+               sourceRect.minX, sourceRect.minY, sourceRect.width, sourceRect.height].allSatisfy(\.isFinite),
+              sourceRect.width > 0, sourceRect.height > 0 else { return nil }
         let region = selection.intersection(screen)
         guard !region.isNull, region.width > 0, region.height > 0 else { return nil }
-        let sx = CGFloat(width) / screen.width, sy = CGFloat(height) / screen.height
-        let left = floor((region.minX - screen.minX) * sx)
-        let top = floor((screen.maxY - region.maxY) * sy)
-        let right = ceil((region.maxX - screen.minX) * sx)
-        let bottom = ceil((screen.maxY - region.minY) * sy)
+        let sourceRegion = CGRect(
+            x: sourceRect.minX + (region.minX - screen.minX) / screen.width * sourceRect.width,
+            y: sourceRect.minY + (region.minY - screen.minY) / screen.height * sourceRect.height,
+            width: region.width / screen.width * sourceRect.width,
+            height: region.height / screen.height * sourceRect.height
+        )
+        let sx = CGFloat(width) / sourceRect.width, sy = CGFloat(height) / sourceRect.height
+        let left = floor((sourceRegion.minX - sourceRect.minX) * sx)
+        let top = floor((sourceRect.maxY - sourceRegion.maxY) * sy)
+        let right = ceil((sourceRegion.maxX - sourceRect.minX) * sx)
+        let bottom = ceil((sourceRect.maxY - sourceRegion.minY) * sy)
         return CGRect(x: left, y: top, width: right - left, height: bottom - top)
             .intersection(CGRect(x: 0, y: 0, width: width, height: height))
     }

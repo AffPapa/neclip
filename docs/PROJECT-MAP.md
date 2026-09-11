@@ -1,6 +1,14 @@
 # NeClip project map
 
-Updated: 11 September 2026. Current public release: **2.5.4/build 33**. The notarized artifact and checksum are recorded in `docs/version.json`.
+Updated: 11 September 2026. Current public release: **2.5.5/build 34**. The notarized artifact and checksum are recorded in `docs/version.json`.
+
+## 2.5.5 exact area crop
+
+Area selection is made in the overlay's `NSScreen.frame` coordinates, while
+ScreenCaptureKit may expose a different `contentRect` on scaled or mixed
+displays. The crop path now maps the selection through normalized coordinates
+into that exact source rectangle before converting to pixels. This removes the
+blank margins and shifted content seen after a Retina selection.
 
 ## 2.5.4 Retina capture and version correction
 

@@ -20,6 +20,10 @@ final class ScreenshotCoordinator {
     private var screenObserver: NSObjectProtocol?
     private let monitor: ClipboardMonitor
     private var capturedImage: CGImage?
+    // ScreenCaptureKit's contentRect can differ from NSScreen.frame in
+    // scaled/multi-display configurations. Keep the exact source geometry so
+    // the user's selection is mapped proportionally into the captured raster.
+    private var capturedSourceRect = CGRect.zero
     private var captureGeneration: UInt = 0
     private var cropTask: Task<Void, Never>?
 
@@ -142,6 +146,7 @@ final class ScreenshotCoordinator {
                 }
                 guard selection != nil else { return }
                 capturedImage = image
+                capturedSourceRect = filter.contentRect
                 selection?.contentView.flatMap { $0 as? ScreenshotSelectionView }?.setImage(image)
                 ScreenshotMetrics.mark("selection-ready")
             } catch is CancellationError {
@@ -178,9 +183,11 @@ final class ScreenshotCoordinator {
         view.onCancel = { [weak self] in self?.cancel() }
         view.onSelect = { [weak self] rect in
             guard let self, let image = capturedImage else { return }
+            let sourceRect = self.capturedSourceRect
             closeSelection()
             guard let pixels = ScreenshotRenderer.pixelRect(
                 selection: rect, screen: CGRect(origin: .zero, size: frame.size),
+                sourceRect: sourceRect,
                 width: image.width, height: image.height) else {
                 showError("Не удалось выделить область. Попробуйте снова.")
                 return
@@ -218,6 +225,7 @@ final class ScreenshotCoordinator {
         selection?.close()
         selection = nil
         capturedImage = nil
+        capturedSourceRect = .zero
     }
 
     func showEditor(image: CGImage, sourceBundleID: String?) {
