@@ -4,6 +4,14 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
+## 2.5.4 / build 33 — release candidate
+
+Исправлена причина мягкого и увеличенного Retina-превью: редактор теперь
+учитывает backing scale окна при расчёте режима «По размеру», а ScreenCaptureKit
+не выполняет лишний upscale. Геометрия кадра берётся из `contentRect ×
+pointPixelScale`, то есть из фактического источника захвата. Устаревший кэш
+проверки обновлений больше не показывается как актуальная версия.
+
 ## 2.5.3 / build 32 — published, 2026-09-11
 
 Исправлен неполный или увеличенный скриншот на Retina и внешних дисплеях:
