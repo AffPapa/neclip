@@ -9,5 +9,5 @@
 Developer ID, notarization, stapling, Gatekeeper и DMG validation — успешно.
 
 Артефакт: `NeClip-2.5.6.dmg`, 2,042,819 bytes.
-SHA-256: `e064da458e7087305cabb51ca9cc309246dd8d00c8a0d5a6479a854cd59405eb`.
-Исходный коммит: `51e32b878bc06b63f84a34db79c2cb3a0d06db57`.
+SHA-256: `ce3fc035ef63a6f0e7948378b68e613344e6f8063a3e0f0f6e42b529b360c4d7`.
+Исходный коммит: `58b6e0f09c8b54d6b0bcf402faff72b877920425`.
