@@ -30,11 +30,17 @@ codesign strict и Gatekeeper дают accepted / Notarized Developer ID. SQLite
 production-базы прошла `integrity_check` и `foreign_key_check`.
 
 Изолированный live QA подтвердил корректный начальный красный цвет и реально
-синюю рамку после выбора `Синий`. Production hotkey smoke через UI automation
-не показал наблюдаемый overlay, поэтому реальный production capture не считается
-полностью подтверждённым этим проходом. Публикация считается доказанной только
-после green required checks, GitHub Release, cache-busted Pages manifest и
-независимого скачивания с совпавшим checksum; итог этих шагов фиксируется ниже.
+синюю рамку после выбора `Синий`. Дополнительный production-smoke установленного
+приложения (PID 31680) через команду статусного меню `Снимок области…`
+подтвердил всю цепочку `hotkey -> content-ready -> capture-ready ->
+selection-ready -> editor-visible`: открылся редактор снимка 916 × 455 с
+ожидаемыми инструментами и начальным цветом `Красный`. Редактор закрыт без
+`Копировать` и `Сохранить`. Инъекция именно глобального сочетания клавиш через
+UI automation не дала отдельного доказательства его физического нажатия;
+регистрация и обработка сочетания покрыты тестами. Публикация считается
+доказанной только после green required checks, GitHub Release, cache-busted
+Pages manifest и независимого скачивания с совпавшим checksum; итог этих шагов
+фиксируется ниже.
 
 ## Public verification
 
