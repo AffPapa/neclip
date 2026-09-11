@@ -63,3 +63,25 @@
   editor-visible` and exposed a 916 × 455 editor with the expected controls and
   initial red palette. The editor was closed without copying or saving private
   screen content.
+
+## Delivery 4 — final integrity re-audit
+
+- Fresh GitHub/main audit found stale root README release facts (date, evidence
+  link, DMG size and SHA-256) and a stale current-release reference in
+  `SECURITY.md`; both now match the immutable 2.5.6/build 35 release.
+- `scripts/verify-site.rb` now rejects a README whose version, date, evidence
+  link, download URL, size or checksum differs from `docs/version.json`.
+- GitHub main protection now requires a PR, resolved conversations, strict
+  up-to-date checks and CodeQL Ruby in addition to the existing test,
+  full-history, CodeQL Actions and CodeQL Swift gates. Admin enforcement and
+  force-push/deletion blocks remain enabled.
+- Fresh publishable-tree/full-history/side-ref Gitleaks scans, ignored QA and
+  artifact scans, and unreachable-blob scan found no leaks. GitHub has no
+  repository Actions secrets, Dependabot alerts or open Code Scanning alerts.
+- Fresh serial debug, strict Swift 6 release, ASan and TSan suites each passed
+  276 XCTest (four intentional opt-in skips) and three Swift Testing checks;
+  all three opt-in synthetic latency benchmarks then passed separately.
+- Re-downloaded the public DMG with HTTPS redirect following: SHA-256 matched
+  `340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb` and
+  Gatekeeper accepted it as Notarized Developer ID. Mounted-DMG content,
+  signature and stapling checks passed.
