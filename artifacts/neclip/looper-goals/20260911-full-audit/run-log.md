@@ -85,3 +85,23 @@
   `340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb` and
   Gatekeeper accepted it as Notarized Developer ID. Mounted-DMG content,
   signature and stapling checks passed.
+
+## Delivery 5 — final documentation and local-artifact closure
+
+- Re-audit found `BACKLOG.md` and `docs/backlog.json` still leading with 2.1.0
+  despite the public 2.5.6/build 35 release. Both now expose the exact current
+  version, download and release-evidence URL; older release notes are explicitly
+  historical rather than active status.
+- `scripts/verify-site.rb` now fails if the newest changelog entry or structured
+  backlog release diverges from `docs/version.json`.
+- Added `scripts/clean-local-artifacts.sh`, an allowlist-only cleanup for
+  reproducible `.build*`, `.qa` and `.DS_Store` output. It deliberately leaves
+  `dist/releases/current`, local release archives and user Application Support
+  data untouched.
+- Removed the confirmed local build/sanitizer/QA caches (about 4 GB before
+  cleanup). The retained `dist/releases/current` still resolves to exact source
+  `61618d03ed266cc764c08fb23bc00de25c3003fb`; its DMG retains the published
+  SHA-256 `340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb`.
+- Fresh `swift test --disable-sandbox` passed 276 XCTest with four intentional
+  opt-in skips and three Swift Testing checks; the complete secret scan remained
+  clean across the publishable tree and 162 ref commits.

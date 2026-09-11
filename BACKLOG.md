@@ -4,6 +4,27 @@ NeClip deliberately stays small: fast local history, snippets and safe keyboard
 layout correction. Accounts, cloud sync, subscriptions, telemetry and AI are
 not planned.
 
+## Current public release — 2.5.6 / build 35
+
+Released 11 September 2026 after the normal Developer ID, notarization,
+stapling, Gatekeeper, mounted-DMG, public-download and required-CI gates.
+[Download](https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg)
+· [release evidence](docs/RELEASE-2.5.6-STATUS.md).
+
+- Correct selected-area capture on Retina and mixed-scale displays.
+- Keep the chosen annotation color attached to every shape and text entry.
+- Restore capture once after a transient WindowServer failure, without changing
+  the local-only, no-account product boundary.
+
+## Current bounded roadmap
+
+- Verify first-run permission wording across supported macOS releases.
+- Expand local layout pairs only with low-false-positive system tests.
+- Repeat measured menu latency before changing bounded browse windows.
+- Consider lightweight snippet-folder drag ordering only if section counts grow.
+
+## Historical release notes
+
 ## Published in 2.1.0 / build 24
 
 - Reuse the bounded history snapshot and first-page slice when opening the menu.
@@ -42,9 +63,10 @@ Published 8 September 2026 after the normal signed/notarized release gate.
 - Passed Swift 6, strict build, signing, notarization, Gatekeeper,
   site/manifest/checksum and clean-history secret scans.
 
-## Local candidate 1.11.0 / build 18 — not published
+## Historical local candidate 1.11.0 / build 18 — not published
 
-Public download remains 1.10.0/build 17; the installed app/database are unchanged.
+At the time this candidate was made, public download remained 1.10.0/build 17;
+it never changed the installed app or database.
 [Local audit and release boundaries](docs/AUDIT-1.11.0-2026-09-07.md) ·
 [15-product research](docs/RESEARCH-1.11.0-INVISIBLE-2026-09-07.md).
 

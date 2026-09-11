@@ -39,6 +39,10 @@ CI and CodeQL are required before the tag is published. The release gate covers
 debug, strict release, ASan, TSan, notarization, stapling, Gatekeeper and the
 mounted-DMG check.
 
+For a clean development checkout, run `scripts/clean-local-artifacts.sh`. It
+removes only reproducible build/QA output; it deliberately preserves local
+release archives and `~/Library/Application Support/NeClip` user data.
+
 ## Everyday workflow
 
 NeClip is for immediate reuse, not managing a searchable archive.
