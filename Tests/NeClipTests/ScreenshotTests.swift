@@ -33,14 +33,13 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(Double(pixels.width) / Double(pixels.height), 7680.0 / 4320.0, accuracy: 0.001)
     }
 
-    func testDisplayPixelDimensionsWinOverLogicalRetinaGeometry() {
+    func testCaptureUsesScreenCaptureKitLogicalGeometryAndScale() {
         let size = ScreenshotRenderer.capturePixelSize(
-            displayPixels: (width: 6016, height: 3384),
             contentRect: CGRect(x: 0, y: 0, width: 1512, height: 982),
             pointPixelScale: 2
         )
-        XCTAssertEqual(size?.width, 6016)
-        XCTAssertEqual(size?.height, 3384)
+        XCTAssertEqual(size?.width, 3024)
+        XCTAssertEqual(size?.height, 1964)
     }
 
     func testCapturePixelSizeRejectsInvalidInput() {
@@ -51,6 +50,16 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertNil(ScreenshotRenderer.capturePixelSize(
             contentRect: CGRect(x: 0, y: 0, width: CGFloat.infinity, height: 100), pointPixelScale: 2
         ))
+    }
+
+    func testFitMagnificationAccountsForRetinaBackingScale() {
+        let fit = ScreenshotRenderer.fittingMagnification(
+            contentSize: CGSize(width: 1000, height: 700),
+            imageSize: CGSize(width: 2000, height: 1400),
+            backingScale: 2,
+            maximum: 4
+        )
+        XCTAssertEqual(fit, 0.25, accuracy: 0.001)
     }
 
     func testSaveWritesOnlyFlattenedPNGAndJPEGAndReplacesConfirmedTarget() throws {

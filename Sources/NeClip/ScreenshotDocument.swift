@@ -100,21 +100,33 @@ enum ScreenshotRenderer {
     // One 8-bit RGBA working image is at most 128 MB. No unbounded full-screen caches.
     static let maximumPixels = 32_000_000
 
+    /// Magnification that fits an image's pixel canvas into a point-sized
+    /// scroll viewport. AppKit applies the window backing scale after the
+    /// scroll magnification; including it here prevents Retina canvases from
+    /// being displayed at 2x and clipped at the bottom/right edges.
+    static func fittingMagnification(contentSize: CGSize, imageSize: CGSize,
+                                     backingScale: CGFloat, maximum: CGFloat) -> CGFloat {
+        guard contentSize.width > 0, contentSize.height > 0,
+              imageSize.width > 0, imageSize.height > 0,
+              backingScale.isFinite, backingScale > 0,
+              maximum.isFinite, maximum > 0 else { return 0 }
+        let scale = max(1, backingScale)
+        return min(maximum,
+                   contentSize.width / (imageSize.width * scale),
+                   contentSize.height / (imageSize.height * scale))
+    }
+
     /// Returns a native-size capture when it fits the working-image budget and
     /// an aspect-preserving preview size otherwise. Large Retina displays can
     /// exceed the budget before the user has selected a small area; refusing
     /// the whole display makes the area tool appear broken. The selected crop
     /// remains bounded by the same limit and maps through the returned image
     /// dimensions, so no coordinate mismatch is introduced.
-    static func capturePixelSize(
-        displayPixels: (width: Int, height: Int)? = nil,
-        contentRect: CGRect,
-        pointPixelScale: CGFloat
-    ) -> (width: Int, height: Int)? {
-        if let displayPixels,
-           displayPixels.width > 0, displayPixels.height > 0 {
-            return boundedPixelSize(width: displayPixels.width, height: displayPixels.height)
-        }
+    /// ScreenCaptureKit's `contentRect` and `pointPixelScale` are the only
+    /// geometry that is guaranteed to describe the source being captured.
+    /// CGDisplayPixelsWide/High can describe the panel's mode rather than the
+    /// scaled source exposed by ScreenCaptureKit, causing an implicit stretch.
+    static func capturePixelSize(contentRect: CGRect, pointPixelScale: CGFloat) -> (width: Int, height: Int)? {
         guard contentRect.width.isFinite, contentRect.height.isFinite,
               pointPixelScale.isFinite, contentRect.width > 0,
               contentRect.height > 0, pointPixelScale > 0 else { return nil }
@@ -122,7 +134,7 @@ enum ScreenshotRenderer {
         let nativeHeight = Double(contentRect.height) * Double(pointPixelScale)
         guard nativeWidth.isFinite, nativeHeight.isFinite,
               nativeWidth >= 1, nativeHeight >= 1 else { return nil }
-        return boundedPixelSize(width: Int(max(1, floor(nativeWidth))), height: Int(max(1, floor(nativeHeight))))
+        return boundedPixelSize(width: Int(max(1, nativeWidth.rounded())), height: Int(max(1, nativeHeight.rounded())))
     }
 
     private static func boundedPixelSize(width: Int, height: Int) -> (width: Int, height: Int)? {

@@ -1,6 +1,16 @@
 # NeClip project map
 
-Updated: 11 September 2026. Current public release: **2.5.3/build 32**. The notarized artifact and checksum are recorded in `docs/version.json`.
+Updated: 11 September 2026. Current public release: **2.5.4/build 33**. The notarized artifact and checksum are recorded in `docs/version.json`.
+
+## 2.5.4 Retina capture and version correction
+
+ScreenCaptureKit capture size is derived from the selected filter's
+`contentRect × pointPixelScale`; CoreGraphics panel-mode dimensions are not
+substituted. `scalesToFit` remains disabled for native-size frames, preventing
+an unnecessary interpolation pass. The editor's fit magnification includes the
+window backing scale, so a Retina canvas is not shown at 2x and cropped. The
+update cache key is versioned to prevent a legacy 2.4 result from appearing as
+the latest release.
 
 ## 2.5.3 Retina display correction
 

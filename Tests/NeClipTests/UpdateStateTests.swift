@@ -60,6 +60,21 @@ final class UpdateStateTests: XCTestCase {
     }
 
     @MainActor
+    func testLegacyCacheCannotMasqueradeAsLatestVersion() throws {
+        let suite = "NeClip.UpdateTests.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let legacy = UpdateSnapshot(manifest: manifest("2.4.0", build: 28), checkedAt: date)
+        defaults.set(try JSONEncoder().encode(legacy), forKey: "NeClip.lastVerifiedUpdate.v1")
+
+        let checker = UpdateChecker(installed: installed("2.5.3", build: "32"), defaults: defaults,
+                                    now: { self.date }, fetch: { legacy.manifest })
+        XCTAssertNil(checker.snapshot)
+        XCTAssertEqual(checker.comparison, .unknown)
+        XCTAssertFalse(checker.isCachedResult)
+    }
+
+    @MainActor
     func testExplicitSuccessPersistsAndFailureRetainsOriginalDate() async throws {
         let suite = "NeClip.UpdateTests.\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))

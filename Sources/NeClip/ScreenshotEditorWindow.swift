@@ -178,8 +178,12 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
 
     @objc private func changeScale(_ sender: NSPopUpButton) {
         guard scroll.documentView != nil else { return }
-        let fit = min(scroll.contentSize.width / CGFloat(canvas.image.width),
-                      scroll.contentSize.height / CGFloat(canvas.image.height), scroll.maxMagnification)
+        let fit = ScreenshotRenderer.fittingMagnification(
+            contentSize: scroll.contentSize,
+            imageSize: CGSize(width: canvas.image.width, height: canvas.image.height),
+            backingScale: window?.backingScaleFactor ?? 1,
+            maximum: scroll.maxMagnification
+        )
         // One document unit is an image pixel, not an AppKit point. At 100%,
         // one image pixel must occupy one display pixel on Retina as well.
         scroll.magnification = sender.indexOfSelectedItem == 0 ? max(scroll.minMagnification, fit)

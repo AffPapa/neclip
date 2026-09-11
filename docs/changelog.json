@@ -1,6 +1,16 @@
 {
   "versions": [
     {
+      "version": "2.5.4",
+      "build": 33,
+      "status": "released",
+      "changes": [
+        "Исправлен Retina-масштаб редактора: режим «По размеру» учитывает backing scale и больше не увеличивает холст вдвое",
+        "ScreenCaptureKit запрещает лишний upscale и использует фактическую геометрию contentRect × pointPixelScale",
+        "Старый кэш обновлений больше не выдаётся за актуальную версию"
+      ]
+    },
+    {
       "version": "2.5.3",
       "build": 32,
       "status": "released",

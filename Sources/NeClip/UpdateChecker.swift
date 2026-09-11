@@ -176,7 +176,12 @@ struct UpdateSnapshot: Codable, Equatable {
 final class UpdateChecker: ObservableObject {
     enum Comparison: Equatable { case unknown, available, equal, localNewer }
     static let shared = UpdateChecker()
-    static let cacheKey = "NeClip.lastVerifiedUpdate.v1"
+    // The cache schema is intentionally versioned.  A previous build could
+    // leave an old release (for example 2.4.0) in UserDefaults; showing that
+    // value as the current "latest" version is worse than showing no result.
+    // Bumping the key makes every release start with an unambiguous state and
+    // avoids presenting stale metadata from an older updater implementation.
+    static let cacheKey = "NeClip.lastVerifiedUpdate.v2"
     let installed: InstalledVersion
     @Published private(set) var snapshot: UpdateSnapshot?
     @Published private(set) var isChecking = false

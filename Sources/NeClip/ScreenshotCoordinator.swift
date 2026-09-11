@@ -103,12 +103,7 @@ final class ScreenshotCoordinator {
                 } else {
                     throw ScreenshotFailure.overlayUnavailable
                 }
-                let displayPixels = (
-                    width: CGDisplayPixelsWide(displayID),
-                    height: CGDisplayPixelsHigh(displayID)
-                )
                 guard let pixelSize = ScreenshotRenderer.capturePixelSize(
-                    displayPixels: displayPixels.width > 0 && displayPixels.height > 0 ? displayPixels : nil,
                     contentRect: filter.contentRect,
                     pointPixelScale: CGFloat(filter.pointPixelScale)
                 ) else { throw ScreenshotFailure.filterUnavailable }
@@ -119,7 +114,12 @@ final class ScreenshotCoordinator {
                 // ScreenCaptureKit otherwise keeps the source size and crops
                 // from the top-left. Scale the complete display into the
                 // bounded target while preserving its aspect ratio.
-                configuration.scalesToFit = true
+                // Never allow ScreenCaptureKit to upscale a display capture.
+                // The target size above is derived from this filter's own
+                // logical geometry and pointPixelScale, so false preserves
+                // native pixels and only permits the explicit safety
+                // downscale for displays larger than our working-image limit.
+                configuration.scalesToFit = false
                 configuration.preservesAspectRatio = true
                 configuration.showsCursor = false
                 configuration.colorSpaceName = CGColorSpace.sRGB
