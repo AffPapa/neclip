@@ -163,11 +163,11 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(ScreenshotRenderer.pixelRect(
             selection: CGRect(x: -1400, y: 700, width: 100, height: 50),
             screen: screen, width: 2880, height: 1800),
-            CGRect(x: 80, y: 100, width: 200, height: 100))
+            CGRect(x: 80, y: 1600, width: 200, height: 100))
         XCTAssertEqual(ScreenshotRenderer.pixelRect(
             selection: CGRect(x: -1450, y: 780, width: 30, height: 40),
             screen: screen, width: 2880, height: 1800),
-            CGRect(x: 0, y: 0, width: 40, height: 40))
+            CGRect(x: 0, y: 1760, width: 40, height: 40))
         XCTAssertNil(ScreenshotRenderer.pixelRect(selection: .zero, screen: screen, width: 2880, height: 1800))
     }
 
@@ -178,7 +178,7 @@ final class ScreenshotTests: XCTestCase {
             sourceRect: CGRect(x: 0, y: 0, width: 1200, height: 1000),
             width: 2400, height: 2000
         )
-        XCTAssertEqual(result, CGRect(x: 200, y: 1600, width: 400, height: 200))
+        XCTAssertEqual(result, CGRect(x: 200, y: 200, width: 400, height: 200))
     }
 
     func testCropHonorsGlobalDisplayOriginInsteadOfNormalizingItAway() {
@@ -188,7 +188,7 @@ final class ScreenshotTests: XCTestCase {
             sourceRect: CGRect(x: 0, y: 0, width: 1728, height: 1080),
             width: 3456, height: 2160
         )
-        XCTAssertEqual(result, CGRect(x: 240, y: 720, width: 400, height: 200))
+        XCTAssertEqual(result, CGRect(x: 240, y: 1240, width: 400, height: 200))
     }
 
     @MainActor
@@ -229,7 +229,7 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(ScreenshotRenderer.pixelRect(
             selection: CGRect(x: 0.2, y: 5.2, width: 1, height: 1),
             screen: CGRect(x: 0, y: 0, width: 10, height: 10), width: 20, height: 30),
-            CGRect(x: 0, y: 11, width: 3, height: 4))
+            CGRect(x: 0, y: 15, width: 3, height: 4))
     }
 
     func testContextRejectsOversizedOrInvalidBuffers() {

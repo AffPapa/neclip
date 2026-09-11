@@ -166,9 +166,13 @@ enum ScreenshotRenderer {
         guard !sourceRegion.isNull, sourceRegion.width > 0, sourceRegion.height > 0 else { return nil }
         let sx = CGFloat(width) / sourceRect.width, sy = CGFloat(height) / sourceRect.height
         let left = floor((sourceRegion.minX - sourceRect.minX) * sx)
-        let top = floor((sourceRect.maxY - sourceRegion.maxY) * sy)
+        // ScreenCaptureKit CGImages and the selection overlay both expose
+        // their visual top edge as the smaller Y value for this pipeline.
+        // Do not invert Y here: doing so shifts a selection to content below
+        // it (for example selecting 1.9.0 produced 1.8.0/1.4.0).
+        let top = floor((sourceRegion.minY - sourceRect.minY) * sy)
         let right = ceil((sourceRegion.maxX - sourceRect.minX) * sx)
-        let bottom = ceil((sourceRect.maxY - sourceRegion.minY) * sy)
+        let bottom = ceil((sourceRegion.maxY - sourceRect.minY) * sy)
         return CGRect(x: left, y: top, width: right - left, height: bottom - top)
             .intersection(CGRect(x: 0, y: 0, width: width, height: height))
     }
