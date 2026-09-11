@@ -114,12 +114,11 @@ final class ScreenshotCoordinator {
                 let configuration = SCStreamConfiguration()
                 configuration.width = pixelSize.width
                 configuration.height = pixelSize.height
-                // Make the source and destination explicit. Without this,
-                // ScreenCaptureKit may place a display-sized source in the
-                // configured canvas's top-left when dimensions differ on
-                // Retina/scaled displays, leaving blank margins and breaking
-                // the selection-to-image correspondence.
-                configuration.sourceRect = filter.contentRect
+                // For a display filter, ScreenCaptureKit's default source is
+                // the complete display. Do not set sourceRect here: its
+                // coordinate space is not the display's logical contentRect
+                // for SCScreenshotManager and would capture only the
+                // top-left portion into a full-size canvas.
                 configuration.scalesToFit = true
                 configuration.preservesAspectRatio = true
                 configuration.showsCursor = false
