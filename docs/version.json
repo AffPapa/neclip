@@ -6,8 +6,8 @@
   "release": "https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg",
   "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.5.6",
   "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg.sha256",
-  "sha256": "ac8c49d135c9604d2f5c2578872cdca9b5fb006eb91a7d7e75188a7ea87af5ce",
-  "sizeBytes": 2042819,
-  "publishedAt": "2026-09-11T07:15:00Z",
+  "sha256": "340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb",
+  "sizeBytes": 2048962,
+  "publishedAt": "2026-09-11T09:58:58Z",
   "source": "https://github.com/AffPapa/neclip"
 }

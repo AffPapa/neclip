@@ -1,9 +1,9 @@
 # NeClip project map
 
-Updated: 11 September 2026. Current release candidate: **2.5.6/build 35**;
-public release at the start of the final audit was **2.5.5/build 34**. The
-candidate becomes public only after the required CI, immutable GitHub Release
-and live Pages checks recorded in `docs/RELEASE-2.5.6-STATUS.md`.
+Updated: 11 September 2026. Audited release: **2.5.6/build 35**; public release
+at the start of the final audit was **2.5.5/build 34**. Required CI, immutable
+GitHub Release and live Pages evidence are recorded in
+`docs/RELEASE-2.5.6-STATUS.md`.
 
 ## 2.5.6 final audit recovery
 

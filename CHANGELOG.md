@@ -4,7 +4,7 @@ All known NeClip releases are documented here. A version is downloadable only
 after Developer ID signing, Apple notarization, stapling, Gatekeeper and exact
 DMG checksum verification have passed.
 
-## 2.5.6 / build 35 — release candidate
+## 2.5.6 / build 35 — published, 2026-09-11
 
 Уточнён источник ScreenCaptureKit (`sourceRect`) и включено безопасное
 масштабирование полного источника в выходной canvas. Исправлены пустые поля и
@@ -16,6 +16,9 @@ Canvas теперь принимает annotation drags, текст сохран
 одно состояние canvas; смена цвета больше не оставляет фигуры красными.
 Один ограниченный retry восстанавливает transient WindowServer failures;
 фактически выбранный fallback display ID используется и при финальной проверке.
+
+Финальный notarized arm64 DMG: 2,048,962 bytes. SHA-256:
+`340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb`.
 
 ## 2.5.5 / build 34 — release candidate
 

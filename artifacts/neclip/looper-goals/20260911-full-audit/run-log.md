@@ -21,3 +21,19 @@
 - Repeat isolated QA showed a genuinely blue rectangle with the popup on `Синий`; Undo became enabled.
 - Final serial debug/strict release/ASan/TSan gates each passed 276 XCTest (4 opt-in skips) and 3 Swift Testing checks. The initial parallel attempt had AppKit/pasteboard cross-process failures and is not used as release evidence.
 - Public GitHub Release and Pages still report 2.5.5; 2.5.6 remains a candidate.
+
+## Delivery 2
+
+- Built final exact-source candidate from
+  `61618d03ed266cc764c08fb23bc00de25c3003fb`.
+- Final DMG is 2,048,962 bytes with SHA-256
+  `340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb`.
+- App notarization ID: `0c918ef8-2b6d-4609-9a08-ec13df50e5cf`; DMG
+  notarization ID: `0b13e563-6e6d-4277-adb3-9917985d4308`.
+- App and DMG passed signing, stapling, Gatekeeper and mounted read-only DMG
+  verification. The final app replaced only the intermediate candidate and was
+  launched from `/Applications/NeClip.app`.
+- Production SQLite integrity and foreign-key checks are clean. The rollback
+  app/database/preferences backup remains preserved outside the repository.
+- Production global-hotkey automation did not expose a capturable overlay, so
+  that single live capture check remains partial rather than being inferred.
