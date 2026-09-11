@@ -72,11 +72,24 @@ final class ScreenshotCoordinator {
             guard let self else { return }
             defer { captureTask = nil }
             do {
-                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                let content: SCShareableContent
+                do {
+                    content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                } catch {
+                    // WindowServer can briefly return no on-screen content while
+                    // Spaces or a full-screen app is switching. A single broad
+                    // retry avoids turning that transient state into a failure.
+                    ScreenshotMetrics.mark("content-retry")
+                    content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+                }
                 ScreenshotMetrics.mark("content-ready")
                 try Task.checkCancellation()
                 guard generation == captureGeneration else { return }
-                guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
+                // Prefer the display under the pointer. If WindowServer reports
+                // a stale NSScreenNumber during a Space transition, use the
+                // sole available display instead of failing before capture.
+                guard let display = content.displays.first(where: { $0.displayID == displayID })
+                    ?? (content.displays.count == 1 ? content.displays.first : nil) else {
                     throw ScreenshotFailure.overlayUnavailable
                 }
                 // The selection shell is already visible to make the shortcut feel
@@ -149,8 +162,14 @@ final class ScreenshotCoordinator {
                 // Cancellation neither writes files nor changes the clipboard.
             } catch {
                 closeSelection()
-                showError((error as? ScreenshotFailure)?.errorDescription
-                    ?? "Не удалось сделать снимок. Проверьте разрешение записи экрана и повторите попытку.")
+                let message: String
+                if !CGPreflightScreenCaptureAccess() {
+                    message = ScreenshotFailure.permissionDenied.errorDescription!
+                } else {
+                    message = (error as? ScreenshotFailure)?.errorDescription
+                        ?? "Не удалось сделать снимок. Повторите попытку через секунду."
+                }
+                showError(message)
             }
         }
     }

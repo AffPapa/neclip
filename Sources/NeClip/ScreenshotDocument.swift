@@ -75,7 +75,7 @@ struct ScreenshotEdits: Sendable {
 }
 
 enum ScreenshotFailure: LocalizedError {
-    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
+    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, permissionDenied, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
     var errorDescription: String? {
         switch self {
         case .invalidImage: "Не удалось подготовить изображение. Выберите меньшую область."
@@ -83,6 +83,7 @@ enum ScreenshotFailure: LocalizedError {
         case .filterUnavailable: "Не удалось подготовить область снимка. Повторите попытку."
         case .displayChanged: "Экран изменился во время снимка. Повторите попытку."
         case .displayTooLarge: "Разрешение экрана превышает лимит 32 мегапикселя. Снимки с этого экрана пока недоступны."
+        case .permissionDenied: "macOS не разрешила запись экрана для NeClip. Включите NeClip в Системные настройки → Конфиденциальность и безопасность → Запись экрана, затем перезапустите приложение."
         case .emptySelection: "Выделите область экрана."
         case .exportFailed: "Не удалось сохранить снимок. Проверьте папку и свободное место."
         case .clipboardChanged: "Буфер уже изменился. Нажмите «Копировать» ещё раз, если хотите заменить его снимком."
