@@ -180,9 +180,13 @@ final class ScreenshotCoordinator {
         view.onSelect = { [weak self] rect in
             guard let self, let image = capturedImage else { return }
             let sourceRect = self.capturedSourceRect
+            // Mouse events are local to the overlay. Convert them back to the
+            // global display coordinate space used by NSScreen and
+            // ScreenCaptureKit before calculating the pixel crop.
+            let globalSelection = rect.offsetBy(dx: frame.minX, dy: frame.minY)
             closeSelection()
             guard let pixels = ScreenshotRenderer.pixelRect(
-                selection: rect, screen: CGRect(origin: .zero, size: frame.size),
+                selection: globalSelection, screen: frame,
                 sourceRect: sourceRect,
                 width: image.width, height: image.height) else {
                 showError("Не удалось выделить область. Попробуйте снова.")

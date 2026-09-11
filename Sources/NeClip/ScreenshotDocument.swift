@@ -150,10 +150,9 @@ enum ScreenshotRenderer {
         pixelRect(selection: selection, screen: screen, sourceRect: screen, width: width, height: height)
     }
 
-    /// Maps a selection made in the overlay's screen coordinate space into
-    /// the source coordinate space reported by ScreenCaptureKit. The two
-    /// spaces normally match, but can differ on scaled displays, menu-bar
-    /// exclusions, and mixed-resolution monitor layouts.
+    /// Maps a selection in global screen coordinates into the source geometry
+    /// reported by ScreenCaptureKit. Both rectangles use the display's global
+    /// coordinate space; only their sizes/scales may differ.
     static func pixelRect(selection: CGRect, screen: CGRect, sourceRect: CGRect,
                          width: Int, height: Int) -> CGRect? {
         guard screen.width > 0, screen.height > 0, width > 0, height > 0,
@@ -163,12 +162,8 @@ enum ScreenshotRenderer {
               sourceRect.width > 0, sourceRect.height > 0 else { return nil }
         let region = selection.intersection(screen)
         guard !region.isNull, region.width > 0, region.height > 0 else { return nil }
-        let sourceRegion = CGRect(
-            x: sourceRect.minX + (region.minX - screen.minX) / screen.width * sourceRect.width,
-            y: sourceRect.minY + (region.minY - screen.minY) / screen.height * sourceRect.height,
-            width: region.width / screen.width * sourceRect.width,
-            height: region.height / screen.height * sourceRect.height
-        )
+        let sourceRegion = region.intersection(sourceRect)
+        guard !sourceRegion.isNull, sourceRegion.width > 0, sourceRegion.height > 0 else { return nil }
         let sx = CGFloat(width) / sourceRect.width, sy = CGFloat(height) / sourceRect.height
         let left = floor((sourceRegion.minX - sourceRect.minX) * sx)
         let top = floor((sourceRect.maxY - sourceRegion.maxY) * sy)

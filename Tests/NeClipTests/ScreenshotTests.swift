@@ -178,7 +178,17 @@ final class ScreenshotTests: XCTestCase {
             sourceRect: CGRect(x: 0, y: 0, width: 1200, height: 1000),
             width: 2400, height: 2000
         )
-        XCTAssertEqual(result, CGRect(x: 240, y: 1500, width: 480, height: 250))
+        XCTAssertEqual(result, CGRect(x: 200, y: 1600, width: 400, height: 200))
+    }
+
+    func testCropHonorsGlobalDisplayOriginInsteadOfNormalizingItAway() {
+        let result = ScreenshotRenderer.pixelRect(
+            selection: CGRect(x: 120, y: 620, width: 200, height: 100),
+            screen: CGRect(x: 0, y: 0, width: 1728, height: 1117),
+            sourceRect: CGRect(x: 0, y: 0, width: 1728, height: 1080),
+            width: 3456, height: 2160
+        )
+        XCTAssertEqual(result, CGRect(x: 240, y: 720, width: 400, height: 200))
     }
 
     @MainActor
