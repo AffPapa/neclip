@@ -59,7 +59,7 @@ final class ScreenshotTests: XCTestCase {
             backingScale: 2,
             maximum: 4
         )
-        XCTAssertEqual(fit, 0.25, accuracy: 0.001)
+        XCTAssertEqual(fit, 0.5, accuracy: 0.001)
     }
 
     func testSaveWritesOnlyFlattenedPNGAndJPEGAndReplacesConfirmedTarget() throws {

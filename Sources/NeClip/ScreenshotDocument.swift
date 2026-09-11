@@ -101,19 +101,17 @@ enum ScreenshotRenderer {
     static let maximumPixels = 32_000_000
 
     /// Magnification that fits an image's pixel canvas into a point-sized
-    /// scroll viewport. AppKit applies the window backing scale after the
-    /// scroll magnification; including it here prevents Retina canvases from
-    /// being displayed at 2x and clipped at the bottom/right edges.
+    /// scroll viewport. NSScrollView magnification is already expressed in
+    /// logical view units; applying the window backing scale here would fit
+    /// the image twice as small and leave large blank margins on Retina.
     static func fittingMagnification(contentSize: CGSize, imageSize: CGSize,
                                      backingScale: CGFloat, maximum: CGFloat) -> CGFloat {
         guard contentSize.width > 0, contentSize.height > 0,
               imageSize.width > 0, imageSize.height > 0,
-              backingScale.isFinite, backingScale > 0,
               maximum.isFinite, maximum > 0 else { return 0 }
-        let scale = max(1, backingScale)
         return min(maximum,
-                   contentSize.width / (imageSize.width * scale),
-                   contentSize.height / (imageSize.height * scale))
+                   contentSize.width / imageSize.width,
+                   contentSize.height / imageSize.height)
     }
 
     /// Returns a native-size capture when it fits the working-image budget and
