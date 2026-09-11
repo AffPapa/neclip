@@ -1,6 +1,15 @@
 # NeClip project map
 
-Updated: 10 September 2026. Current public release: **2.5.2/build 31**. The notarized artifact and checksum are recorded in `docs/version.json`.
+Updated: 11 September 2026. Current public release: **2.5.3/build 32**. The notarized artifact and checksum are recorded in `docs/version.json`.
+
+## 2.5.3 Retina display correction
+
+Capture sizing now prefers physical `CGDisplayPixelsWide/High` dimensions for
+the selected display. This avoids logical-point mismatches on Retina and
+external displays that could produce a zoomed or incomplete source image.
+The bounded 32 MP path, aspect-preserving ScreenCaptureKit configuration, and
+pixel-coordinate crop mapping remain unchanged. Regression coverage is in
+`ScreenshotTests.testDisplayPixelDimensionsWinOverLogicalRetinaGeometry`.
 
 ## 2.5.2 full audit and release
 
