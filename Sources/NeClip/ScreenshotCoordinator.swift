@@ -11,6 +11,14 @@ enum ScreenshotCaptureMode: Sendable {
     case fullScreen
 }
 
+enum ScreenshotDisplayPolicy {
+    static func resolvedID(preferred: CGDirectDisplayID,
+                           available: [CGDirectDisplayID]) -> CGDirectDisplayID? {
+        if available.contains(preferred) { return preferred }
+        return available.count == 1 ? available[0] : nil
+    }
+}
+
 /// Owns at most one capture/selection/editor. There is no launch-time screen access.
 @MainActor
 final class ScreenshotCoordinator {
@@ -88,8 +96,10 @@ final class ScreenshotCoordinator {
                 // Prefer the display under the pointer. If WindowServer reports
                 // a stale NSScreenNumber during a Space transition, use the
                 // sole available display instead of failing before capture.
-                guard let display = content.displays.first(where: { $0.displayID == displayID })
-                    ?? (content.displays.count == 1 ? content.displays.first : nil) else {
+                guard let resolvedDisplayID = ScreenshotDisplayPolicy.resolvedID(
+                    preferred: displayID,
+                    available: content.displays.map(\.displayID)
+                ), let display = content.displays.first(where: { $0.displayID == resolvedDisplayID }) else {
                     throw ScreenshotFailure.overlayUnavailable
                 }
                 // The selection shell is already visible to make the shortcut feel
@@ -146,7 +156,7 @@ final class ScreenshotCoordinator {
                     throw ScreenshotFailure.displayTooLarge
                 }
                 guard NSScreen.screens.contains(where: {
-                    ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
+                    ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == resolvedDisplayID
                         && $0.frame == frame
                 }) else { throw ScreenshotFailure.displayChanged }
                 if mode == .fullScreen {

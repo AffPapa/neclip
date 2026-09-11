@@ -173,6 +173,13 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertNil(ScreenshotRenderer.pixelRect(selection: .zero, screen: screen, width: 2880, height: 1800))
     }
 
+    func testDisplayRecoveryUsesTheActuallyAvailableDisplayID() {
+        XCTAssertEqual(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: [3, 7]), 7)
+        XCTAssertEqual(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: [3]), 3)
+        XCTAssertNil(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: [3, 4]))
+        XCTAssertNil(ScreenshotDisplayPolicy.resolvedID(preferred: 7, available: []))
+    }
+
     func testCropMapsOverlaySelectionIntoDifferentCaptureGeometry() {
         let result = ScreenshotRenderer.pixelRect(
             selection: CGRect(x: 100, y: 100, width: 200, height: 100),
