@@ -26,7 +26,14 @@ abort 'README download mismatch' unless readme.include?(expected)
 abort 'README size mismatch' unless readme.include?("(#{readme_size} bytes)")
 abort 'README checksum mismatch' unless readme.include?(version.fetch('sha256'))
 abort 'public/candidate mismatch' unless project.fetch('sourceCandidate').fetch('publicVersion') == version['version']
-abort 'missing candidate record' unless data['changelog']['versions'].any? { |v| v['version'] == project['sourceCandidate']['version'] }
+changelog = data.fetch('changelog').fetch('versions')
+abort 'missing candidate record' unless changelog.any? { |v| v['version'] == project['sourceCandidate']['version'] }
+abort 'stale changelog head' unless changelog.first.fetch('version') == version['version']
+backlog = data.fetch('backlog').fetch('currentRelease')
+abort 'backlog version mismatch' unless backlog.fetch('version') == version['version']
+abort 'backlog build mismatch' unless backlog.fetch('build') == version['build']
+abort 'backlog download mismatch' unless backlog.fetch('release') == expected
+abort 'backlog evidence mismatch' unless backlog.fetch('evidence').end_with?("RELEASE-#{version['version']}-STATUS.md")
 abort 'missing title/h1' unless html.scan(/<title>/).size == 1 && html.scan(/<h1>/).size == 1
 abort 'missing description' unless html.include?('<meta name="description" content="')
 abort 'wrong canonical' unless html.include?('<link rel="canonical" href="https://affpapa.github.io/neclip/">')

@@ -1,5 +1,12 @@
 {
+  "currentRelease": {
+    "version": "2.5.6",
+    "build": 35,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md"
+  },
   "done": [
+    "Published 2.5.6 build 35: corrected selected-area capture, persisted annotation color and notarized public DMG verification",
     "Published 1.14.0 build 21: contextual Focus Stack, signed/notarized DMG and independent Gatekeeper verification",
     "Flat snippet folders in both root menus; remove duplicate quick list and implicit top-item actions",
     "Retire new pins without deleting legacy protected clips; explicit warned unpinning by selected ID",
