@@ -106,7 +106,15 @@ enum ScreenshotRenderer {
     /// the whole display makes the area tool appear broken. The selected crop
     /// remains bounded by the same limit and maps through the returned image
     /// dimensions, so no coordinate mismatch is introduced.
-    static func capturePixelSize(contentRect: CGRect, pointPixelScale: CGFloat) -> (width: Int, height: Int)? {
+    static func capturePixelSize(
+        displayPixels: (width: Int, height: Int)? = nil,
+        contentRect: CGRect,
+        pointPixelScale: CGFloat
+    ) -> (width: Int, height: Int)? {
+        if let displayPixels,
+           displayPixels.width > 0, displayPixels.height > 0 {
+            return boundedPixelSize(width: displayPixels.width, height: displayPixels.height)
+        }
         guard contentRect.width.isFinite, contentRect.height.isFinite,
               pointPixelScale.isFinite, contentRect.width > 0,
               contentRect.height > 0, pointPixelScale > 0 else { return nil }
@@ -114,13 +122,18 @@ enum ScreenshotRenderer {
         let nativeHeight = Double(contentRect.height) * Double(pointPixelScale)
         guard nativeWidth.isFinite, nativeHeight.isFinite,
               nativeWidth >= 1, nativeHeight >= 1 else { return nil }
-        let area = nativeWidth * nativeHeight
+        return boundedPixelSize(width: Int(max(1, floor(nativeWidth))), height: Int(max(1, floor(nativeHeight))))
+    }
+
+    private static func boundedPixelSize(width: Int, height: Int) -> (width: Int, height: Int)? {
+        guard width > 0, height > 0 else { return nil }
+        let area = Double(width) * Double(height)
         guard area.isFinite else { return nil }
         let factor = min(1, sqrt(Double(maximumPixels) / area))
-        let width = Int(max(1, floor(nativeWidth * factor)))
-        let height = Int(max(1, floor(nativeHeight * factor)))
-        guard width > 0, height > 0, width <= maximumPixels / height else { return nil }
-        return (width, height)
+        let boundedWidth = Int(max(1, floor(Double(width) * factor)))
+        let boundedHeight = Int(max(1, floor(Double(height) * factor)))
+        guard boundedWidth <= maximumPixels / boundedHeight else { return nil }
+        return (boundedWidth, boundedHeight)
     }
 
     static func pixelRect(selection: CGRect, screen: CGRect, width: Int, height: Int) -> CGRect? {

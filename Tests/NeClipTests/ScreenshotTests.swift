@@ -33,6 +33,16 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(Double(pixels.width) / Double(pixels.height), 7680.0 / 4320.0, accuracy: 0.001)
     }
 
+    func testDisplayPixelDimensionsWinOverLogicalRetinaGeometry() {
+        let size = ScreenshotRenderer.capturePixelSize(
+            displayPixels: (width: 6016, height: 3384),
+            contentRect: CGRect(x: 0, y: 0, width: 1512, height: 982),
+            pointPixelScale: 2
+        )
+        XCTAssertEqual(size?.width, 6016)
+        XCTAssertEqual(size?.height, 3384)
+    }
+
     func testCapturePixelSizeRejectsInvalidInput() {
         XCTAssertNil(ScreenshotRenderer.capturePixelSize(contentRect: .zero, pointPixelScale: 2))
         XCTAssertNil(ScreenshotRenderer.capturePixelSize(
