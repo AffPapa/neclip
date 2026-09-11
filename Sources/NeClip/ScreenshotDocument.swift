@@ -26,11 +26,33 @@ enum ScreenshotTool: String, CaseIterable, Sendable {
     }
 }
 
+/// A deliberately small palette keeps markup discoverable without opening a
+/// second system window. The value is stored with each annotation so changing
+/// the current colour never changes existing marks.
+enum ScreenshotMarkupColor: String, CaseIterable, Sendable {
+    case red = "Красный"
+    case yellow = "Жёлтый"
+    case blue = "Синий"
+    case white = "Белый"
+    case black = "Чёрный"
+
+    var cgColor: CGColor {
+        switch self {
+        case .red: CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1)
+        case .yellow: CGColor(srgbRed: 1.0, green: 0.72, blue: 0.05, alpha: 1)
+        case .blue: CGColor(srgbRed: 0.10, green: 0.42, blue: 0.95, alpha: 1)
+        case .white: CGColor(gray: 1, alpha: 1)
+        case .black: CGColor(gray: 0, alpha: 1)
+        }
+    }
+}
+
 /// Coordinates are pixels, origin at the top left, independent of view zoom.
 struct ScreenshotAnnotation: Equatable, Sendable {
     var tool: ScreenshotTool
     var points: [CGPoint]
     var text = ""
+    var color: ScreenshotMarkupColor = .red
 
     var rect: CGRect {
         guard let first = points.first, let last = points.last else { return .zero }
@@ -221,13 +243,13 @@ enum ScreenshotRenderer {
         context.draw(image, in: bounds)
         context.translateBy(x: 0, y: CGFloat(image.height))
         context.scaleBy(x: 1, y: -1)
-        context.setStrokeColor(CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1))
-        context.setFillColor(CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1))
         context.setLineWidth(4)
         context.setLineCap(.round)
         context.setLineJoin(.round)
         for annotation in annotations where annotation.tool != .redact {
             guard let start = annotation.points.first, let end = annotation.points.last else { continue }
+            context.setStrokeColor(annotation.color.cgColor)
+            context.setFillColor(annotation.color.cgColor)
             switch annotation.tool {
             case .pen:
                 context.beginPath()
@@ -256,7 +278,7 @@ enum ScreenshotRenderer {
                 context.textPosition = CGPoint(x: 0, y: -24)
                 let text = NSAttributedString(string: String(annotation.text.prefix(1000)), attributes: [
                     NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 24, nil),
-                    NSAttributedString.Key(kCTForegroundColorAttributeName as String): CGColor(srgbRed: 0.95, green: 0.16, blue: 0.12, alpha: 1)
+                    NSAttributedString.Key(kCTForegroundColorAttributeName as String): annotation.color.cgColor
                 ])
                 CTLineDraw(CTLineCreateWithAttributedString(text), context)
                 context.restoreGState()

@@ -257,6 +257,32 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(edits.annotations.count, 128)
     }
 
+    func testMarkupPaletteIsStoredPerAnnotationAndChangesRenderedOutput() throws {
+        let image = try fixture(secret: 0.4)
+        let red = ScreenshotAnnotation(tool: .arrow,
+                                       points: [CGPoint(x: 3, y: 3), CGPoint(x: 28, y: 20)],
+                                       color: .red)
+        let blue = ScreenshotAnnotation(tool: .arrow,
+                                        points: [CGPoint(x: 3, y: 3), CGPoint(x: 28, y: 20)],
+                                        color: .blue)
+        XCTAssertNotEqual(red, blue)
+        XCTAssertEqual(ScreenshotMarkupColor.allCases.count, 5)
+        let redPNG = try ScreenshotRenderer.encode(image, annotations: [red], format: .png)
+        let bluePNG = try ScreenshotRenderer.encode(image, annotations: [blue], format: .png)
+        XCTAssertNotEqual(redPNG, bluePNG, "Changing the palette must affect new marks")
+    }
+
+    func testTextAnnotationIsIncludedInFlattenedExport() throws {
+        let image = try fixture(secret: 0.4)
+        let annotation = ScreenshotAnnotation(tool: .text,
+                                               points: [CGPoint(x: 4, y: 24)],
+                                               text: "Сохранено",
+                                               color: .blue)
+        let original = try ScreenshotRenderer.encode(image, annotations: [], format: .png)
+        let edited = try ScreenshotRenderer.encode(image, annotations: [annotation], format: .png)
+        XCTAssertNotEqual(original, edited, "Committed text must be part of copy/save output")
+    }
+
     func testRedactedSecretsProduceIdenticalPNGAndJPEG() throws {
         let first = try fixture(secret: 0.1), second = try fixture(secret: 0.9)
         let annotations = [
