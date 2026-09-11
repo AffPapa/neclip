@@ -35,7 +35,10 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         window.title = "Скриншот · \(image.width) × \(image.height)"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
+        // The canvas must receive drag events for drawing annotations. Moving
+        // the window from its background steals those events and makes a pen
+        // stroke drag the entire editor instead.
+        window.isMovableByWindowBackground = false
         window.isReleasedWhenClosed = false
         window.minSize = CGSize(width: 660, height: 380)
         window.delegate = self

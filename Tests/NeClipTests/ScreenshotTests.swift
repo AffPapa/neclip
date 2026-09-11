@@ -135,6 +135,8 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertEqual(all.first { $0.accessibilityLabel() == "Отменить" }?.isEnabled, false)
         XCTAssertEqual(all.first { $0.accessibilityLabel() == "Повторить" }?.isEnabled, false)
         XCTAssertEqual(window.minSize, CGSize(width: 660, height: 380))
+        XCTAssertFalse(window.isMovableByWindowBackground,
+                       "Dragging the canvas must draw instead of moving the editor window")
         XCTAssertTrue(controller.windowShouldClose(window))
         let zoom = try XCTUnwrap(all.compactMap { $0 as? NSPopUpButton }.first)
         func scrollView(_ view: NSView) -> NSScrollView? {
