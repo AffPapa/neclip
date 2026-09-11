@@ -11,8 +11,7 @@ application icon is added to the Dock.
 Current public, signed and notarized version: **2.5.6 (build 35)**,
 released on 11 September 2026. Snippet folders appear directly in the menu;
 search, new pins and implicit top-item actions are removed.
-Its [release evidence](docs/RELEASE-2.5.6-STATUS.md) and
-[menu design decisions](docs/MENU-SIMPLIFICATION-2026-09-07.md) record the scope
+Its [release evidence](docs/RELEASE-2.5.6-STATUS.md) records the exact artifact
 and verification. Both the app and DMG passed notarization, stapling and
 Gatekeeper. The independently downloaded public artifact matched the verified
 checksum and complete app contents. Publishing did not replace the installed
@@ -20,13 +19,8 @@ application or modify its database.
 See [CHANGELOG.md](CHANGELOG.md) for source changes and [BACKLOG.md](BACKLOG.md)
 for the intentionally small public roadmap.
 
-The current module ownership and invariants are in
-[docs/PROJECT-MAP.md](docs/PROJECT-MAP.md). The latest scoped changes and Apple
-design sources are in
-[docs/MENU-SIMPLIFICATION-2026-09-07.md](docs/MENU-SIMPLIFICATION-2026-09-07.md).
-The refreshed comparison of 19 clipboard products, 11 layout tools, 100
-candidate improvements and 27 selected refinements is in
-[docs/RESEARCH-2026-09-05.md](docs/RESEARCH-2026-09-05.md).
+The current module ownership and release boundary are in
+[docs/PROJECT-MAP.md](docs/PROJECT-MAP.md).
 
 [Download the signed and notarized NeClip 2.5.6 DMG](https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg)
 (2,048,962 bytes).
@@ -40,15 +34,13 @@ debug, strict release, ASan, TSan, notarization, stapling, Gatekeeper and the
 mounted-DMG check.
 
 For a clean development checkout, run `scripts/clean-local-artifacts.sh`. It
-removes only reproducible build/QA output; it deliberately preserves local
-release archives and `~/Library/Application Support/NeClip` user data.
+removes reproducible build/QA output; release archives and user data are never
+removed by that script.
 
 ## Everyday workflow
 
 NeClip is for immediate reuse, not managing a searchable archive.
-The [optimization report](docs/OPTIMIZATION-2026-09-06.md) compares
-eight products and records selective menu refresh, simpler retention settings,
-distribution-symbol stripping and measured results. No new dependency is added.
+No new dependency is added.
 
 - `Command-Shift-V` — open the native history menu at the pointer (customizable)
 - `Command-Shift-B` — open snippet folders directly (customizable)
@@ -231,9 +223,8 @@ downloads only from this repository's GitHub Releases.
 Website and integration consumers should start with
 [`docs/project.json`](https://affpapa.github.io/neclip/project.json). It links to
 the canonical version manifest, changelog, backlog, security policy, source and
-release feed plus the current engineering audit. See
-[`docs/INTEGRATION.md`](docs/INTEGRATION.md) for the publication
-contract. Files under `landing/` are no longer part of NeClip.
+release feed plus current release evidence. Files under `landing/` are no longer
+part of NeClip.
 
 ## License
 

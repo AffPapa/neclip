@@ -18,7 +18,7 @@
   <header class="wrap">
     <nav aria-label="Основная навигация">
       <a class="brand" href="#top"><span class="mark" aria-hidden="true">⌘</span>NeClip</a>
-      <div class="navlinks"><a href="#features">Возможности</a><a href="#versions">Версии</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
+      <div class="navlinks"><a href="#features">Возможности</a><a href="#release">Выпуск</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
       <span class="eyebrow"><span class="dot"></span>2.5.6 · выпущена</span>
@@ -30,8 +30,7 @@
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">Локальная история без поиска, закреплений и облака; папки сниппетов сразу в меню. История всегда идёт от последнего копирования. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Проверки выпуска</a>.</p>
-      <p class="fine">Уже пользуетесь NeClip? Перед обновлением сохраните копию базы и экспорт сниппетов. Для отката сохраните предыдущую версию. <a href="https://github.com/AffPapa/neclip/releases/tag/v2.4.0">Подробнее об обновлении</a>.</p>
+      <p class="fine">История и сниппеты хранятся локально, без поиска, закреплений и облака. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Проверки выпуска</a>.</p>
     </div>
   </header>
 
@@ -53,8 +52,6 @@
         <div class="shortcut" role="listitem"><span>Открыть папки сниппетов</span><kbd>⌘ ⇧ B</kbd></div>
         <div class="shortcut" role="listitem"><span>Исправить раскладку</span><kbd>⌥ ⇧ L</kbd></div>
         <div class="shortcut" role="listitem"><span>Выключить автоисправление</span><kbd>⌃ ⌥ A</kbd></div>
-        <div class="shortcut" role="listitem"><span>Вставить без форматирования</span><kbd>⇧ ↩</kbd></div>
-        <div class="shortcut" role="listitem"><span>Только копировать</span><kbd>⌘ ↩</kbd></div>
       </div>
       <p class="fine">Основные сочетания можно изменить в настройках. Папки сниппетов также открываются правым кликом по значку NeClip.</p>
     </section>
@@ -65,43 +62,26 @@
       <div class="grid">
         <article class="card"><h3>0 аккаунтов</h3><p>Нет регистрации, подписки и облачной синхронизации.</p></article>
         <article class="card"><h3>0 телеметрии</h3><p>Нет аналитики и фоновых сетевых запросов. Проверка обновлений запускается вручную.</p></article>
-        <article class="card"><h3>Защита по умолчанию</h3><p>Записи из защищённых менеджеров паролей, данные с системными пометками «скрытое» или «временное» и копирования с неизвестным источником не сохраняются.</p></article>
+        <article class="card"><h3>Защита по умолчанию</h3><p>Копирования из защищённых менеджеров паролей и данные с системными пометками «скрытое» или «временное» не сохраняются.</p></article>
       </div>
     </section>
 
-    <section class="wrap" id="versions">
-      <h2>Версии</h2>
-      <p class="section-lead">Что изменилось и какие проверки прошла каждая опубликованная версия.</p>
-      <p>В 2.5.6 исправлены пустые поля после выделения области, восстановление захвата после смены дисплея и применение выбранного цвета к новым пометкам. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Проверка выпуска</a>.</p>
-      <div class="timeline">
-        <article class="card release"><div><strong>2.5.6</strong><br><span class="status">выпущена · 11 сентября</span></div><div><b>Ровно выбранная область и предсказуемые пометки.</b><ul><li>Явный sourceRect ScreenCaptureKit</li><li>Один фактический display ID для fallback и проверки</li><li>Выбранный цвет применяется к фигурам и тексту</li><li>Drag canvas и сохранение текста при потере фокуса</li></ul><p>276 XCTest, 4 ожидаемых opt-in пропуска, 3 Swift Testing, strict Swift 6, ASan, TSan, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Результаты проверки</a></div></article>
-        <article class="card release"><div><strong>2.4.0</strong><br><span class="status">выпущена · 10 сентября</span></div><div><b>Снимок без лишних движений.</b><ul><li>Space‑перемещение и размеры выделения</li><li>Inline‑текст и клавиши 1–5</li><li>Fail‑closed capture и меньше копирований памяти</li><li>Latency‑метки без пользовательских данных</li></ul><p>Исследование 15 программ, 50 функций, 20 выбранных решений; подписанный DMG опубликован после полного release‑gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RESEARCH-SCREENSHOTS-2026-09-10.md">Исследование и границы</a></div></article>
-      </div>
-      <div class="timeline">
-        <article class="card release"><div><strong>2.3.1</strong><br><span class="status">выпущена · 10 сентября</span></div><div><b>Снимок, правка, готово.</b><ul><li>Выделение области с понятной подсказкой</li><li>Редактор с крупным предпросмотром и нижней панелью</li><li>Копирование в буфер или сохранение в выбранную папку</li><li>Без фонового захвата, облака и новых лишних настроек</li></ul><p>259 XCTest, strict Swift 6, ASan, TSan, notarization, stapling, Gatekeeper и mounted-DMG release-gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.3.1-STATUS.md">Результаты и ограничения</a></div></article>
-        <article class="card release"><div><strong>2.2.0</strong><br><span class="status">выпущена · 9 сентября</span></div><div><b>Одна лента без лишнего.</b><ul><li>История всегда первая и видна сразу</li><li>Папки сниппетов находятся прямо под историей</li><li>Редкие действия собраны в коротком пункте «Ещё…»</li></ul><p>247 XCTest, Swift Testing, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG release-gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.2.0-STATUS.md">Результаты и ограничения</a></div></article>
-        <article class="card release"><div><strong>2.0.1</strong><br><span class="status">предыдущая · 8 сентября</span></div><div><b>Одна история без лишних режимов.</b><ul><li>Удалён дублирующий раздел «В работе» и его скрытое ранжирование</li><li>История показывает только последнее копирование сверху вниз</li><li>Папки сохранённых сниппетов остаются сразу в меню</li><li>В настройках видны установленная и последняя проверенная версии</li></ul><p>247 XCTest, Swift Testing, strict Swift 6, gitleaks и полный Apple release-gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.0.1-STATUS.md">Результаты и ограничения</a></div></article>
-        <article class="card release"><div><strong>1.14.0</strong><br><span class="status">предыдущая · 8 сентября</span></div><div><b>Контекстный эксперимент.</b><ul><li>Добавлялся временный раздел «В работе»</li><li>Обычная история и папки оставались доступными</li><li>Публичный DMG был подписан, notarized, stapled и проверен</li></ul><p>Эта версия сохранена как исторический rollback target.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.14.0-STATUS.md">Результаты и ограничения</a></div></article>
-        <article class="card release"><div><strong>1.13.0</strong><br><span class="status">выпущена · 8 сентября</span></div><div><b>История без лишних режимов.</b><ul><li>Один список истории без закреплений и скрытого просмотра</li><li>Папки сниппетов остаются прямо в меню без поиска и ключей</li><li>Редактор сниппетов стал компактнее и понятнее</li><li>Публичный DMG подписан, notarized, stapled и проверен на смонтированном образе</li></ul><p>Пройдены XCTest, Swift Testing, strict Swift 6, ASan, TSan, gitleaks и полные проверки Apple release-gate.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-1.13.0-STATUS.md">Результаты и ограничения</a></div></article>
-        <article class="card release"><div><strong>1.9.1</strong><br><span class="status">выпущена</span></div><div><b>Настройки по правилам Mac.</b><ul><li>Пять постоянных разделов с привычной панелью macOS</li><li>Лимиты применяются после ввода, а Escape отменяет изменение</li><li>Редактор предупреждает о несохранённом тексте и сохраняет черновик при ошибке</li><li>Короче первый запуск, понятнее разрешения и стандартные команды меню</li></ul><a href="https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.1-2026-09-06.md">Проверки и ограничения</a></div></article>
-        <article class="card release"><div><strong>1.9.0</strong><br><span class="status">выпущена</span></div><div><b>Меньше лишней работы.</b><ul><li>Распознавание текста и закрепление без лишней загрузки больших изображений</li><li>Отмена устаревшего поиска и быстрая проверка текста</li><li>Понятные подписи настроек и видимая кнопка создания папки</li><li>222 успешных теста; CodeQL, проверки памяти и гонок без ошибок</li></ul><a href="https://github.com/AffPapa/neclip/blob/main/docs/AUDIT-1.9.0-2026-09-06.md">Замеры и результаты проверок</a></div></article>
-        <article class="card release"><div><strong>1.8.0</strong><br><span class="status">выпущена</span></div><div><b>Быстрее, понятнее и безопаснее.</b><ul><li>Папки сниппетов по ⌘⇧B, прямое редактирование, дублирование и отмена удаления</li><li>Исправлены закрытие настроек, обработка горячих клавиш и состояния записи</li><li>Ускорены поиск, изображения, OCR и работа с локальными данными</li><li>206 проверок, CodeQL, подпись Apple и проверка публичного DMG</li></ul></div></article>
-        <article class="card release"><div><strong>1.4.0</strong><br><span class="status">выпущена</span></div><div><b>Единое меню и понятные сниппеты.</b><ul><li>Одинаковая системная тема и компактные подписи 16–96 символов</li><li>Переназначаемые безопасные клавиши исправления раскладки</li><li>Папки, «Без папки», перемещение и сохранение черновиков</li><li>Подписана, нотарифицирована и проверена из публичного DMG</li></ul></div></article>
-        <article class="card release"><div><strong>1.3.2</strong><br><span class="status">предыдущая</span></div><div><b>Быстрее и полнее в строке меню.</b><ul><li>Закрепление, сохранение в сниппеты, удаление и точная отмена</li><li>Одно обновление меню при копировании, без старого большого окна</li></ul></div></article>
-      </div>
+    <section class="wrap" id="release">
+      <h2>Единственный поддерживаемый выпуск</h2>
+      <p class="section-lead">NeClip 2.5.6 / build 35 — текущая подписанная и нотарифицированная версия.</p>
+      <div class="timeline"><article class="card release"><div><strong>2.5.6</strong><br><span class="status">выпущена · 11 сентября 2026</span></div><div><b>Точный снимок выделенной области и предсказуемые пометки.</b><ul><li>Явный sourceRect ScreenCaptureKit</li><li>Один фактический display ID для fallback и проверки</li><li>Выбранный цвет применяется к фигурам и тексту</li><li>Drag canvas и сохранение текста при потере фокуса</li></ul><p>276 XCTest, strict Swift 6, ASan, TSan, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Результаты проверки</a></div></article></div>
     </section>
 
     <section class="wrap" id="backlog">
-      <h2>Сделано и запланировано</h2>
+      <h2>Планы</h2>
       <p class="section-lead">Приоритет — надёжность и скорость, а не количество функций.</p>
       <div class="backlog">
-        <article class="card"><h3>Сделано</h3><ul><li>Строка меню без значка в Dock</li><li>Недавняя история и распознавание текста</li><li>Редактируемые папки сниппетов прямо в меню</li><li>Настройки с постоянными разделами macOS</li><li>Настраиваемые клавиши и длина строк</li><li>Защита приватных копирований и несохранённых правок</li></ul></article>
-        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на поддерживаемых macOS</li><li>Новые раскладки после проверки точности</li><li>Перетаскивание папок — если оно упростит работу</li></ul></article>
+        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на поддерживаемых macOS</li><li>Новые раскладки после проверки точности</li><li>Порядок папок перетаскиванием — только если это упростит работу</li></ul></article>
         <article class="card"><h3>Не планируется</h3><ul><li>Аккаунты и облако</li><li>Телеметрия и реклама</li><li>ИИ для содержимого буфера</li><li>Большое постоянное окно</li></ul></article>
       </div>
     </section>
   </main>
 
-  <footer><div class="wrap">NeClip · MIT · <a href="https://github.com/AffPapa/neclip">GitHub</a> · <a href="project.json">данные для интеграций</a> · <a href="https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md">история изменений</a> · <a href="https://github.com/AffPapa/neclip/blob/main/BACKLOG.md">планы</a> · <a href="https://github.com/AffPapa/neclip/blob/main/SECURITY.md">безопасность</a></div></footer>
+  <footer><div class="wrap">NeClip · MIT · <a href="https://github.com/AffPapa/neclip">GitHub</a> · <a href="project.json">данные для интеграций</a> · <a href="https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md">изменения</a> · <a href="https://github.com/AffPapa/neclip/blob/main/BACKLOG.md">планы</a> · <a href="https://github.com/AffPapa/neclip/blob/main/SECURITY.md">безопасность</a></div></footer>
 </body>
 </html>
