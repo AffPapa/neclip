@@ -58,7 +58,7 @@ final class SecretScanningContractTests: XCTestCase {
             at: docsURL,
             includingPropertiesForKeys: nil
         )
-        .filter { $0.lastPathComponent.hasPrefix("AUDIT") && $0.pathExtension == "md" }
+        .filter { $0.pathExtension == "md" }
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
         .map { try String(contentsOf: $0, encoding: .utf8) }
         .joined(separator: "\n")
@@ -71,9 +71,12 @@ final class SecretScanningContractTests: XCTestCase {
 
     func testSecurityPolicyDescribesReleaseImmutabilityWithoutOverclaiming() throws {
         let policy = try text("SECURITY.md")
+        let manifest = try JSONSerialization.jsonObject(with: Data(text("docs/version.json").utf8)) as? [String: Any]
+        let version = try XCTUnwrap(manifest?["version"] as? String)
 
-        XCTAssertTrue(policy.contains("Releases `v1.3.2` and later"))
-        XCTAssertTrue(policy.contains("cannot retroactively lock"))
+        XCTAssertTrue(policy.contains("only supported public release is `v\(version)`"))
+        XCTAssertTrue(policy.contains("immutable assets and tag"))
+        XCTAssertTrue(policy.contains("Older releases and tags have been removed"))
         XCTAssertFalse(policy.contains("Published releases and their assets are immutable"))
         XCTAssertFalse(policy.contains("blocks force-pushes"))
         XCTAssertTrue(policy.contains("authenticated GitHub release gate"))
