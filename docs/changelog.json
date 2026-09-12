@@ -11,6 +11,15 @@
         "The selected annotation colour applies to new shapes and text",
         "276 XCTest, strict Swift 6, ASan, TSan, notarization and Gatekeeper passed"
       ]
+    },
+    {
+      "version": "2.5.7",
+      "build": 36,
+      "status": "candidate",
+      "changes": [
+        "Keep the screenshot text field alive when AppKit starts its field editor",
+        "Commit the live text draft once on Enter or focus loss; Escape discards it"
+      ]
     }
   ]
 }

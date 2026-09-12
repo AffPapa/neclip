@@ -283,6 +283,57 @@ final class ScreenshotTests: XCTestCase {
     }
 
     @MainActor
+    func testTextEntrySurvivesNativeFieldEditorFocusAndCommitsOnFocusLoss() throws {
+        _ = NSApplication.shared
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.4))
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 400, height: 300),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = canvas
+        defer { window.close() }
+        var committed: [String] = []
+        canvas.onTextCommitted = { _, text, _ in committed.append(text) }
+        canvas.beginTextEntry(at: CGPoint(x: 10, y: 20))
+        let field = try XCTUnwrap(canvas.subviews.compactMap { $0 as? NSTextField }.first,
+                                 "Starting AppKit's field editor must not remove the input field")
+        let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
+        XCTAssertTrue(field.currentEditor() === editor)
+        editor.string = "Native focus regression"
+        XCTAssertTrue(window.makeFirstResponder(canvas))
+        XCTAssertEqual(committed, ["Native focus regression"])
+        XCTAssertTrue(canvas.subviews.isEmpty)
+    }
+
+    @MainActor
+    func testNativeFieldEditorEnterCommitsOnceAndEscapeDiscardsDraft() throws {
+        _ = NSApplication.shared
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.4))
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 400, height: 300),
+                              styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = canvas
+        defer { window.close() }
+        var committed: [String] = []
+        canvas.onTextCommitted = { _, text, _ in committed.append(text) }
+
+        canvas.beginTextEntry(at: CGPoint(x: 10, y: 20))
+        let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
+        editor.string = "Enter saves the live draft"
+        editor.doCommand(by: #selector(NSResponder.insertNewline(_:)))
+        XCTAssertEqual(committed, ["Enter saves the live draft"])
+        XCTAssertTrue(canvas.subviews.isEmpty)
+        _ = window.makeFirstResponder(canvas)
+        XCTAssertEqual(committed.count, 1)
+
+        canvas.beginTextEntry(at: CGPoint(x: 10, y: 20))
+        let cancelEditor = try XCTUnwrap(window.firstResponder as? NSTextView)
+        cancelEditor.string = "Discard this draft"
+        cancelEditor.doCommand(by: #selector(NSResponder.cancelOperation(_:)))
+        XCTAssertTrue(canvas.subviews.isEmpty)
+        XCTAssertEqual(committed, ["Enter saves the live draft"])
+    }
+
+    @MainActor
     func testCanvasStoresSelectedColorOnShapeAndFocusCommittedText() throws {
         let canvas = ScreenshotCanvas(image: try fixture(secret: 0.4))
         canvas.annotationColor = .blue
@@ -304,7 +355,7 @@ final class ScreenshotTests: XCTestCase {
         canvas.beginTextEntry(at: CGPoint(x: 5, y: 20))
         let field = try XCTUnwrap(canvas.subviews.compactMap { $0 as? NSTextField }.first)
         field.stringValue = "Фокус сохранён"
-        XCTAssertTrue(field.resignFirstResponder())
+        field.delegate?.controlTextDidEndEditing?(Notification(name: NSControl.textDidEndEditingNotification, object: field))
         XCTAssertEqual(committed?.text, "Фокус сохранён")
         XCTAssertEqual(committed?.color, .yellow)
     }

@@ -359,15 +359,24 @@ enum ScreenshotFolder {
 }
 
 @MainActor
-private final class ScreenshotInlineTextField: NSTextField {
+private final class ScreenshotInlineTextField: NSTextField, NSTextFieldDelegate {
     var onCommit: ((String) -> Void)?
     var onCancel: (() -> Void)?
     private var finished = false
 
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        delegate = self
+    }
+    required init?(coder: NSCoder) { nil }
+
     func commit() {
         guard !finished else { return }
+        // Enter arrives through AppKit's shared field editor, before its text
+        // necessarily reaches stringValue. Capture that live draft first.
+        let value = currentEditor()?.string ?? stringValue
         finished = true
-        onCommit?(stringValue)
+        onCommit?(value)
     }
 
     func cancel() {
@@ -376,19 +385,23 @@ private final class ScreenshotInlineTextField: NSTextField {
         onCancel?()
     }
 
-    override func resignFirstResponder() -> Bool {
+    // A text field resigns first responder when editing STARTS and AppKit
+    // transfers focus to its NSTextView field editor. Only editing-end and
+    // field-editor commands represent a user's commit/cancel operation.
+    func controlTextDidEndEditing(_ notification: Notification) {
         commit()
-        return super.resignFirstResponder()
     }
 
-    override func keyDown(with event: NSEvent) {
-        switch event.keyCode {
-        case 36, 76:
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        switch commandSelector {
+        case #selector(NSResponder.insertNewline(_:)):
             commit()
-        case 53:
+            return true
+        case #selector(NSResponder.cancelOperation(_:)):
             cancel()
+            return true
         default:
-            super.keyDown(with: event)
+            return false
         }
     }
 }
