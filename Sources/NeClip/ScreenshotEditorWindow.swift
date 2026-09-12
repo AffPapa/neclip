@@ -274,6 +274,9 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     private func export(format: ScreenshotFormat, fileURL: URL? = nil,
                         publish: ((Data) throws -> Void)? = nil) {
         guard !exporting else { return }
+        // Key equivalents can invoke export while the field editor still owns
+        // focus. Commit its draft before freezing the annotation array.
+        canvas.commitPendingText()
         ScreenshotMetrics.mark("export-start")
         exporting = true
         refresh()
@@ -307,6 +310,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !exporting else { return false }
+        canvas.commitPendingText()
         guard !completed, !canvas.edits.annotations.isEmpty else { return true }
         let alert = NSAlert()
         alert.messageText = "Закрыть без сохранения?"
@@ -428,6 +432,7 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
         setAccessibilityLabel("Разметка снимка. Масштаб — жестом увеличения; отмена — Command Z.")
     }
     required init?(coder: NSCoder) { nil }
+    func commitPendingText() { textEntry?.commit() }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { onCancel?(); return }

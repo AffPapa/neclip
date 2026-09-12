@@ -18,7 +18,8 @@
       "status": "candidate",
       "changes": [
         "Keep the screenshot text field alive when AppKit starts its field editor",
-        "Commit the live text draft once on Enter or focus loss; Escape discards it"
+        "Commit the live text draft once on Enter or focus loss; Escape discards it",
+        "Include active text in screenshot exports and the unsaved-changes close check"
       ]
     }
   ]

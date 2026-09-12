@@ -283,6 +283,29 @@ final class ScreenshotTests: XCTestCase {
     }
 
     @MainActor
+    func testCopyActionCommitsActiveTextBeforeTakingExportSnapshot() throws {
+        _ = NSApplication.shared
+        let pasteboard = NSPasteboard(name: .init("neclip-text-export-\(UUID())"))
+        defer { pasteboard.releaseGlobally() }
+        let controller = ScreenshotEditorWindowController(image: try fixture(secret: 0.3), pasteboard: pasteboard)
+        let window = try XCTUnwrap(controller.window)
+        defer { window.close() }
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        let views = descendants(try XCTUnwrap(window.contentView))
+        let canvas = try XCTUnwrap(views.compactMap { $0 as? ScreenshotCanvas }.first)
+        let copy = try XCTUnwrap(views.compactMap { $0 as? NSButton }.first { $0.accessibilityLabel() == "Копировать" })
+        canvas.beginTextEntry(at: CGPoint(x: 10, y: 20))
+        let editor = try XCTUnwrap(window.firstResponder as? NSTextView)
+        editor.string = "Include the uncommitted draft"
+        // A key equivalent dispatches the action without moving focus first.
+        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(copy.action), to: copy.target, from: copy))
+        XCTAssertEqual(canvas.edits.annotations.map(\.text), ["Include the uncommitted draft"])
+        XCTAssertTrue(canvas.subviews.isEmpty)
+    }
+
+    @MainActor
     func testTextEntrySurvivesNativeFieldEditorFocusAndCommitsOnFocusLoss() throws {
         _ = NSApplication.shared
         let canvas = ScreenshotCanvas(image: try fixture(secret: 0.4))
