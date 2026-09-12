@@ -333,6 +333,13 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     private func process(_ snapshot: Snapshot) {
+        // Pause can be toggled after the timer has queued an immutable
+        // snapshot. Re-check at the storage boundary so a late private copy
+        // cannot survive a user-visible pause.
+        guard !Settings.isCapturePaused else {
+            notifySkipped(.paused)
+            return
+        }
         if !snapshot.fileURLs.isEmpty {
             processFiles(snapshot)
         } else if let imageData = snapshot.imageData {
@@ -474,6 +481,10 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     private func insert(_ item: ClipItem) {
+        guard !Settings.isCapturePaused else {
+            notifySkipped(.paused)
+            return
+        }
         do {
             if try Storage.shared.insert(item) != nil {
                 SequentialPasteSequence.shared.noteExternalCapture()

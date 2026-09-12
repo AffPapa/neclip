@@ -21,16 +21,16 @@
       <div class="navlinks"><a href="#features">Возможности</a><a href="#release">Выпуск</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>2.5.8 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>2.6.0 · выпущена</span>
       <h1>Скопировал.<br>Выбрал. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.5.8/NeClip-2.5.8.dmg">Скачать NeClip 2.5.8</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.6.0/NeClip-2.6.0.dmg">Скачать NeClip 2.6.0</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">История и сниппеты хранятся локально, без поиска, закреплений и облака. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.0-STATUS.md">Проверки выпуска</a>.</p>
     </div>
   </header>
 
@@ -71,17 +71,17 @@
 
     <section class="wrap" id="release">
       <h2>Единственный поддерживаемый выпуск</h2>
-      <p class="section-lead">NeClip 2.5.8 / build 37 — текущая подписанная и нотарифицированная версия.</p>
-      <div class="timeline"><article class="card release"><div><strong>2.5.8</strong><br><span class="status">выпущена · 12 сентября 2026</span></div><div><b>Изображения без фонового распознавания.</b><ul><li>Автоматический Apple Vision OCR удалён</li><li>Изображения сохраняются без извлечения текста</li><li>Старые изображения и данные остаются в базе</li><li>Исправления текста и экспорта скриншотов сохранены</li></ul><p>276 XCTest, strict Swift 6, ASan, TSan, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md">Результаты проверки</a></div></article></div>
-      <p class="fine">DMG: 2,044,866 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.5.8/NeClip-2.5.8.dmg.sha256">SHA-256</a>: <code>05aec85af50286de2b4051041775e48b14d8d33b74a484cb7706531b6ebaec21</code></p>
-      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/b66c7e55d267e7a159bb951798ddc34ead97abed"><code>b66c7e55d267e7a159bb951798ddc34ead97abed</code></a></p>
+      <p class="section-lead">NeClip 2.6.0 / build 38 — текущая подписанная и нотарифицированная версия.</p>
+      <div class="timeline"><article class="card release"><div><strong>2.6.0</strong><br><span class="status">выпущена · 12 сентября 2026</span></div><div><b>История стала рабочим инструментом.</b><ul><li>Сохранение истории в сниппеты с папками и защитой от дублей</li><li>Оригинальная, plain-text и copy-only вставка</li><li>Локальный поиск по тексту, типу, приложению и дате</li><li>Центр состояния, безопасные backup/restore и улучшенный screenshot QA</li></ul><p>285 XCTest, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.0-STATUS.md">Результаты проверки</a></div></article></div>
+      <p class="fine">DMG: 2,087,874 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.6.0/NeClip-2.6.0.dmg.sha256">SHA-256</a>: <code>8329ff378f6c9a4d5bc5da0efbceebc6ecf48e9f0bac5790439e6d0d77ca0636</code></p>
+      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/1c79c28da68456c69b658ea523027ef33e298c2b"><code>1c79c28da68456c69b658ea523027ef33e298c2b</code></a></p>
     </section>
 
     <section class="wrap" id="backlog">
       <h2>Планы</h2>
       <p class="section-lead">Приоритет — надёжность и скорость, а не количество функций.</p>
       <div class="backlog">
-        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на поддерживаемых macOS</li><li>Измерение скорости меню перед изменениями</li></ul></article>
+        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на дополнительных macOS и конфигурациях дисплеев</li><li>Измерение скорости меню перед изменениями</li></ul></article>
         <article class="card"><h3>Не планируется</h3><ul><li>Аккаунты и облако</li><li>Телеметрия и реклама</li><li>ИИ для содержимого буфера</li><li>Большое постоянное окно</li></ul></article>
       </div>
     </section>

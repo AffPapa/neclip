@@ -1,17 +1,16 @@
 {
   "currentRelease": {
-    "version": "2.5.8",
-    "build": 37,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.5.8/NeClip-2.5.8.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md"
+    "version": "2.6.0",
+    "build": 38,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.6.0/NeClip-2.6.0.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.0-STATUS.md"
   },
   "done": [
-    "Current release: bounded local history, snippet folders, EN/RU correction and screenshot editing"
+    "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore"
   ],
   "inDevelopment": [],
   "next": [
-    "Verify permissions and screen capture across supported macOS versions and physical display configurations",
-    "Measure menu latency before changing storage or browse limits"
+    "Verify permissions and screen capture across additional supported macOS versions and physical display configurations"
   ],
   "notPlanned": [
     "Accounts",
@@ -19,6 +18,6 @@
     "Telemetry or advertising",
     "AI processing of clipboard contents",
     "A permanent Dock icon or large workspace window",
-    "Search, keyword fields, tags and smart collections"
+    "Cloud search, tags or smart collections"
   ]
 }

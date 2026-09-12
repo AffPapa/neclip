@@ -69,6 +69,8 @@ enum ClipStorageError: LocalizedError, Equatable {
     case clipNotFound
     case emptyText
     case snippetRequiresText
+    case sensitiveContent
+    case protectedSource
 
     var errorDescription: String? {
         switch self {
@@ -78,7 +80,27 @@ enum ClipStorageError: LocalizedError, Equatable {
             "Текст не может быть пустым"
         case .snippetRequiresText:
             "Сниппет можно создать только из текста"
+        case .sensitiveContent:
+            "Элемент содержит данные, которые NeClip не сохраняет в сниппеты"
+        case .protectedSource:
+            "Из этого приложения нельзя создавать сниппеты"
         }
+    }
+}
+
+enum SaveClipAsSnippetResult: Sendable {
+    case created(Snippet)
+    case alreadyExists(Snippet)
+
+    var snippet: Snippet {
+        switch self {
+        case .created(let snippet), .alreadyExists(let snippet): snippet
+        }
+    }
+
+    var wasCreated: Bool {
+        if case .created = self { return true }
+        return false
     }
 }
 
@@ -220,6 +242,31 @@ enum SnippetTransferError: LocalizedError, Equatable {
     }
 }
 
+enum DatabaseBackupError: LocalizedError, Equatable {
+    case invalidDatabase
+    case missingRequiredTable(String)
+    case backupTooLarge
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidDatabase: "Резервная копия не прошла проверку SQLite"
+        case .missingRequiredTable(let table): "В резервной копии нет таблицы \(table)"
+        case .backupTooLarge: "Резервная копия слишком большая"
+        }
+    }
+}
+
+struct DatabaseBackupManifest: Codable, Equatable, Sendable {
+    static let currentVersion = 1
+    let version: Int
+    let schemaVersion: Int
+    let createdAt: Date
+    let byteCount: Int64
+    let clipCount: Int
+    let snippetCount: Int
+    let sha256: String
+}
+
 extension Notification.Name {
     static let neClipStorageDidChange = Notification.Name("org.affpapa.neclip.storageDidChange")
 }
@@ -260,7 +307,11 @@ final class Storage: @unchecked Sendable {
 
     let startupError: Error?
     private let dbQueue: DatabaseQueue
+    private let databasePath: String?
     private let installStarterContent: Bool
+    // Tests can measure read scaling without making a user's history exceed
+    // its configured retention limit. Production construction keeps this on.
+    private let enforceHistoryLimitOnWrite: Bool
     // Access only inside dbQueue. Tokens belong to this storage instance and
     // cannot survive full erasure, even in a queued undo or late UI completion.
     private var undoGeneration = UUID()
@@ -269,7 +320,8 @@ final class Storage: @unchecked Sendable {
         path: String? = nil,
         inMemory: Bool = false,
         installStarterContent: Bool = true,
-        startupError: Error? = nil
+        startupError: Error? = nil,
+        enforceHistoryLimitOnWrite: Bool = true
     ) throws {
         var configuration = Configuration()
         configuration.prepareDatabase { db in
@@ -279,6 +331,7 @@ final class Storage: @unchecked Sendable {
 
         if inMemory {
             dbQueue = try DatabaseQueue(configuration: configuration)
+            databasePath = nil
         } else {
             let databasePath: String
             if let path {
@@ -304,11 +357,13 @@ final class Storage: @unchecked Sendable {
                 databasePath = directory.appendingPathComponent("neclip.sqlite").path
             }
             dbQueue = try DatabaseQueue(path: databasePath, configuration: configuration)
+            self.databasePath = databasePath
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: databasePath)
         }
 
         self.startupError = startupError
         self.installStarterContent = installStarterContent
+        self.enforceHistoryLimitOnWrite = enforceHistoryLimitOnWrite
         try migrate()
     }
 
@@ -595,12 +650,12 @@ final class Storage: @unchecked Sendable {
                 existing.contentHash = item.contentHash
                 try ensureCapacityForBytes(existing.contentBytes, replacing: existing.id, in: db)
                 try existing.update(db)
-                try trim(db)
+                if enforceHistoryLimitOnWrite { try trim(db) }
                 return existing.id
             }
             try ensureCapacityForBytes(item.contentBytes, replacing: nil, in: db)
             try item.insert(db)
-            try trim(db)
+            if enforceHistoryLimitOnWrite { try trim(db) }
             return item.id
         }
         notifyChange(.clips)
@@ -696,6 +751,64 @@ final class Storage: @unchecked Sendable {
             arguments += [max(1, limit), max(0, offset)]
             let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
             return rows.compactMap(Self.summary(from:))
+        }
+    }
+
+    /// Unicode-friendly local search over the bounded history. We deliberately
+    /// keep this as a read-time query instead of rebuilding a persisted FTS
+    /// index: clipboard text never needs another durable copy just to be found.
+    func searchClipSummaries(
+        query: String,
+        kind: ClipKind? = nil,
+        appBundleID: String? = nil,
+        createdAfter: Date? = nil,
+        limit requestedLimit: Int = 1000
+    ) throws -> [ClipSummary] {
+        let limit = max(1, min(requestedLimit, 2_000))
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).localizedLowercase
+        return try dbQueue.read { db in
+            var sql = "SELECT * FROM clip"
+            var conditions: [String] = []
+            var arguments = StatementArguments()
+            if let kind {
+                conditions.append("kind = ?")
+                arguments += [kind.rawValue]
+            }
+            if let appBundleID, !appBundleID.isEmpty {
+                conditions.append("appBundleID = ?")
+                arguments += [appBundleID]
+            }
+            if let createdAfter {
+                conditions.append("createdAt >= ?")
+                arguments += [createdAfter]
+            }
+            if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
+            sql += " ORDER BY createdAt DESC, id DESC LIMIT ?"
+            arguments += [limit]
+            let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
+            return rows.compactMap { row -> ClipSummary? in
+                guard let item = Self.item(from: row) else { return nil }
+                if !normalizedQuery.isEmpty {
+                    let title = item.title.localizedLowercase
+                    let text = (item.text ?? "").localizedLowercase
+                    guard title.contains(normalizedQuery) || text.contains(normalizedQuery) else { return nil }
+                }
+                return ClipSummary(
+                    id: item.id ?? 0, kind: item.kind, title: item.title,
+                    text: item.text.map { String($0.prefix(280)) },
+                    appBundleID: item.appBundleID, createdAt: item.createdAt, isPinned: item.isPinned
+                )
+            }
+        }
+    }
+
+    func clipAppBundleIDs(limit: Int = 200) throws -> [String] {
+        try dbQueue.read { db in
+            try String.fetchAll(
+                db,
+                sql: "SELECT DISTINCT appBundleID FROM clip WHERE appBundleID IS NOT NULL AND appBundleID <> '' ORDER BY appBundleID LIMIT ?",
+                arguments: [max(1, min(limit, 500))]
+            )
         }
     }
 
@@ -851,6 +964,88 @@ final class Storage: @unchecked Sendable {
         }
     }
 
+    /// Creates a consistent SQLite snapshot through GRDB's online backup API.
+    /// The destination is replaced only after the snapshot and integrity check
+    /// succeed; it never relies on copying a live WAL database file.
+    func createDatabaseBackup(to destination: URL) throws -> DatabaseBackupManifest {
+        let fileManager = FileManager.default
+        let directory = destination.deletingLastPathComponent()
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true,
+                                         attributes: [.posixPermissions: 0o700])
+        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        let temporary = destination.deletingLastPathComponent()
+            .appendingPathComponent(".neclip-backup-\(UUID().uuidString).sqlite")
+        try? fileManager.removeItem(at: temporary)
+        do {
+            let backup = try DatabaseQueue(path: temporary.path)
+            try dbQueue.backup(to: backup)
+            let manifest = try backup.read { db -> DatabaseBackupManifest in
+                let integrity = try String.fetchOne(db, sql: "PRAGMA integrity_check") ?? ""
+                guard integrity.caseInsensitiveCompare("ok") == .orderedSame else {
+                    throw DatabaseBackupError.invalidDatabase
+                }
+                let clipCount = try ClipItem.fetchCount(db)
+                let snippetCount = try Snippet.fetchCount(db)
+                let size = (try? fileManager.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber)?.int64Value ?? 0
+                guard size <= Self.maximumStorageBytes * 2 else { throw DatabaseBackupError.backupTooLarge }
+                let bytes = try Data(contentsOf: temporary, options: .mappedIfSafe)
+                return DatabaseBackupManifest(
+                    version: DatabaseBackupManifest.currentVersion,
+                    schemaVersion: try Int.fetchOne(db, sql: "PRAGMA user_version") ?? 0,
+                    createdAt: Date(), byteCount: Int64(bytes.count), clipCount: clipCount,
+                    snippetCount: snippetCount, sha256: ContentDigest.sha256(bytes)
+                )
+            }
+            if fileManager.fileExists(atPath: destination.path) { try fileManager.removeItem(at: destination) }
+            try fileManager.moveItem(at: temporary, to: destination)
+            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
+            let manifestURL = destination.appendingPathExtension("json")
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(manifest).write(to: manifestURL, options: .atomic)
+            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: manifestURL.path)
+            return manifest
+        } catch {
+            try? fileManager.removeItem(at: temporary)
+            throw error
+        }
+    }
+
+    /// Validates a backup in isolation, creates a rollback snapshot, then
+    /// restores through SQLite's online backup API. Invalid input never
+    /// touches the live database.
+    func restoreDatabaseBackup(from sourceURL: URL) throws -> DatabaseBackupManifest {
+        let source = try DatabaseQueue(path: sourceURL.path)
+        let manifest = try source.read { db -> DatabaseBackupManifest in
+            let integrity = try String.fetchOne(db, sql: "PRAGMA integrity_check") ?? ""
+            guard integrity.caseInsensitiveCompare("ok") == .orderedSame else {
+                throw DatabaseBackupError.invalidDatabase
+            }
+            for table in ["clip", "snippet", "snippetFolder", "appMetadata"] {
+                guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?)", arguments: [table]) == true else {
+                    throw DatabaseBackupError.missingRequiredTable(table)
+                }
+            }
+            let bytes = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
+            guard Int64(bytes.count) <= Self.maximumStorageBytes * 2 else { throw DatabaseBackupError.backupTooLarge }
+            return DatabaseBackupManifest(
+                version: DatabaseBackupManifest.currentVersion,
+                schemaVersion: try Int.fetchOne(db, sql: "PRAGMA user_version") ?? 0,
+                createdAt: Date(), byteCount: Int64(bytes.count),
+                clipCount: try ClipItem.fetchCount(db), snippetCount: try Snippet.fetchCount(db),
+                sha256: ContentDigest.sha256(bytes)
+            )
+        }
+        if let databasePath {
+            let rollback = URL(fileURLWithPath: databasePath)
+                .deletingLastPathComponent().appendingPathComponent("neclip-before-restore-\(UUID().uuidString).sqlite")
+            _ = try createDatabaseBackup(to: rollback)
+        }
+        try source.backup(to: dbQueue)
+        notifyChange(.all)
+        return manifest
+    }
+
     func trimToLimits() throws {
         try dbQueue.write { db in try trim(db) }
         notifyChange(.clips)
@@ -953,26 +1148,66 @@ final class Storage: @unchecked Sendable {
     }
 
     /// Reading and creating share one transaction so full erasure cannot fall
-    /// between them and resurrect clipboard content as a new snippet.
+    /// between them and resurrect clipboard content as a new snippet. Saving
+    /// deliberately stores the source body verbatim: template tokens are
+    /// rendered only when a snippet is used, never while it is saved.
     @discardableResult
-    func saveClipAsSnippet(id: Int64, draftTitle: String? = nil, draftText: String? = nil) throws -> Snippet {
-        let snippet = try dbQueue.write { db -> Snippet in
+    func saveClipAsSnippet(
+        id: Int64,
+        folderID: Int64? = nil,
+        draftTitle: String? = nil,
+        draftText: String? = nil
+    ) throws -> Snippet {
+        try saveClipAsSnippetResult(
+            id: id, folderID: folderID, draftTitle: draftTitle, draftText: draftText
+        ).snippet
+    }
+
+    @discardableResult
+    func saveClipAsSnippetResult(
+        id: Int64,
+        folderID: Int64? = nil,
+        draftTitle: String? = nil,
+        draftText: String? = nil
+    ) throws -> SaveClipAsSnippetResult {
+        let result = try dbQueue.write { db -> SaveClipAsSnippetResult in
             guard let row = try Row.fetchOne(
-                db, sql: "SELECT kind, title, text FROM clip WHERE id = ?", arguments: [id]
+                db, sql: "SELECT kind, title, text, appBundleID FROM clip WHERE id = ?", arguments: [id]
             ) else { throw ClipStorageError.clipNotFound }
             let kind: String = row["kind"]
             guard kind == ClipKind.text.rawValue,
                   let content: String = row["text"], !content.isEmpty else {
                 throw ClipStorageError.snippetRequiresText
             }
-            let title: String = row["title"]
+            if let appBundleID: String = row["appBundleID"],
+               SensitiveApplicationPolicy.protects(appBundleID) {
+                throw ClipStorageError.protectedSource
+            }
+            let storedContent = draftText ?? content
+            guard !SensitiveContentPolicy.matches(
+                storedContent, normalizedRules: Settings.sensitiveContentRules
+            ) else {
+                throw ClipStorageError.sensitiveContent
+            }
+            if let folderID, try SnippetFolder.fetchOne(db, key: folderID) == nil {
+                throw SnippetStorageError.folderNotFound
+            }
+            let title = SnippetTitlePolicy.title(for: storedContent)
             let fields = try Self.validatedSnippetFields(
-                title: String((draftTitle ?? title).prefix(60)), content: draftText ?? content
+                title: String((draftTitle ?? title).prefix(SnippetTitlePolicy.maximumCharacters)),
+                content: storedContent
             )
-            return try Self.insertSnippet(folderID: nil, fields: fields, database: db)
+            if let existing = try Snippet.fetchOne(
+                db,
+                sql: "SELECT * FROM snippet WHERE folderID IS ? AND content = ? ORDER BY id LIMIT 1",
+                arguments: [folderID, fields.content]
+            ) {
+                return .alreadyExists(existing)
+            }
+            return .created(try Self.insertSnippet(folderID: folderID, fields: fields, database: db))
         }
         notifyChange(.snippets)
-        return snippet
+        return result
     }
 
     @discardableResult
@@ -1279,7 +1514,10 @@ final class Storage: @unchecked Sendable {
                 db,
                 sql: "SELECT value FROM appMetadata WHERE key = 'starterSnippetsInstalled'"
             ) == "1"
-            guard force || !installed else { return }
+            let starterVersion = Int(try String.fetchOne(
+                db, sql: "SELECT value FROM appMetadata WHERE key = 'starterSnippetsVersion'"
+            ) ?? "0") ?? 0
+            guard force || !installed || starterVersion < 2 else { return }
 
             let russian = Locale.preferredLanguages.first?.lowercased().hasPrefix("ru") == true
             let folderTitle = russian ? "Быстрые ответы" : "Quick replies"
@@ -1297,21 +1535,29 @@ final class Storage: @unchecked Sendable {
                 ("Получено", "Получил. Вернусь с ответом."),
                 ("Напишу позже", "Сейчас не могу ответить. Напишу позже."),
                 ("Сегодня", "{date}"),
-                ("Текущее время", "{time}")
+                ("Текущее время", "{time}"),
+                ("Баг-репорт", "Шаги воспроизведения:\n1. \n2. \nОжидалось:\nФактически:"),
+                ("Commit message", "feat: кратко описать изменение"),
+                ("Встреча", "Дата: {date}\nВремя: {time}\nПовестка:\n"),
+                ("Ответ клиенту", "Здравствуйте!\n\nСпасибо за сообщение. Проверю и вернусь с ответом.")
             ] : [
                 ("Greeting", "Hello!"),
                 ("Thanks", "Thank you!"),
                 ("Received", "Got it. I’ll get back to you."),
                 ("Reply later", "I can’t reply right now. I’ll follow up later."),
                 ("Today", "{date}"),
-                ("Current time", "{time}")
+                ("Current time", "{time}"),
+                ("Bug report", "Steps to reproduce:\n1. \n2. \nExpected:\nActual:"),
+                ("Commit message", "feat: describe the change"),
+                ("Meeting", "Date: {date}\nTime: {time}\nAgenda:\n"),
+                ("Customer reply", "Hello!\n\nThank you for reaching out. I’ll check this and get back to you.")
             ]
 
             for (index, example) in examples.enumerated() {
                 let exists = try Int.fetchOne(
                     db,
-                    sql: "SELECT 1 FROM snippet WHERE folderID IS ? AND title = ? AND content = ? LIMIT 1",
-                    arguments: [folder?.id, example.0, example.1]
+                    sql: "SELECT 1 FROM snippet WHERE folderID IS ? AND title = ? LIMIT 1",
+                    arguments: [folder?.id, example.0]
                 ) != nil
                 guard !exists else { continue }
                 var snippet = Snippet(
@@ -1324,6 +1570,9 @@ final class Storage: @unchecked Sendable {
             }
             try db.execute(
                 sql: "INSERT OR REPLACE INTO appMetadata(key, value) VALUES ('starterSnippetsInstalled', '1')"
+            )
+            try db.execute(
+                sql: "INSERT OR REPLACE INTO appMetadata(key, value) VALUES ('starterSnippetsVersion', '2')"
             )
         }
         notifyChange(.snippets)
@@ -1512,6 +1761,10 @@ final class Storage: @unchecked Sendable {
             createdAt: row["createdAt"],
             isPinned: row["isPinned"]
         )
+    }
+
+    private static func item(from row: Row) -> ClipItem? {
+        try? ClipItem(row: row)
     }
 
     private static func payloadBytes(_ item: ClipItem) -> Int64 {

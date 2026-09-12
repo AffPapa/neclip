@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.5.8")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "37")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.6.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "38")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -48,6 +48,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
         XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
+        XCTAssertTrue(statusBar.contains("Поиск истории…"))
+        XCTAssertTrue(statusBar.contains("Состояние и приватность…"))
+        XCTAssertTrue(statusBar.contains("Сохранить в сниппеты…"))
         XCTAssertFalse(statusBar.contains("MenuSearchKeyPolicy"))
         XCTAssertFalse(
             FileManager.default.fileExists(

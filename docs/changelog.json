@@ -1,9 +1,21 @@
 {
   "versions": [
     {
+      "version": "2.6.0",
+      "build": 38,
+      "status": "released",
+      "changes": [
+        "History-to-snippet saving with folders, duplicate detection and raw text",
+        "Explicit paste actions and bounded local history search",
+        "Trust/status center, screenshot export persistence and database backup/restore",
+        "Token preview and bilingual removable starter snippets",
+        "285 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed"
+      ]
+    },
+    {
       "version": "2.5.8",
       "build": 37,
-      "status": "released",
+      "status": "superseded",
       "changes": [
         "Remove automatic Apple Vision OCR from clipboard image capture",
         "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",

@@ -1,13 +1,7 @@
 import Foundation
 
 enum SnippetRenderer {
-    private enum Token: String, CaseIterable, Sendable {
-        case date = "{date}"
-        case time = "{time}"
-        case clipboard = "{clipboard}"
-        case isoDate = "{date:iso}"
-        case isoTime = "{time:iso}"
-    }
+    private typealias Token = SnippetTokenCatalog.Token
 
     private static let patterns = Token.allCases.map {
         (bytes: Array(("{" + $0.rawValue + "}").utf8), token: $0, escaped: true)

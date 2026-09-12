@@ -59,6 +59,35 @@ final class HotPathBenchmarks: XCTestCase {
         }
     }
 
+    func testSyntheticHistorySearchLatencyAtRequestedSizes() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in history search benchmark for 100, 500 and 2,000 rows")
+        }
+
+        for size in [100, 500, 2_000] {
+            let storage = try Storage(
+                inMemory: true,
+                installStarterContent: false,
+                enforceHistoryLimitOnWrite: false
+            )
+            for index in 0..<size {
+                _ = try storage.insert(ClipItem(
+                    kind: .text,
+                    title: "History item \(index)",
+                    text: "Searchable body for row \(index) with needle-\(size / 2)",
+                    appBundleID: index.isMultiple(of: 2) ? "com.example.editor" : "com.example.mail",
+                    createdAt: Date(timeIntervalSince1970: TimeInterval(index))
+                ))
+            }
+
+            _ = try storage.searchClipSummaries(query: "needle-\(size / 2)", limit: size)
+            try record("history-search-\(size)", iterations: 30) { _ in
+                let results = try storage.searchClipSummaries(query: "needle-\(size / 2)", limit: size)
+                XCTAssertEqual(results.count, size)
+            }
+        }
+    }
+
     func testSyntheticEmptyRuleLatency() throws {
         guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
             throw XCTSkip("Set NECLIP_RUN_HOT_PATH_BENCHMARKS=1 for synthetic latency measurements")

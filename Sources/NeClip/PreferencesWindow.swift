@@ -989,6 +989,18 @@ private struct PreferencesView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section("Резервная копия") {
+                HStack {
+                    Button("Создать backup истории…", action: createDatabaseBackup)
+                    Button("Восстановить из backup…", action: restoreDatabaseBackup)
+                }
+                Text("Backup содержит локальную историю, изображения, RTF и сниппеты. Файл создаётся с правами только для вашего пользователя; перед восстановлением текущая база сохраняется отдельно.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("Сейчас: \(Storage.shared.count) элементов истории · \((try? Storage.shared.snippetSummaries().count) ?? 0) сниппетов")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Готовые примеры") {
                 Button("Восстановить готовые сниппеты") { restoreStarterSnippets() }
             }
@@ -1257,6 +1269,36 @@ private struct PreferencesView: View {
                 return count == 0 ? "Новых сниппетов нет" : "Добавлено сниппетов: \(count)"
             } catch {
                 return error.localizedDescription
+            }
+        }
+    }
+
+    private func createDatabaseBackup() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.data]
+        panel.nameFieldStringValue = "NeClip Backup.sqlite"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        runDataOperation(requiresCaptureBarrier: true) {
+            do {
+                let manifest = try Storage.shared.createDatabaseBackup(to: url)
+                return "Backup создан: \(manifest.clipCount) элементов истории, \(manifest.snippetCount) сниппетов"
+            } catch {
+                return "Не удалось создать backup: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func restoreDatabaseBackup() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.data]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        runDataOperation(requiresCaptureBarrier: true) {
+            do {
+                let manifest = try Storage.shared.restoreDatabaseBackup(from: url)
+                return "Backup восстановлен: \(manifest.clipCount) элементов истории, \(manifest.snippetCount) сниппетов"
+            } catch {
+                return "Backup отклонён: \(error.localizedDescription)"
             }
         }
     }

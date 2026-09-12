@@ -1,5 +1,15 @@
 import AppKit
 
+private final class ClipSnippetTarget: NSObject {
+    let clipID: Int64
+    let folderID: Int64?
+
+    init(clipID: Int64, folderID: Int64?) {
+        self.clipID = clipID
+        self.folderID = folderID
+    }
+}
+
 /// The default NeClip interface is a classic native menu: recent history is
 /// visible immediately, older entries are grouped by tens, and the dedicated
 /// snippets shortcut opens the same folders without the history.
@@ -286,6 +296,14 @@ final class StatusBarController: NSObject {
         if RuntimeIdentity.isIsolatedPreview {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
+        menu.addItem(item(
+            "Поиск истории…",
+            #selector(openHistorySearch),
+            symbol: "magnifyingglass",
+            keyEquivalent: "f",
+            modifiers: [.command]
+        ))
+        menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: "Недавние"))
         // refreshSnapshot() already bounds the snapshot to 100 rows. Keep the
         // existing storage and first page as slices instead of copying them
@@ -456,6 +474,7 @@ final class StatusBarController: NSObject {
         appendSequentialPasteControls(to: submenu)
         submenu.addItem(layoutMenuItem())
         submenu.addItem(.separator())
+        submenu.addItem(captureStatusMenuItem())
         addCaptureControls(to: submenu)
         submenu.addItem(historyCleanupMenuItem())
         submenu.addItem(.separator())
@@ -583,7 +602,64 @@ final class StatusBarController: NSObject {
         entry.toolTip = [clip.text,
                          clip.kind == .text ? "⇧ — без оформления · ⌃ — исправить раскладку" : nil]
             .compactMap { $0 }.joined(separator: "\n")
+        entry.submenu = clipActionsMenu(for: clip)
         return entry
+    }
+
+    /// Keeps the top-level history chronological while exposing explicit
+    /// actions in a submenu. The ordinary item still owns the original paste
+    /// action; the submenu is the discoverable path for keyboard modifiers,
+    /// links and history-to-snippet conversion.
+    private func clipActionsMenu(for clip: ClipSummary) -> NSMenu {
+        let menu = makeMenu(title: "Действия")
+        menu.addItem(item(
+            "Вставить",
+            #selector(pasteClipOriginal(_:)),
+            symbol: "arrow.down.doc",
+            keyEquivalent: "↩",
+            modifiers: []
+        ))
+        menu.items.last?.representedObject = NSNumber(value: clip.id)
+        menu.addItem(item(
+            "Вставить как обычный текст",
+            #selector(pasteClipPlain(_:)),
+            symbol: "text.alignleft"
+        ))
+        menu.items.last?.representedObject = NSNumber(value: clip.id)
+        menu.addItem(item(
+            "Только скопировать",
+            #selector(copyClipOnly(_:)),
+            symbol: "doc.on.doc"
+        ))
+        menu.items.last?.representedObject = NSNumber(value: clip.id)
+
+        if HistoryItemActionResolver.openTarget(for: ClipItem(
+            id: clip.id, kind: clip.kind, title: clip.title, text: clip.text,
+            appBundleID: clip.appBundleID, createdAt: clip.createdAt, isPinned: clip.isPinned
+        )) != nil {
+            menu.addItem(item("Открыть ссылку или файл", #selector(openClipTarget(_:)), symbol: "arrow.up.right.square"))
+            menu.items.last?.representedObject = NSNumber(value: clip.id)
+        }
+
+        if clip.kind == .text {
+            let save = item("Сохранить в сниппеты…", nil, symbol: "text.badge.plus")
+            let folders = makeMenu(title: "Сохранить в сниппеты")
+            let unfiled = item("Без папки", #selector(saveClipAsSnippet(_:)), symbol: "tray")
+            unfiled.representedObject = ClipSnippetTarget(clipID: clip.id, folderID: nil)
+            folders.addItem(unfiled)
+            if !snapshot.folders.isEmpty {
+                folders.addItem(.separator())
+                for folder in snapshot.folders {
+                    guard let folderID = folder.id else { continue }
+                    let folderItem = item(folder.title, #selector(saveClipAsSnippet(_:)), symbol: "folder")
+                    folderItem.representedObject = ClipSnippetTarget(clipID: clip.id, folderID: folderID)
+                    folders.addItem(folderItem)
+                }
+            }
+            save.submenu = folders
+            menu.addItem(save)
+        }
+        return menu
     }
 
     private func layoutMenuItem() -> NSMenuItem {
@@ -639,6 +715,71 @@ final class StatusBarController: NSObject {
         root.submenu = submenu
         return root
     }
+
+    private func captureStatusMenuItem() -> NSMenuItem {
+        let root = item("Состояние и приватность…", nil, symbol: "checkmark.shield")
+        let submenu = makeMenu(title: "Состояние и приватность")
+
+        let historyTitle: String
+        switch Settings.capturePauseState {
+        case .active: historyTitle = "История: запись включена"
+        case .until(let date):
+            historyTitle = "История: пауза до \(Self.statusDateFormatter.string(from: date))"
+        case .indefinite: historyTitle = "История: запись приостановлена"
+        }
+        submenu.addItem(item(historyTitle, nil, symbol: Settings.isCapturePaused ? "pause.circle" : "checkmark.circle"))
+
+        let pasteboardTitle: String
+        switch ClipboardAccess.current {
+        case .unrestricted, .allowed: pasteboardTitle = "Буфер macOS: доступен"
+        case .needsChoice: pasteboardTitle = "Буфер macOS: требуется разрешение"
+        case .denied: pasteboardTitle = "Буфер macOS: доступ запрещён"
+        }
+        submenu.addItem(item(pasteboardTitle, nil, symbol: ClipboardAccess.current == .denied ? "exclamationmark.shield" : "doc.on.clipboard"))
+
+        submenu.addItem(item(
+            PasteService.isAccessibilityTrusted
+                ? "Автовставка: доступна"
+                : "Автовставка: только копирование",
+            nil,
+            symbol: PasteService.isAccessibilityTrusted ? "hand.thumbsup" : "hand.raised"
+        ))
+        if Settings.ignoreNextCopy {
+            submenu.addItem(item("Следующее копирование будет пропущено", nil, symbol: "forward.end"))
+        }
+        submenu.addItem(.separator())
+
+        if Settings.isCapturePaused {
+            submenu.addItem(item("Возобновить запись", #selector(resumeCapture), symbol: "play.fill"))
+        } else {
+            let pause = item("Приостановить запись", nil, symbol: "pause.fill")
+            let pauseMenu = makeMenu(title: "Приостановить запись")
+            pauseMenu.addItem(item("На 15 минут", #selector(pauseForFifteenMinutes), symbol: "timer"))
+            pauseMenu.addItem(item("До возобновления", #selector(pauseIndefinitely), symbol: "pause.fill"))
+            pause.submenu = pauseMenu
+            submenu.addItem(pause)
+        }
+        submenu.addItem(item(
+            Settings.ignoreNextCopy ? "Отменить пропуск следующей копии" : "Не сохранять следующее копирование",
+            #selector(ignoreNextCopy), symbol: "forward.end"
+        ))
+        if ClipboardAccess.current == .denied || ClipboardAccess.current == .needsChoice {
+            submenu.addItem(item("Настроить доступ к буферу…", #selector(openClipboardPrivacy), symbol: "gearshape"))
+        }
+        if !PasteService.isAccessibilityTrusted {
+            submenu.addItem(item("Разрешить автовставку…", #selector(requestAccessibility), symbol: "hand.raised"))
+        }
+        submenu.addItem(.separator())
+        submenu.addItem(item("Открыть настройки…", #selector(openPreferences), symbol: "gearshape"))
+        root.submenu = submenu
+        return root
+    }
+
+    private static let statusDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
 
     private func addCaptureControls(to menu: NSMenu) {
         if ClipboardAccess.current == .denied {
@@ -755,6 +896,92 @@ final class StatusBarController: NSObject {
 
     @objc private func pasteClip(_ sender: NSMenuItem) {
         pasteClip(sender, forcedModifiers: actionModifiers, destinationPID: targetPID)
+    }
+
+    @objc private func pasteClipOriginal(_ sender: NSMenuItem) {
+        pasteClip(sender, forcedModifiers: [], destinationPID: targetPID)
+    }
+
+    @objc private func pasteClipPlain(_ sender: NSMenuItem) {
+        pasteClip(sender, forcedModifiers: [.shift], destinationPID: targetPID)
+    }
+
+    @objc private func copyClipOnly(_ sender: NSMenuItem) {
+        pasteClip(sender, forcedModifiers: [.command], destinationPID: targetPID)
+    }
+
+    @objc private func openClipTarget(_ sender: NSMenuItem) {
+        guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
+        openClipTarget(id: id)
+    }
+
+    private func openClipTarget(id: Int64) {
+        dataQueue.async { [weak self] in
+            do {
+                guard let clip = try Storage.shared.fetchClip(id: id),
+                      let target = HistoryItemActionResolver.openTarget(for: clip) else {
+                    DispatchQueue.main.async { self?.showFeedback("Открывать можно только безопасные ссылки и существующие файлы") }
+                    return
+                }
+                DispatchQueue.main.async {
+                    NSWorkspace.shared.open(target)
+                }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент") }
+            }
+        }
+    }
+
+    @objc private func saveClipAsSnippet(_ sender: NSMenuItem) {
+        guard let target = sender.representedObject as? ClipSnippetTarget else { return }
+        saveHistoryClipAsSnippet(id: target.clipID, folderID: target.folderID)
+    }
+
+    private func saveHistoryClipAsSnippet(id: Int64, folderID: Int64? = nil) {
+        activeMenu?.cancelTracking()
+        let clipID = id
+        dataQueue.async { [weak self] in
+            do {
+                let result = try Storage.shared.saveClipAsSnippetResult(
+                    id: clipID, folderID: folderID
+                )
+                DispatchQueue.main.async {
+                    let snippet = result.snippet
+                    if result.wasCreated, let snippetID = snippet.id {
+                        SnippetsEditorWindowController.shared.show(snippetID: snippetID)
+                    }
+                    self?.showFeedback(
+                        result.wasCreated ? "Сниппет сохранён" : "Такой сниппет уже есть в этой папке"
+                    )
+                }
+            } catch let error as LocalizedError {
+                DispatchQueue.main.async { self?.showFeedback(error.errorDescription ?? "Не удалось сохранить сниппет") }
+            } catch {
+                DispatchQueue.main.async { self?.showFeedback("Не удалось сохранить сниппет") }
+            }
+        }
+    }
+
+    @objc private func openHistorySearch() {
+        activeMenu?.cancelTracking()
+        let target = captureTargetApplication()
+        HistorySearchPanelController.shared.show(
+            targetPID: target?.processIdentifier,
+            paste: { [weak self] id, plainText, copyOnly, targetPID in
+                self?.performHistoryPaste(id: id, plainText: plainText, copyOnly: copyOnly, targetPID: targetPID)
+            },
+            save: { [weak self] id in self?.saveHistoryClipAsSnippet(id: id) },
+            open: { [weak self] id in self?.openClipTarget(id: id) }
+        )
+    }
+
+    private func performHistoryPaste(id: Int64, plainText: Bool, copyOnly: Bool, targetPID: pid_t?) {
+        let sender = NSMenuItem()
+        sender.representedObject = NSNumber(value: id)
+        var modifiers: NSEvent.ModifierFlags = []
+        if plainText { modifiers.insert(.shift) }
+        if copyOnly { modifiers.insert(.command) }
+        pasteClip(sender, forcedModifiers: modifiers, destinationPID: targetPID)
     }
 
     @objc private func quickPasteClip(_ sender: NSMenuItem) {

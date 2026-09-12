@@ -56,6 +56,7 @@ enum Settings {
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
         static let layoutExcludedApps = "layoutExcludedApps"
         static let rememberLayoutPerApplication = "rememberLayoutPerApplication"
+        static let screenshotFormat = "screenshotFormat"
         static let applicationLayoutMemory = "applicationLayoutMemory.v1"
         static let applicationLayoutMemoryOrder = "applicationLayoutMemoryOrder.v1"
         static let fixedApplicationLayouts = "fixedApplicationLayouts.v1"
@@ -146,6 +147,11 @@ enum Settings {
     static var preferPlainText: Bool {
         get { d.bool(forKey: Key.preferPlainText) }
         set { d.set(newValue, forKey: Key.preferPlainText) }
+    }
+
+    static var screenshotFormat: ScreenshotFormat {
+        get { ScreenshotFormat(rawValue: d.string(forKey: Key.screenshotFormat) ?? "") ?? .png }
+        set { d.set(newValue.rawValue, forKey: Key.screenshotFormat) }
     }
 
     static var menuTitleLength: Int {
