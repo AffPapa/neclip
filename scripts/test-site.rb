@@ -51,10 +51,10 @@ class SiteCoherenceTest < Minitest::Test
   end
 
   def test_rejects_disagreeing_source_commit
-    mutate('project') { |data| data['sourceCandidate']['sourceCommit'] = '0' * 40 }
+    mutate('version') { |data| data['sourceCommit'] = '0' * 40 }
     _, err, status = verify
     refute status.success?
-    assert_includes err, 'candidate source mismatch'
+    assert_includes err, 'README source mismatch'
   end
 
   def test_rejects_deleted_evidence_link
