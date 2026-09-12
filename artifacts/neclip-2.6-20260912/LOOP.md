@@ -32,6 +32,7 @@ or any public metadata/checksum mismatch.
 
 ## Current state
 
-2.5.8 is the rollback reference. Work began from the clean 2.5.8 release worktree;
-branch creation was blocked because the linked Git metadata is outside the writable
-workspace. Do not publish until an exact reviewed commit and release branch/tag are available.
+2.5.8 is the rollback reference. The reviewed 2.6.0 candidate is on
+`codex/neclip-260` at commit `f59a15fa1ae95814015b3593f801a5fdfcdd4ba0`.
+The public release remains blocked until physical QA and the authorized
+signing/notarization/publication gates are complete.

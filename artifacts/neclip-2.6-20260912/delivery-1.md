@@ -13,12 +13,14 @@
 - Targeted `ClipToSnippetTests`: 7 passed.
 - Targeted `HistorySearchTests`: 2 passed.
 - Targeted `StorageBackupTests`: 3 passed.
-- Full debug XCTest after these slices: 280 tests, 0 failures, 4 expected skips before the final starter-pack expectation was updated; the updated targeted storage suite is green.
-- Strict release build: passed.
+- Full debug XCTest: 283 tests, 4 expected skips, 0 failures; three Swift Testing tests passed.
+- Strict Swift 6 release build with warnings-as-errors: passed.
+- History-search benchmark: 100 rows median/p95 1.48/1.74 ms; 500 rows 7.27/8.49 ms; 2,000 rows 27.85/28.51 ms.
+- ASan and TSan builds complete, but Xcode-beta aborts before test execution because sanitizer interceptors load too late; this remains an environment gate, not a passing sanitizer claim.
+- Candidate `verify-site.rb`: passed while preserving the verified 2.5.8 public download.
 
 ## Partial / blocked
 
-- Full release version metadata is still 2.5.8 and must not be changed until the remaining QA gates pass.
-- Physical screenshot permission/display/Save dialog smoke remains required.
-- Existing personal backup files outside the worktree were observed by an audit with permissive permissions; they were not read or modified. Do not publish until that release blocker is resolved with explicit owner approval.
-- Git branch creation was blocked because the linked Git metadata lives outside the writable workspace.
+- Physical screenshot permission/display/Save dialog smoke remains required; the UI control service could not attach to the LSUIElement-only smoke bundle.
+- Existing personal backup files outside the worktree were observed by an audit with permissive permissions; they were not read or modified. Cleanup needs explicit owner approval.
+- The release pipeline requires explicit authorization before sending the app to Apple notarization and using the configured Apple credentials; that authorization has not yet been granted.
