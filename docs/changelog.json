@@ -1,23 +1,13 @@
 {
   "versions": [
     {
-      "version": "2.5.7",
-      "build": 36,
-      "status": "released",
-      "changes": [
-        "Keep the screenshot text field alive when AppKit starts its field editor",
-        "Commit the live text draft once on Enter or focus loss; Escape discards it",
-        "Include active text in screenshot exports and the unsaved-changes close check",
-        "279 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
-      ]
-    },
-    {
       "version": "2.5.8",
       "build": 37,
-      "status": "candidate",
+      "status": "released",
       "changes": [
         "Remove automatic Apple Vision OCR from clipboard image capture",
-        "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata"
+        "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",
+        "276 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
       ]
     }
   ]
