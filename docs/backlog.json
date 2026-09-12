@@ -1,9 +1,9 @@
 {
   "currentRelease": {
-    "version": "2.5.6",
-    "build": 35,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md"
+    "version": "2.5.7",
+    "build": 36,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.5.7/NeClip-2.5.7.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.7-STATUS.md"
   },
   "done": [
     "Current release: bounded local history, snippet folders, EN/RU correction and screenshot editing"

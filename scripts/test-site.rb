@@ -72,17 +72,25 @@ class SiteCoherenceTest < Minitest::Test
   end
 
   def test_unreleased_candidate_keeps_verified_public_download
+    public_before = File.read(File.join(@fixture, 'docs/version.json'))
+    candidate = JSON.parse(File.read(File.join(@fixture, 'docs/project.json'))).fetch('sourceCandidate')
+    parts = candidate.fetch('version').split('.').map(&:to_i)
+    parts[-1] += 1
+    next_version = parts.join('.')
+    next_build = candidate.fetch('build') + 1
     mutate('project') do |data|
-      data['sourceCandidate'].merge!('version' => '2.5.7', 'build' => 36, 'status' => 'candidate')
+      data['sourceCandidate'].merge!('version' => next_version, 'build' => next_build, 'status' => 'candidate')
+      data['sourceCandidate'].delete('sourceCommit')
     end
     mutate('changelog') do |data|
-      data['versions'] << { 'version' => '2.5.7', 'build' => 36, 'status' => 'candidate' }
+      data['versions'] << { 'version' => next_version, 'build' => next_build, 'status' => 'candidate' }
     end
     path = File.join(@fixture, 'Resources/Info.plist')
-    plist = File.read(path).sub('<string>2.5.6</string>', '<string>2.5.7</string>')
-      .sub('<string>35</string>', '<string>36</string>')
+    plist = File.read(path).sub("<string>#{candidate.fetch('version')}</string>", "<string>#{next_version}</string>")
+      .sub("<string>#{candidate.fetch('build')}</string>", "<string>#{next_build}</string>")
     File.write(path, plist)
     out, err, status = verify
     assert status.success?, "#{out}\n#{err}"
+    assert_equal public_before, File.read(File.join(@fixture, 'docs/version.json'))
   end
 end

@@ -4,17 +4,16 @@ NeClip remains a small local macOS utility: clipboard history, snippet folders
 and safe EN/RU layout correction. Accounts, cloud sync, subscriptions,
 telemetry, advertising and AI processing are not planned.
 
-## Current public release — 2.5.6 / build 35
+## Current public release — 2.5.7 / build 36
 
-Released 11 September 2026 after the normal Developer ID, notarization,
+Released 12 September 2026 after the normal Developer ID, notarization,
 stapling, Gatekeeper, mounted-DMG, independent public-download and required-CI
-gates. [Download NeClip 2.5.6](https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg)
-and read the [release evidence](docs/RELEASE-2.5.6-STATUS.md).
+gates. [Download NeClip 2.5.7](https://github.com/AffPapa/neclip/releases/download/v2.5.7/NeClip-2.5.7.dmg)
+and read the [release evidence](docs/RELEASE-2.5.7-STATUS.md).
 
-- Correct selected-area capture on Retina and mixed-scale displays.
-- Keep the chosen annotation colour with every new shape and text entry.
-- Recover capture once after a transient WindowServer failure without changing
-  the local-only, no-account product boundary.
+- Keep the screenshot text field available throughout native AppKit editing.
+- Preserve active text in exports and unsaved-changes checks.
+- Cover field-editor focus, Enter/Escape and export with regression tests.
 
 ## Current verification priorities
 

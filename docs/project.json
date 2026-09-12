@@ -20,8 +20,9 @@
   "sourceCandidate": {
     "version": "2.5.7",
     "build": 36,
-    "status": "candidate",
-    "publicVersion": "2.5.6"
+    "status": "released",
+    "publicVersion": "2.5.7",
+    "sourceCommit": "3b0adfcf87230081501674f989185b5521c08983"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -31,8 +32,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.7-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.7-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -108,5 +109,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "2.5.6 released; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "2.5.7 released; exact downloadable artifact is identified by version.json"
 }

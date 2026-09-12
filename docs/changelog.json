@@ -1,25 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.5.6",
-      "build": 35,
-      "status": "released",
-      "changes": [
-        "ScreenCaptureKit captures the complete display without overriding sourceRect and fits it into the bounded output canvas",
-        "Selected-area capture is correct on Retina and scaled displays",
-        "Fallback and final validation use one resolved display ID",
-        "The selected annotation colour applies to new shapes and text",
-        "276 XCTest, strict Swift 6, ASan, TSan, notarization and Gatekeeper passed"
-      ]
-    },
-    {
       "version": "2.5.7",
       "build": 36,
-      "status": "candidate",
+      "status": "released",
       "changes": [
         "Keep the screenshot text field alive when AppKit starts its field editor",
         "Commit the live text draft once on Enter or focus loss; Escape discards it",
-        "Include active text in screenshot exports and the unsaved-changes close check"
+        "Include active text in screenshot exports and the unsaved-changes close check",
+        "279 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
       ]
     }
   ]
