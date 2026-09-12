@@ -33,6 +33,6 @@ or any public metadata/checksum mismatch.
 ## Current state
 
 2.5.8 is the rollback reference. The reviewed 2.6.0 candidate is on
-`codex/neclip-260` at commit `f59a15fa1ae95814015b3593f801a5fdfcdd4ba0`.
+`codex/neclip-260` at commit `3aa11db` (privacy recheck included).
 The public release remains blocked until physical QA and the authorized
 signing/notarization/publication gates are complete.

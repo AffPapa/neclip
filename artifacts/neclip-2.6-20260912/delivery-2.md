@@ -3,8 +3,10 @@
 ## Verified
 
 - Candidate version is NeClip 2.6.0, build 38; public manifest remains 2.5.8 until publication.
-- Exact reviewed source commit: `f59a15fa1ae95814015b3593f801a5fdfcdd4ba0`.
-- Full debug tests, strict Swift 6 build and local metadata/link verification passed.
+- Exact reviewed code commit: `3aa11db` (the final release commit will include this reviewed code plus its evidence metadata).
+- Full debug tests: 285 XCTest, 5 expected skips, 0 failures; three Swift Testing tests passed.
+- Strict Swift 6 release build with warnings-as-errors passed on the reviewed code.
+- Local metadata/link verification passed.
 - Search read-time benchmark passed at 100, 500 and 2,000 synthetic rows without persistent indexing.
 - Physical isolated UI smoke passed for the 2.6.0 Data preferences window, backup
   Save panel, synthetic screenshot editor, PNG/JPEG format selector and screenshot
