@@ -20,8 +20,9 @@
   "sourceCandidate": {
     "version": "2.6.0",
     "build": 38,
-    "status": "candidate",
-    "publicVersion": "2.5.8",
+    "status": "released",
+    "publicVersion": "2.6.0",
+    "sourceCommit": "1c79c28da68456c69b658ea523027ef33e298c2b",
     "scope": "history-to-snippet actions, explicit paste actions, bounded local history search, trust/status center, screenshot QA closure, token preview, starter snippets and full database backup/restore"
   },
   "canonical": {
@@ -32,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.0-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.0-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -114,5 +115,5 @@
     "a permanent Dock icon",
     "tags or smart collections"
   ],
-  "featuresVersion": "2.6.0 candidate; public downloadable artifact remains identified by version.json"
+  "featuresVersion": "2.6.0 released; public downloadable artifact is identified by version.json"
 }
