@@ -55,6 +55,23 @@ final class ClipToSnippetTests: XCTestCase {
         XCTAssertEqual(try storage.allSnippets().count, 2)
     }
 
+    func testConversionRechecksSensitiveDraftTextBeforeSaving() throws {
+        let previousRules = Settings.sensitiveContentRules
+        defer { Settings.sensitiveContentRules = previousRules }
+        Settings.sensitiveContentRules = ["secret"]
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let id = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text, title: "Title", text: "safe source", createdAt: Date()
+        )))
+
+        XCTAssertThrowsError(try storage.saveClipAsSnippetResult(
+            id: id, draftText: "secret draft"
+        )) {
+            XCTAssertEqual($0 as? ClipStorageError, .sensitiveContent)
+        }
+        XCTAssertTrue(try storage.allSnippets().isEmpty)
+    }
+
     func testMissingNonTextAndEmptyClipsDoNotCreateSnippets() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         XCTAssertThrowsError(try storage.saveClipAsSnippet(id: Int64.max)) {

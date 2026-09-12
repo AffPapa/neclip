@@ -1183,18 +1183,19 @@ final class Storage: @unchecked Sendable {
                SensitiveApplicationPolicy.protects(appBundleID) {
                 throw ClipStorageError.protectedSource
             }
+            let storedContent = draftText ?? content
             guard !SensitiveContentPolicy.matches(
-                content, normalizedRules: Settings.sensitiveContentRules
+                storedContent, normalizedRules: Settings.sensitiveContentRules
             ) else {
                 throw ClipStorageError.sensitiveContent
             }
             if let folderID, try SnippetFolder.fetchOne(db, key: folderID) == nil {
                 throw SnippetStorageError.folderNotFound
             }
-            let title = SnippetTitlePolicy.title(for: draftText ?? content)
+            let title = SnippetTitlePolicy.title(for: storedContent)
             let fields = try Self.validatedSnippetFields(
                 title: String((draftTitle ?? title).prefix(SnippetTitlePolicy.maximumCharacters)),
-                content: draftText ?? content
+                content: storedContent
             )
             if let existing = try Snippet.fetchOne(
                 db,
