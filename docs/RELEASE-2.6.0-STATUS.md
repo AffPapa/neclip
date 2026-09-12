@@ -11,7 +11,7 @@ screenshot-format persistence and isolated SQLite backup/restore complete the 2.
 scope. Search does not persist an index, inspect images with OCR or use the network.
 
 - Artifact source commit: `1c79c28da68456c69b658ea523027ef33e298c2b`.
-- GitHub Release target: [v2.6.0](https://github.com/AffPapa/neclip/releases/tag/v2.6.0).
+- GitHub Release: [v2.6.0](https://github.com/AffPapa/neclip/releases/tag/v2.6.0), published 12 September 2026.
 - DMG: `NeClip-2.6.0.dmg`, 2,087,874 bytes.
 - SHA-256: `8329ff378f6c9a4d5bc5da0efbceebc6ecf48e9f0bac5790439e6d0d77ca0636`.
 - Distribution: Developer ID signed, Apple-notarized and stapled app and DMG,
@@ -39,8 +39,12 @@ scope. Search does not persist an index, inspect images with OCR or use the netw
   appeared, and cancellation produced no user-file write. The isolated instance
   used temporary data and was terminated after the check; the installed user's
   data and clipboard were not modified.
-- The public artifact, checksum, version manifest and Pages copy must be checked
-  independently after GitHub publication.
+- Independent anonymous download of the public DMG matched the local artifact:
+  2,087,874 bytes and SHA-256
+  `8329ff378f6c9a4d5bc5da0efbceebc6ecf48e9f0bac5790439e6d0d77ca0636`.
+  GitHub API reports the same digest for the uploaded DMG.
+- The version manifest and Pages copy must be checked independently after the
+  protected `main` branch receives this metadata commit.
 
 ## Verification boundary
 
