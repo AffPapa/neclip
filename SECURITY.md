@@ -10,7 +10,7 @@ only when the user explicitly chooses “Check for Updates”.
 
 Release binaries are accepted only after Developer ID signing, Apple
 notarization, stapling, Gatekeeper assessment and published SHA-256 verification.
-The only supported public release is `v2.5.6`, with immutable assets and tag.
+The only supported public release is `v2.5.7`, with immutable assets and tag.
 Older releases and tags have been removed. GitHub also checks Swift
 and workflow source with CodeQL, allows only GitHub-owned Actions referenced by
 full SHA and monitors the exact SwiftPM dependency for vulnerabilities. Branch
