@@ -20,8 +20,9 @@
   "sourceCandidate": {
     "version": "2.5.8",
     "build": 37,
-    "status": "candidate",
-    "publicVersion": "2.5.7"
+    "status": "released",
+    "publicVersion": "2.5.8",
+    "sourceCommit": "b66c7e55d267e7a159bb951798ddc34ead97abed"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -31,8 +32,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.7-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.7-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.8-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -46,7 +47,8 @@
     "explicit area and full-screen screenshots with a 32 MP capture budget",
     "screenshot redaction, pen, arrow, rectangle and text with undo/redo and flattened PNG/JPEG export",
     "bounded local SQLite storage, privacy exclusions and safe history cleanup",
-    "manual-only update checks using an exact manifest URL, bounded JSON and no redirects"
+    "manual-only update checks using an exact manifest URL, bounded JSON and no redirects",
+    "clipboard images stored without automatic content recognition"
   ],
   "shortcuts": [
     {
@@ -108,5 +110,5 @@
     "a permanent Dock icon",
     "search, keyword fields, tags or smart collections"
   ],
-  "featuresVersion": "2.5.7 released; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "2.5.8 released; exact downloadable artifact is identified by version.json"
 }

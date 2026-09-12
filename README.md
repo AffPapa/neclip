@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.5.7 (build 36)**,
+Current supported release: **2.5.8 (build 37)**,
 released on 12 September 2026.
 
-[Download NeClip 2.5.7](https://github.com/AffPapa/neclip/releases/download/v2.5.7/NeClip-2.5.7.dmg)
-(2,047,427 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.5.8](https://github.com/AffPapa/neclip/releases/download/v2.5.8/NeClip-2.5.8.dmg)
+(2,044,866 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `f013fef2f6f86cbdbd2d54e9200d0b462b20816e10d8c910830813fa2e8bda9c`.
-Artifact source: `3b0adfcf87230081501674f989185b5521c08983`.
+SHA-256: `05aec85af50286de2b4051041775e48b14d8d33b74a484cb7706531b6ebaec21`.
+Artifact source: `b66c7e55d267e7a159bb951798ddc34ead97abed`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.5.7-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.5.8-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -58,6 +58,9 @@ flattened pixels, without editable layers or original image metadata. Oversized
 displays are proportionally downscaled to a 32 MP working-image limit.
 
 ## Privacy and recovery
+
+Images are stored without automatic OCR or other content recognition. Existing
+image bytes and legacy metadata remain intact; normal retention rules still apply.
 
 - History stays in `~/Library/Application Support/NeClip/neclip.sqlite`.
   Removing the app bundle does not delete your data.
