@@ -10,10 +10,8 @@ only when the user explicitly chooses “Check for Updates”.
 
 Release binaries are accepted only after Developer ID signing, Apple
 notarization, stapling, Gatekeeper assessment and published SHA-256 verification.
-Repository-wide release immutability is enabled. Releases `v1.3.2` and later,
-including the current `v2.5.6`, have immutable assets and tags; GitHub's policy
-cannot retroactively lock the earlier `v1.3.0` and `v1.3.1` releases. Their
-published SHA-256 files remain the verification source. GitHub also checks Swift
+The only supported public release is `v2.5.6`, with immutable assets and tag.
+Older releases and tags have been removed. GitHub also checks Swift
 and workflow source with CodeQL, allows only GitHub-owned Actions referenced by
 full SHA and monitors the exact SwiftPM dependency for vulnerabilities. Branch
 and repository rules are verified through an authenticated GitHub release gate;

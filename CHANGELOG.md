@@ -2,9 +2,8 @@
 
 ## 2.5.6 / build 35 — released 2026-09-11
 
-- ScreenCaptureKit receives an explicit `sourceRect` and fits the complete
-  source into the output canvas, preventing blank margins and offset crops on
-  Retina and mixed-resolution displays.
+- ScreenCaptureKit captures the complete display without overriding `sourceRect`
+  and fits it into a bounded canvas. Selected areas map into the captured raster.
 - Capture and post-capture display validation use the same resolved display ID.
 - The selected annotation colour is applied to new shapes and text; text commit
   is idempotent on Enter or focus loss.

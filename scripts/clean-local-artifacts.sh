@@ -12,4 +12,15 @@ for path in .build .build-asan .build-tsan .build-strict .qa; do
   fi
 done
 
+# Old versions created compatibility links through releases/current. Once the
+# current release changes those links are dangling; unlink only that exact form.
+for path in dist/NeClip-*.dmg dist/NeClip-*.dmg.sha256 dist/NeClip-*.release.json; do
+  if [[ -L "$path" && ! -e "$path" ]]; then
+    target="$(readlink "$path")"
+    if [[ "$target" == "releases/current/$(basename "$path")" ]]; then
+      rm -- "$path"
+    fi
+  fi
+done
+
 find . -maxdepth 2 -type f -name .DS_Store -delete

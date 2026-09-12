@@ -9,7 +9,7 @@ source commit and release checks are recorded in
 - `StatusBarController` and `AppDelegate` own the menu-bar lifecycle.
 - `ClipboardMonitor`, `Storage` and the privacy filters keep history local and
   fail closed when source attribution is unsafe.
-- `SnippetStore` and the native editor own folders, snippets and draft-safe
+- `Storage` and `SnippetsEditorModel` own folders, snippets and draft-safe
   writes.
 - `HotKeyCoordinator` owns configurable global shortcuts and conflict handling.
 - `ScreenshotCoordinator`, `ScreenshotSelectionView` and

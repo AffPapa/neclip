@@ -16,12 +16,13 @@ and read the [release evidence](docs/RELEASE-2.5.6-STATUS.md).
 - Recover capture once after a transient WindowServer failure without changing
   the local-only, no-account product boundary.
 
-## Current bounded roadmap
+## Current verification priorities
 
-- Verify first-run permission wording across supported macOS releases.
-- Expand local layout pairs only with low-false-positive system tests.
-- Repeat measured menu latency before changing bounded browse windows.
-- Consider lightweight snippet-folder drag ordering only if section counts grow.
+- Verify permissions and screen capture across supported macOS versions and
+  physical display configurations.
+- Measure menu latency before changing storage or browse limits.
+
+These are verification priorities, not promises of new features.
 
 ## Not planned
 
