@@ -78,22 +78,8 @@ final class HotPathBenchmarks: XCTestCase {
             let id = try XCTUnwrap(storage.insert(ClipItem(
                 kind: .image, title: "Synthetic image", data: payload, createdAt: Date()
             )))
-            try record("ocr-\(megabytes)MB", iterations: 12) { index in
-                try storage.setOCRText("Synthetic OCR Привет \(index)", forClipID: id)
-            }
             try record("pin-\(megabytes)MB", iterations: 12) { _ in
                 try storage.setPinned(id: id, pinned: true)
-            }
-            let expectedOCR = "Synthetic OCR Привет 11"
-            try record("ocr-full-fetch-\(megabytes)MB", iterations: 20) { _ in
-                let item = try storage.fetchClip(id: id)
-                XCTAssertEqual(item?.ocrText, expectedOCR)
-                XCTAssertEqual(item?.data?.count, payload.count)
-            }
-            try record("ocr-projected-fetch-\(megabytes)MB", iterations: 20) { _ in
-                let item = try storage.fetchOCRTextItem(id: id)
-                XCTAssertEqual(item?.text, expectedOCR)
-                XCTAssertNil(item?.data)
             }
             XCTAssertEqual(try storage.fetchClip(id: id)?.data, payload)
         }

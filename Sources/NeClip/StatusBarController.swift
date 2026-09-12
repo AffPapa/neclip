@@ -223,7 +223,7 @@ final class StatusBarController: NSObject {
         }
     }
 
-    /// Insert and OCR completion often arrive as a short notification burst.
+    /// Data changes often arrive as a short notification burst.
     /// Collapse that burst into one database snapshot without delaying a menu
     /// explicitly requested by the user.
     private func scheduleSnapshotRefresh() {

@@ -715,41 +715,6 @@ final class Storage: @unchecked Sendable {
         try dbQueue.read { db in try ClipItem.fetchOne(db, key: id) }
     }
 
-    // OCR-only paste must not materialize the original image or RTF BLOBs.
-    static let ocrTextProjectionSQL = """
-        SELECT title, ocrText, createdAt FROM clip WHERE id = ? AND kind = 'image'
-        """
-
-    func fetchOCRTextItem(id: Int64) throws -> ClipItem? {
-        try dbQueue.read { db in
-            guard let row = try Row.fetchOne(db, sql: Self.ocrTextProjectionSQL, arguments: [id]),
-                  let recognized: String = row["ocrText"] else { return nil }
-            let text = recognized.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { return nil }
-            return ClipItem(kind: .text, title: row["title"], text: text, createdAt: row["createdAt"])
-        }
-    }
-
-    func setOCRText(_ text: String, forClipID id: Int64) throws {
-        try dbQueue.write { db in
-            // Recount the original representations without materializing them
-            // in Swift. Replacing OCR must not fetch/rebind a large image BLOB.
-            guard let contentBytes = try Int64.fetchOne(db, sql: """
-                SELECT COALESCE(length(CAST(text AS BLOB)), 0)
-                     + COALESCE(length(data), 0)
-                     + COALESCE(length(rtf), 0) + ?
-                FROM clip WHERE id = ?
-                """, arguments: [text.utf8.count, id]) else { return }
-            try ensureCapacityForBytes(contentBytes, replacing: id, in: db)
-            try db.execute(
-                sql: "UPDATE clip SET ocrText = ?, contentBytes = ? WHERE id = ?",
-                arguments: [text, contentBytes, id]
-            )
-            try trim(db)
-        }
-        notifyChange(.clips)
-    }
-
     /// Compatibility exit for old pins. Never reads payloads or runs retention.
     @discardableResult
     func unpinLegacyClip(id: Int64) throws -> Bool {

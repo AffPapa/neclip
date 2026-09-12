@@ -470,15 +470,7 @@ final class ClipboardMonitor: @unchecked Sendable {
             contentHash: ContentDigest.sha256(png)
         )
 
-        do {
-            let clipID = try Storage.shared.insert(item)
-            if let clipID {
-                SequentialPasteSequence.shared.noteExternalCapture()
-                OCRService.recognize(imageData: png, clipID: clipID)
-            }
-        } catch {
-            captureFailed(error)
-        }
+        insert(item)
     }
 
     private func insert(_ item: ClipItem) {

@@ -18,11 +18,10 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.5.7",
-    "build": 36,
-    "status": "released",
-    "publicVersion": "2.5.7",
-    "sourceCommit": "3b0adfcf87230081501674f989185b5521c08983"
+    "version": "2.5.8",
+    "build": 37,
+    "status": "candidate",
+    "publicVersion": "2.5.7"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
