@@ -394,7 +394,7 @@ final class StorageTests: XCTestCase {
         XCTAssertNotNil(try storage.fetchClip(id: 11))
     }
 
-    func testOCRTextIsCountedAgainstPinnedHardCap() throws {
+    func testLegacyOCRMetadataIsStillCountedAgainstHardCap() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let sentinelID = try XCTUnwrap(storage.insert(ClipItem(
             kind: .text,
@@ -405,19 +405,14 @@ final class StorageTests: XCTestCase {
         )))
         try storage.setPinned(id: sentinelID, pinned: true)
 
-        let imageID = try XCTUnwrap(storage.insert(ClipItem(
-            kind: .image,
-            title: "OCR target",
-            data: Data([1]),
-            createdAt: Date().addingTimeInterval(1),
-            contentBytes: 1
-        )))
-        try storage.setPinned(id: imageID, pinned: true)
-
-        XCTAssertThrowsError(try storage.setOCRText("OCR text", forClipID: imageID)) { error in
+        XCTAssertThrowsError(try storage.insert(ClipItem(
+            kind: .image, title: "Legacy image", data: Data([1]),
+            ocrText: "four", createdAt: Date().addingTimeInterval(1)
+        ))) { error in
             XCTAssertEqual(error as? StorageCapacityError, .pinnedItemsUseAllAvailableSpace)
         }
-        XCTAssertNil(try storage.fetchClip(id: imageID)?.ocrText)
+        XCTAssertEqual(storage.count, 1)
+        XCTAssertNotNil(try storage.fetchClip(id: sentinelID))
     }
 
     func testStarterSnippetsAreIdempotentAndHaveNoFakeContacts() throws {
