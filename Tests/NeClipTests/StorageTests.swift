@@ -421,9 +421,9 @@ final class StorageTests: XCTestCase {
         try storage.installStarterSnippetsIfNeeded(force: false)
 
         let snippets = try storage.allSnippets()
-        XCTAssertEqual(snippets.count, 6)
+        XCTAssertEqual(snippets.count, 10)
         try storage.installStarterSnippetsIfNeeded(force: true)
-        XCTAssertEqual(try storage.allSnippets().count, 6)
+        XCTAssertEqual(try storage.allSnippets().count, 10)
         XCTAssertFalse(snippets.contains { snippet in
             snippet.content.contains("@") || snippet.content.contains("+7")
         })

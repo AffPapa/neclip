@@ -18,11 +18,11 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.5.8",
-    "build": 37,
-    "status": "released",
+    "version": "2.6.0",
+    "build": 38,
+    "status": "candidate",
     "publicVersion": "2.5.8",
-    "sourceCommit": "b66c7e55d267e7a159bb951798ddc34ead97abed"
+    "scope": "history-to-snippet actions, explicit paste actions, bounded local history search, trust/status center, screenshot QA closure, token preview, starter snippets and full database backup/restore"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -48,7 +48,11 @@
     "screenshot redaction, pen, arrow, rectangle and text with undo/redo and flattened PNG/JPEG export",
     "bounded local SQLite storage, privacy exclusions and safe history cleanup",
     "manual-only update checks using an exact manifest URL, bounded JSON and no redirects",
-    "clipboard images stored without automatic content recognition"
+    "clipboard images stored without automatic content recognition",
+    "history-to-snippet conversion with raw text preservation, duplicate detection and folder choice",
+    "bounded local history search with text, type, application and date filters",
+    "explicit paste actions, capture status and local database backup/restore",
+    "snippet token palette and bilingual starter snippets"
   ],
   "shortcuts": [
     {
@@ -108,7 +112,7 @@
     "telemetry or advertising",
     "AI processing of clipboard contents",
     "a permanent Dock icon",
-    "search, keyword fields, tags or smart collections"
+    "tags or smart collections"
   ],
-  "featuresVersion": "2.5.8 released; exact downloadable artifact is identified by version.json"
+  "featuresVersion": "2.6.0 candidate; public downloadable artifact remains identified by version.json"
 }

@@ -9,6 +9,17 @@
         "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",
         "276 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
       ]
+    },
+    {
+      "version": "2.6.0",
+      "build": 38,
+      "status": "candidate",
+      "changes": [
+        "History-to-snippet saving with folders, duplicate detection and raw text",
+        "Explicit paste actions and bounded local history search",
+        "Trust/status center, screenshot export persistence and database backup/restore",
+        "Token preview and bilingual removable starter snippets"
+      ]
     }
   ]
 }

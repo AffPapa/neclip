@@ -3,7 +3,7 @@ import XCTest
 @testable import NeClip
 
 final class ClipToSnippetTests: XCTestCase {
-    func testConversionPreservesTextAndUsesCurrentTitleAndUnfiledOrder() throws {
+    func testConversionPreservesTextAndUsesFirstContentLineAndUnfiledOrder() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let existing = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Existing", content: "Other"))
         let title = String(repeating: "🐗", count: 70)
@@ -13,13 +13,46 @@ final class ClipToSnippetTests: XCTestCase {
             kind: .text, title: title, text: content, rtf: rtf, createdAt: Date()
         )))
         let snippet = try storage.saveClipAsSnippet(id: id)
-        XCTAssertEqual(snippet.title, String(title.prefix(60)))
+        XCTAssertEqual(snippet.title, "Полный текст")
         XCTAssertEqual(snippet.content, content)
         XCTAssertEqual(snippet.sortIndex, existing.sortIndex + 1)
         XCTAssertNil(snippet.folderID)
         XCTAssertEqual(try storage.fetchSnippet(id: XCTUnwrap(snippet.id))?.content, content)
         XCTAssertEqual(try storage.fetchClip(id: id)?.rtf, rtf)
         XCTAssertEqual(storage.count, 1)
+    }
+
+    func testConversionChoosesFolderAndSkipsExactDuplicateWithoutRenderingTokens() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let folder = try XCTUnwrap(storage.addFolder(title: "Работа"))
+        let content = "  Заголовок  \nТело {clipboard}"
+        let id = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text, title: "ignored clipboard title", text: content, createdAt: Date()
+        )))
+
+        let first = try storage.saveClipAsSnippetResult(id: id, folderID: folder.id)
+        guard case .created(let created) = first else { return XCTFail("First save must create") }
+        XCTAssertEqual(created.title, "Заголовок")
+        XCTAssertEqual(created.content, content)
+        XCTAssertEqual(created.folderID, folder.id)
+
+        let second = try storage.saveClipAsSnippetResult(id: id, folderID: folder.id)
+        guard case .alreadyExists(let existing) = second else { return XCTFail("Second save must deduplicate") }
+        XCTAssertEqual(existing.id, created.id)
+        XCTAssertEqual(try storage.allSnippets().count, 1)
+    }
+
+    func testSameContentCanBeSavedInDifferentFolders() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let firstFolder = try XCTUnwrap(storage.addFolder(title: "A"))
+        let secondFolder = try XCTUnwrap(storage.addFolder(title: "B"))
+        let id = try XCTUnwrap(storage.insert(ClipItem(
+            kind: .text, title: "Title", text: "same", createdAt: Date()
+        )))
+        _ = try storage.saveClipAsSnippetResult(id: id, folderID: firstFolder.id)
+        let result = try storage.saveClipAsSnippetResult(id: id, folderID: secondFolder.id)
+        guard case .created = result else { return XCTFail("Different folders may contain same content") }
+        XCTAssertEqual(try storage.allSnippets().count, 2)
     }
 
     func testMissingNonTextAndEmptyClipsDoNotCreateSnippets() throws {

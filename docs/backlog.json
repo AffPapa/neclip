@@ -8,10 +8,12 @@
   "done": [
     "Current release: bounded local history, snippet folders, EN/RU correction and screenshot editing"
   ],
-  "inDevelopment": [],
+  "inDevelopment": [
+    "2.6.0 candidate: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore"
+  ],
   "next": [
     "Verify permissions and screen capture across supported macOS versions and physical display configurations",
-    "Measure menu latency before changing storage or browse limits"
+    "Run physical Save dialog, multi-display, Spaces, fullscreen and permission matrix"
   ],
   "notPlanned": [
     "Accounts",
@@ -19,6 +21,6 @@
     "Telemetry or advertising",
     "AI processing of clipboard contents",
     "A permanent Dock icon or large workspace window",
-    "Search, keyword fields, tags and smart collections"
+    "Cloud search, tags or smart collections"
   ]
 }

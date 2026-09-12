@@ -71,6 +71,7 @@ final class SnippetsEditorModel: ObservableObject {
     @Published var editorTitle = ""
     @Published var editorContent = ""
     @Published var editorFolderID: Int64?
+    @Published var previewClipboard = ""
 
     @Published var saveState: SaveState = .idle
     @Published var message: String?
@@ -380,6 +381,20 @@ final class SnippetsEditorModel: ObservableObject {
             }
             guard !Task.isCancelled else { return }
             self?.savePendingDraft()
+        }
+    }
+
+    func insertToken(_ token: SnippetTokenCatalog.Token) {
+        editorContent.append(token.rawValue)
+    }
+
+    var renderedPreview: String {
+        guard !editorContent.isEmpty else { return "Предпросмотр появится здесь" }
+        do {
+            let rendered = try SnippetRenderer.render(editorContent, clipboard: previewClipboard)
+            return String(rendered.prefix(2_000)) + (rendered.count > 2_000 ? "…" : "")
+        } catch {
+            return "Предпросмотр превышает лимит 2 МБ"
         }
     }
 
@@ -726,7 +741,22 @@ private struct SnippetsEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                Text("Текст")
+                HStack {
+                    Text("Текст")
+                    Menu {
+                        ForEach(SnippetTokenCatalog.Token.allCases) { token in
+                            Button {
+                                model.insertToken(token)
+                            } label: {
+                                Text("\(token.title)  \(token.rawValue)")
+                            }
+                        }
+                    } label: {
+                        Label("Вставить токен", systemImage: "curlybraces")
+                    }
+                    .menuStyle(.borderlessButton)
+                    Spacer()
+                }
                 TextEditor(text: $model.editorContent)
                     .font(.system(.body, design: .monospaced))
                     .accessibilityLabel("Текст сниппета")
@@ -735,13 +765,29 @@ private struct SnippetsEditorView: View {
                             .stroke(.separator, lineWidth: 1)
                     }
 
-                HStack {
-                    Text("Подстановки: {date}, {time}, {clipboard}")
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Буфер для preview")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("необязательно", text: $model.previewClipboard)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    Text(model.renderedPreview)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
+                        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
+                    HStack {
+                    Text("Токены: \(SnippetTokenCatalog.Token.allCases.map(\.rawValue).joined(separator: ", "))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .help("Также: {date:iso} — 2026-09-05; {time:iso} — 14:30:00. Двойные скобки {{date}} вставят буквальный {date}. Итог — не более 2 МБ.")
+                        .help("Двойные скобки {{date}} вставят буквальный {date}. Предпросмотр ничего не сохраняет. Итог — не более 2 МБ.")
                     Spacer()
                     saveStatus
+                    }
                 }
                 if let message = model.editorMessage {
                     Text(message)

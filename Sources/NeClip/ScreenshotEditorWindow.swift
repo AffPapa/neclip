@@ -250,6 +250,8 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         panel.directoryURL = folder
         let format = NSPopUpButton(frame: CGRect(x: 0, y: 0, width: 200, height: 26))
         format.addItems(withTitles: ScreenshotFormat.allCases.map(\.rawValue))
+        format.selectItem(at: ScreenshotFormat.allCases.firstIndex(of: Settings.screenshotFormat) ?? 0)
+        format.setAccessibilityLabel("Формат сохранения снимка")
         format.target = self
         format.action = #selector(changeSaveFormat(_:))
         panel.accessoryView = format
@@ -292,6 +294,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
                     try await Task.detached(priority: .userInitiated) {
                         try ScreenshotFileExport.write(data, to: fileURL)
                     }.value
+                    Settings.screenshotFormat = format
                 } else { try publish?(data) }
                 ScreenshotMetrics.mark("export-finished")
                 exporting = false
