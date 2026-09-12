@@ -39,9 +39,10 @@
       <h2>Только то, что ускоряет работу</h2>
       <p class="section-lead">NeClip живёт в строке меню, не занимает Dock и вызывается одной комбинацией. Настройки, просмотр записей и редактор сниппетов открываются в отдельных окнах.</p>
       <div class="grid">
-        <article class="card"><h3>История</h3><p>Недавние тексты, изображения и файлы. Выберите нужное в меню — NeClip сразу вставит запись.</p></article>
+        <article class="card"><h3>История</h3><p>Недавние тексты, изображения и файлы. Выберите запись в меню. С доступом Accessibility NeClip вставит её; без него скопирует для ручной вставки.</p></article>
         <article class="card"><h3>Сниппеты</h3><p>Готовые тексты по папкам. Выбор одной клавишей, понятный редактор и локальные подстановки даты, времени и текущего буфера.</p></article>
         <article class="card"><h3>Раскладка</h3><p>Ручное исправление EN/RU, переназначаемые клавиши и осторожный авто-режим с отдельной кнопкой выключения.</p></article>
+        <article class="card"><h3>Скриншоты</h3><p>Снимок области или всего экрана по команде. Непрозрачная заливка, перо, стрелки, рамки и текст; копирование или сохранение PNG/JPEG.</p></article>
       </div>
     </section>
 
@@ -50,6 +51,8 @@
       <div class="card" role="list" aria-label="Горячие клавиши">
         <div class="shortcut" role="listitem"><span>Открыть историю</span><kbd>⌘ ⇧ V</kbd></div>
         <div class="shortcut" role="listitem"><span>Открыть папки сниппетов</span><kbd>⌘ ⇧ B</kbd></div>
+        <div class="shortcut" role="listitem"><span>Снимок области</span><kbd>⌘ ⇧ 2</kbd></div>
+        <div class="shortcut" role="listitem"><span>Снимок всего экрана</span><kbd>⌘ ⌥ 3</kbd></div>
         <div class="shortcut" role="listitem"><span>Исправить раскладку</span><kbd>⌥ ⇧ L</kbd></div>
         <div class="shortcut" role="listitem"><span>Выключить автоисправление</span><kbd>⌃ ⌥ A</kbd></div>
       </div>
@@ -69,14 +72,16 @@
     <section class="wrap" id="release">
       <h2>Единственный поддерживаемый выпуск</h2>
       <p class="section-lead">NeClip 2.5.6 / build 35 — текущая подписанная и нотарифицированная версия.</p>
-      <div class="timeline"><article class="card release"><div><strong>2.5.6</strong><br><span class="status">выпущена · 11 сентября 2026</span></div><div><b>Точный снимок выделенной области и предсказуемые пометки.</b><ul><li>Явный sourceRect ScreenCaptureKit</li><li>Один фактический display ID для fallback и проверки</li><li>Выбранный цвет применяется к фигурам и тексту</li><li>Drag canvas и сохранение текста при потере фокуса</li></ul><p>276 XCTest, strict Swift 6, ASan, TSan, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Результаты проверки</a></div></article></div>
+      <div class="timeline"><article class="card release"><div><strong>2.5.6</strong><br><span class="status">выпущена · 11 сентября 2026</span></div><div><b>Точный снимок выделенной области и предсказуемые пометки.</b><ul><li>Полный кадр без обрезания до выбора области</li><li>Проверка выбранного экрана перед открытием редактора</li><li>Выбранный цвет применяется к фигурам и тексту</li><li>Рисование мышью и сохранение текста при смене фокуса</li></ul><p>276 XCTest, strict Swift 6, ASan, TSan, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.5.6-STATUS.md">Результаты проверки</a></div></article></div>
+      <p class="fine">DMG: 2,048,962 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.5.6/NeClip-2.5.6.dmg.sha256">SHA-256</a>: <code>340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb</code></p>
+      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/61618d03ed266cc764c08fb23bc00de25c3003fb"><code>61618d03ed266cc764c08fb23bc00de25c3003fb</code></a></p>
     </section>
 
     <section class="wrap" id="backlog">
       <h2>Планы</h2>
       <p class="section-lead">Приоритет — надёжность и скорость, а не количество функций.</p>
       <div class="backlog">
-        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на поддерживаемых macOS</li><li>Новые раскладки после проверки точности</li><li>Порядок папок перетаскиванием — только если это упростит работу</li></ul></article>
+        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на поддерживаемых macOS</li><li>Измерение скорости меню перед изменениями</li></ul></article>
         <article class="card"><h3>Не планируется</h3><ul><li>Аккаунты и облако</li><li>Телеметрия и реклама</li><li>ИИ для содержимого буфера</li><li>Большое постоянное окно</li></ul></article>
       </div>
     </section>

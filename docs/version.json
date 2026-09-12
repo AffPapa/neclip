@@ -9,5 +9,6 @@
   "sha256": "340f6992bf8d2cae108dff66fafe308fbc74be81485d146682ab5f9745d4c3eb",
   "sizeBytes": 2048962,
   "publishedAt": "2026-09-11T10:21:35Z",
-  "source": "https://github.com/AffPapa/neclip"
+  "source": "https://github.com/AffPapa/neclip",
+  "sourceCommit": "61618d03ed266cc764c08fb23bc00de25c3003fb"
 }

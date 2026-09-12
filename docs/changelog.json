@@ -5,7 +5,7 @@
       "build": 35,
       "status": "released",
       "changes": [
-        "ScreenCaptureKit receives an explicit sourceRect and fits the complete source into the output canvas",
+        "ScreenCaptureKit captures the complete display without overriding sourceRect and fits it into the bounded output canvas",
         "Selected-area capture is correct on Retina and scaled displays",
         "Fallback and final validation use one resolved display ID",
         "The selected annotation colour applies to new shapes and text",
