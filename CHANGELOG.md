@@ -1,11 +1,16 @@
 # Changelog
 
-## 2.6.1 / build 39 — release candidate
+## 2.6.1 / build 39 — released 2026-09-13
 
 - Add a separate setting for how many recent history buffers appear in the
   first menu list; enter any value from 10 to 1,000.
 - Put every remaining stored buffer under one flat «Ещё из истории» submenu,
   without folder/page grouping and without changing the retention limit.
+
+Exact public artifact: [NeClip-2.6.1.dmg](https://github.com/AffPapa/neclip/releases/download/v2.6.1/NeClip-2.6.1.dmg)
+(2,088,898 bytes), SHA-256
+`f7dabbc368306ddebe14776866915b69e3931f7208f2fbfbee59db03d29267a3`.
+See [release evidence](docs/RELEASE-2.6.1-STATUS.md).
 
 ## 2.6.0 / build 38 — released 2026-09-12
 

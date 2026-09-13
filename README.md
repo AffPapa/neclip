@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.6.0 (build 38)**,
-released on 12 September 2026.
+Current supported release: **2.6.1 (build 39)**,
+released on 13 September 2026.
 
-[Download NeClip 2.6.0](https://github.com/AffPapa/neclip/releases/download/v2.6.0/NeClip-2.6.0.dmg)
-(2,087,874 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.6.1](https://github.com/AffPapa/neclip/releases/download/v2.6.1/NeClip-2.6.1.dmg)
+(2,088,898 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `8329ff378f6c9a4d5bc5da0efbceebc6ecf48e9f0bac5790439e6d0d77ca0636`.
-Artifact source: `1c79c28da68456c69b658ea523027ef33e298c2b`.
+SHA-256: `f7dabbc368306ddebe14776866915b69e3931f7208f2fbfbee59db03d29267a3`.
+Artifact source: `4ff57a1ddac0d526009f8c3e5b6b061f47c9ceeb`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.6.0-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.6.1-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -41,8 +41,9 @@ uses plain text. A changed target prevents automatic paste.
 
 All seven global shortcuts are configurable. Conflicts keep the previous working
 registration and show a menu fallback. Right-click the menu-bar icon for snippets.
-History shows ten items inline and up to 100 in total; use Command-F in the history
-popup to search locally by text, type, application and date. Snippet menus show up
+History shows a configurable number of items inline; the complete remaining history
+is in one flat «Ещё из истории» submenu. Use Command-F in the history popup to
+search locally by text, type, application and date. Snippet menus show up
 to 200 entries, with the complete library available in the editor. Less frequent
 commands are under **Ещё…**.
 
