@@ -425,8 +425,9 @@ final class ManualLayoutCorrectionService {
             validateTarget: { [weak self] in
                 guard let self,
                       let current = self.accessibility.refreshedContext(matching: context, scope: .manual),
-                      let selected = self.accessibility.currentSelection(in: current) else { return false }
-                return self.accessibility.sameRange(selected, target.range)
+                      let selected = self.accessibility.currentSelection(in: current),
+                      self.accessibility.sameRange(selected, target.range) else { return false }
+                return self.accessibility.string(in: target.range, element: current.element) == target.text
             },
             verifyReplacement: { [weak self] in
                 guard let self,
@@ -481,8 +482,9 @@ final class ManualLayoutCorrectionService {
             validateTarget: { [weak self] in
                 guard let self,
                       let refreshed = self.accessibility.refreshedContext(matching: current, scope: .manual),
-                      let selected = self.accessibility.currentSelection(in: refreshed) else { return false }
-                return self.accessibility.sameRange(selected, record.range)
+                      let selected = self.accessibility.currentSelection(in: refreshed),
+                      self.accessibility.sameRange(selected, record.range) else { return false }
+                return self.accessibility.string(in: record.range, element: refreshed.element) == record.converted
             },
             verifyReplacement: { [weak self] in
                 guard let self,

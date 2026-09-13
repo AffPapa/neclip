@@ -44,4 +44,33 @@ final class HistorySearchTests: XCTestCase {
         XCTAssertEqual(try storage.searchClipSummaries(query: "needle", kind: .file).count, 1)
         XCTAssertEqual(try storage.searchClipSummaries(query: "").count, 6)
     }
+
+    func testSearchDoesNotHideOlderMatchBehindRecentNonMatches() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let now = Date()
+        for index in 0..<3 {
+            _ = try storage.insert(ClipItem(
+                kind: .text, title: "Recent \(index)", text: "unrelated",
+                createdAt: now.addingTimeInterval(-TimeInterval(index))
+            ))
+        }
+        _ = try storage.insert(ClipItem(
+            kind: .text, title: "Older match", text: "needle",
+            createdAt: now.addingTimeInterval(-100)
+        ))
+
+        let results = try storage.searchClipSummaries(query: "needle", limit: 1)
+        XCTAssertEqual(results.map(\.title), ["Older match"])
+    }
+
+    func testFileClipboardCodecRoundTripsNewlinePathsAndReadsLegacyRows() {
+        let urls = [URL(fileURLWithPath: "/tmp/name\nwith-newline.txt")]
+        let encoded = FileClipboardCodec.encode(urls)
+        XCTAssertNotNil(encoded)
+        XCTAssertEqual(FileClipboardCodec.decode(encoded ?? "").map(\.path), urls.map(\.path))
+        XCTAssertEqual(
+            FileClipboardCodec.decode("/tmp/one.txt\n/tmp/two.txt").map(\.path),
+            ["/tmp/one.txt", "/tmp/two.txt"]
+        )
+    }
 }

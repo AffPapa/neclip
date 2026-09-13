@@ -18,12 +18,11 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.7.0",
-    "build": 42,
-    "status": "released",
+    "version": "2.7.1",
+    "build": 43,
+    "status": "candidate",
     "publicVersion": "2.7.0",
-    "sourceCommit": "4af09ed19633fd135b6b35da2b06598b46e8e6ee",
-    "scope": "reliable EN/RU layout correction: passive Option event tap, input-source retry, direct Accessibility replacement with safe fallback, selected-text layout activation and punctuation-aware automatic boundaries"
+    "scope": "maximum regression hardening: non-blocking history search reads, safe clipboard rollback, newline-safe file history, stale input-source invalidation, multi-monitor screenshot placement, and explicit error/retry states"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

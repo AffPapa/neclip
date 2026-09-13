@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.7.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "42")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.7.1")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "43")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -49,6 +49,8 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("Исправлять по одиночному Option (Alt)"))
         XCTAssertTrue(statusBar.contains("toggleManualCorrectionOptionKey"))
         XCTAssertTrue(statusBar.contains("Settings.automaticLayoutCorrection = true"))
+        XCTAssertTrue(statusBar.contains("пробел, Tab, Return и безопасная пунктуация"))
+        XCTAssertFalse(statusBar.contains("только по пробелу"))
         XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
         XCTAssertTrue(statusBar.contains("Поиск истории…"))
@@ -170,6 +172,8 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("Исправлять по одиночному Option (Alt)"))
         XCTAssertTrue(preferences.contains("updateManualCorrectionOptionKey"))
+        XCTAssertTrue(preferences.contains("пробела, Tab, Return и безопасной пунктуации"))
+        XCTAssertFalse(preferences.contains("только по пробелу"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
         XCTAssertFalse(statusBar.contains("topEntry"))

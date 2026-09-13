@@ -953,7 +953,7 @@ private struct PreferencesView: View {
                     get: { automaticLayoutCorrection },
                     set: { updateAutomaticLayoutCorrection($0) }
                 ))
-                Text("Бета: английская и русская раскладки, только по пробелу и при высокой уверенности. Текст обрабатывается локально и не сохраняется.")
+                Text("Английская и русская раскладки, после пробела, Tab, Return и безопасной пунктуации, только при высокой уверенности. Текст обрабатывается локально и не сохраняется.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Исправлять по одиночному Option (Alt)", isOn: Binding(
@@ -1180,13 +1180,14 @@ private struct PreferencesView: View {
         }
         automaticLayoutCorrection = enabled
         Settings.automaticLayoutCorrection = enabled
-        feedback = enabled ? "Автоисправление включено: только по пробелу" : "Автоисправление выключено"
+                feedback = enabled ? "Автоисправление включено: пробел, Tab, Return и безопасная пунктуация" : "Автоисправление выключено"
     }
 
     private func updateManualCorrectionOptionKey(_ enabled: Bool) {
         if enabled {
             guard KeyboardLayoutService.shared.layoutPair() != nil else {
                 manualCorrectionOptionKey = false
+                Settings.manualCorrectionOptionKey = false
                 feedback = "Добавьте английскую и русскую раскладки в настройках macOS"
                 return
             }

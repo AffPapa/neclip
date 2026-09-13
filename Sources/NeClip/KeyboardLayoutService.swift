@@ -5,6 +5,16 @@ import Foundation
 final class KeyboardLayoutService {
     static let shared = KeyboardLayoutService()
 
+    private final class ObserverToken: @unchecked Sendable {
+        let value: NSObjectProtocol
+
+        init(_ value: NSObjectProtocol) {
+            self.value = value
+        }
+    }
+
+    private var inputSourceObserver: ObserverToken?
+
     struct LayoutPair {
         fileprivate let english: Source
         fileprivate let russian: Source
@@ -24,6 +34,23 @@ final class KeyboardLayoutService {
     private var cachedPair: LayoutPair?
     private var cachedMaps: LayoutCharacterMaps?
     private var cachedValidLetterKeyCodes: [String: Set<UInt16>] = [:]
+
+    init() {
+        let observer = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.invalidate() }
+        }
+        inputSourceObserver = ObserverToken(observer)
+    }
+
+    deinit {
+        if let inputSourceObserver {
+            DistributedNotificationCenter.default().removeObserver(inputSourceObserver.value)
+        }
+    }
 
     func layoutPair() -> LayoutPair? {
         if let cachedPair { return cachedPair }

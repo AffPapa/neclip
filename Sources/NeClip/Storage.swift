@@ -783,7 +783,13 @@ final class Storage: @unchecked Sendable {
         let limit = max(1, min(requestedLimit, 2_000))
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).localizedLowercase
         return try dbQueue.read { db in
-            var sql = "SELECT * FROM clip"
+            // Search needs metadata and text only. Selecting BLOB columns here
+            // made a 2,000-row search unnecessarily materialize image/RTF
+            // payloads and could cause visible memory spikes.
+            var sql = """
+                SELECT id, kind, title, text, appBundleID, createdAt, isPinned
+                FROM clip
+                """
             var conditions: [String] = []
             var arguments = StatementArguments()
             if let kind {
@@ -799,22 +805,37 @@ final class Storage: @unchecked Sendable {
                 arguments += [createdAfter]
             }
             if !conditions.isEmpty { sql += " WHERE " + conditions.joined(separator: " AND ") }
-            sql += " ORDER BY createdAt DESC, id DESC LIMIT ?"
-            arguments += [limit]
+            sql += " ORDER BY createdAt DESC, id DESC"
+            // With a non-empty query the predicate is intentionally applied
+            // in Swift for Unicode-aware matching. Do not limit the SQL rows
+            // before that predicate, or an older matching clip can disappear
+            // behind newer non-matches. Empty queries can stay bounded in SQL.
+            if normalizedQuery.isEmpty {
+                sql += " LIMIT ?"
+                arguments += [limit]
+            }
             let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
-            return rows.compactMap { row -> ClipSummary? in
-                guard let item = Self.item(from: row) else { return nil }
+            let summaries = rows.compactMap { row -> ClipSummary? in
+                guard let kindValue: String = row["kind"],
+                      let kind = ClipKind(rawValue: kindValue),
+                      let id: Int64 = row["id"],
+                      let title: String = row["title"],
+                      let createdAt: Date = row["createdAt"],
+                      let isPinned: Bool = row["isPinned"] else { return nil }
+                let text: String? = row["text"]
+                let displayText = kind == .file ? text.map(FileClipboardCodec.displayText) : text
                 if !normalizedQuery.isEmpty {
-                    let title = item.title.localizedLowercase
-                    let text = (item.text ?? "").localizedLowercase
-                    guard title.contains(normalizedQuery) || text.contains(normalizedQuery) else { return nil }
+                    let normalizedTitle = title.localizedLowercase
+                    let normalizedText = (text ?? "").localizedLowercase
+                    guard normalizedTitle.contains(normalizedQuery) || normalizedText.contains(normalizedQuery) else { return nil }
                 }
                 return ClipSummary(
-                    id: item.id ?? 0, kind: item.kind, title: item.title,
-                    text: item.text.map { String($0.prefix(280)) },
-                    appBundleID: item.appBundleID, createdAt: item.createdAt, isPinned: item.isPinned
+                    id: id, kind: kind, title: title,
+                    text: displayText.map { String($0.prefix(280)) },
+                    appBundleID: row["appBundleID"], createdAt: createdAt, isPinned: isPinned
                 )
             }
+            return Array(summaries.prefix(limit))
         }
     }
 
@@ -1768,11 +1789,13 @@ final class Storage: @unchecked Sendable {
     private static func summary(from row: Row) -> ClipSummary? {
         let kindValue: String = row["kind"]
         guard let kind = ClipKind(rawValue: kindValue) else { return nil }
+        let rawText: String? = row["text"]
+        let displayText = kind == .file ? rawText.map(FileClipboardCodec.displayText) : rawText
         return ClipSummary(
             id: row["id"],
             kind: kind,
             title: row["title"],
-            text: row["text"],
+            text: displayText,
             appBundleID: row["appBundleID"],
             createdAt: row["createdAt"],
             isPinned: row["isPinned"]

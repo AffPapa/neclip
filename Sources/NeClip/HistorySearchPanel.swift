@@ -28,6 +28,13 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
     private var pasteAction: ((Int64, Bool, Bool, pid_t?) -> Void)?
     private var saveAction: ((Int64) -> Void)?
     private var openAction: ((Int64) -> Void)?
+    private var queryGeneration: UInt64 = 0
+    private var pasteButton: NSButton?
+    private var plainButton: NSButton?
+    private var copyButton: NSButton?
+    private var saveButton: NSButton?
+    private var openButton: NSButton?
+    private var retryButton: NSButton?
 
     private override init() {
         super.init()
@@ -84,14 +91,20 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         refreshApps()
         searchField.stringValue = ""
         kindPopup.selectItem(at: 0)
+        // The app list is loaded asynchronously. Reset this filter before the
+        // first query so a previous session cannot silently constrain a new
+        // session while the UI says “Все приложения”.
+        appPopup.selectItem(at: 0)
         datePopup.selectItem(at: 0)
         reloadResults()
+        positionWindowOnPointerScreen()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
         window?.makeFirstResponder(searchField)
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        queryGeneration &+= 1
         pasteAction = nil
         saveAction = nil
         openAction = nil
@@ -129,7 +142,15 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         let copy = button("Только скопировать", #selector(copyOnly))
         let save = button("Сохранить в сниппеты", #selector(saveAsSnippet))
         let open = button("Открыть", #selector(openTarget))
-        let actions = NSStackView(views: [paste, plain, copy, save, open])
+        let retry = button("Повторить", #selector(retrySearch))
+        pasteButton = paste
+        plainButton = plain
+        copyButton = copy
+        saveButton = save
+        openButton = open
+        retryButton = retry
+        retry.isHidden = true
+        let actions = NSStackView(views: [paste, plain, copy, save, open, retry])
         actions.orientation = .horizontal
         actions.spacing = 8
         actions.alignment = .centerY
@@ -163,12 +184,20 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
             let apps = (try? Storage.shared.clipAppBundleIDs()) ?? []
             DispatchQueue.main.async {
                 guard let self else { return }
+                let selected = self.appPopup.selectedItem?.representedObject as? String
                 self.appPopup.removeAllItems()
                 self.appPopup.addItem(withTitle: "Все приложения")
                 self.appPopup.lastItem?.representedObject = ""
                 for app in apps {
                     self.appPopup.addItem(withTitle: app)
                     self.appPopup.lastItem?.representedObject = app
+                }
+                if let selected, !selected.isEmpty {
+                    if let index = self.appPopup.itemArray.firstIndex(where: {
+                        ($0.representedObject as? String) == selected
+                    }) {
+                        self.appPopup.selectItem(at: index)
+                    }
                 }
             }
         }
@@ -179,6 +208,8 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
     }
 
     private func reloadResults() {
+        queryGeneration &+= 1
+        let generation = queryGeneration
         let query = searchField.stringValue
         let kind = (kindPopup.selectedItem?.representedObject as? String).flatMap { KindFilter(rawValue: $0) }
         let app = appPopup.selectedItem?.representedObject as? String
@@ -196,22 +227,81 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         default: nil
         }
         dataQueue.async { [weak self] in
-            let values = (try? Storage.shared.searchClipSummaries(
-                query: query, kind: selectedKind, appBundleID: app, createdAfter: createdAfter, limit: 2_000
-            )) ?? []
+            let values: [ClipSummary]?
+            do {
+                values = try Storage.shared.searchClipSummaries(
+                    query: query, kind: selectedKind, appBundleID: app, createdAfter: createdAfter, limit: 2_000
+                )
+            } catch {
+                values = nil
+            }
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, self.queryGeneration == generation else { return }
+                guard let values else {
+                    self.results = []
+                    self.tableView.reloadData()
+                    self.countLabel.stringValue = "Не удалось загрузить историю"
+                    self.retryButton?.isHidden = false
+                    self.retryButton?.isEnabled = true
+                    self.updateActionButtons()
+                    return
+                }
                 self.results = values
                 self.tableView.reloadData()
                 if !values.isEmpty { self.tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false) }
                 self.countLabel.stringValue = values.isEmpty ? "Ничего не найдено" : "Найдено: \(values.count)"
+                self.retryButton?.isHidden = true
+                self.retryButton?.isEnabled = false
+                self.updateActionButtons()
             }
         }
+    }
+
+    @objc private func retrySearch() { reloadResults() }
+
+    private func positionWindowOnPointerScreen() {
+        guard let window else { return }
+        let pointer = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first(where: { $0.visibleFrame.contains(pointer) }) ?? NSScreen.main
+        guard let visible = screen?.visibleFrame else { return }
+        var frame = window.frame
+        frame.origin.x = visible.midX - frame.width / 2
+        frame.origin.y = visible.midY - frame.height / 2
+        frame.origin.x = min(max(frame.origin.x, visible.minX), visible.maxX - frame.width)
+        frame.origin.y = min(max(frame.origin.y, visible.minY), visible.maxY - frame.height)
+        window.setFrame(frame, display: false)
     }
 
     private var selectedID: Int64? {
         guard tableView.selectedRow >= 0, tableView.selectedRow < results.count else { return nil }
         return results[tableView.selectedRow].id
+    }
+
+    private var selectedClip: ClipSummary? {
+        guard tableView.selectedRow >= 0, tableView.selectedRow < results.count else { return nil }
+        return results[tableView.selectedRow]
+    }
+
+    private func updateActionButtons() {
+        let selected = selectedClip
+        pasteButton?.isEnabled = selected != nil
+        plainButton?.isEnabled = selected != nil
+        copyButton?.isEnabled = selected != nil
+        saveButton?.isEnabled = selected?.kind == .text
+        guard let selected else {
+            openButton?.isEnabled = false
+            return
+        }
+        let item = ClipItem(
+            id: selected.id,
+            kind: selected.kind,
+            title: selected.title,
+            text: selected.text,
+            appBundleID: selected.appBundleID,
+            createdAt: selected.createdAt,
+            isPinned: selected.isPinned
+        )
+        openButton?.isEnabled = HistoryItemActionResolver.openTarget(for: item) != nil
     }
 
     @objc private func pasteOriginal() {
@@ -245,6 +335,10 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { results.count }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        updateActionButtons()
+    }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let item = results[row]

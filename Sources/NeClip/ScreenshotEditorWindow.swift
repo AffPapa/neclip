@@ -19,11 +19,12 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     private let scale = NSPopUpButton()
     private let color = NSPopUpButton()
 
-    init(image: CGImage, pasteboard: NSPasteboard = .general) {
+    init(image: CGImage, pasteboard: NSPasteboard = .general, preferredScreen: NSScreen? = nil) {
         canvas = ScreenshotCanvas(image: image)
         self.pasteboard = pasteboard
         let aspect = CGFloat(image.width) / CGFloat(max(image.height, 1))
-        let visible = NSScreen.main?.visibleFrame.insetBy(dx: 80, dy: 80).size
+        let visibleFrame = (preferredScreen ?? NSScreen.main)?.visibleFrame.insetBy(dx: 80, dy: 80)
+        let visible = visibleFrame?.size
             ?? CGSize(width: 1100, height: 760)
         let maximumHeight = min(860, visible.height)
         let maximumWidth = min(1280, visible.width)
@@ -33,6 +34,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
                                                    size: CGSize(width: initialWidth, height: initialHeight)),
                               styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         super.init(window: window)
+        if let visibleFrame {
+            let x = visibleFrame.midX - initialWidth / 2
+            let y = visibleFrame.midY - initialHeight / 2
+            window.setFrameOrigin(CGPoint(x: x, y: y))
+        }
         window.title = "Скриншот · \(image.width) × \(image.height)"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
@@ -432,7 +438,7 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     init(image: CGImage) {
         self.image = image
         super.init(frame: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        setAccessibilityLabel("Разметка снимка. Масштаб — жестом увеличения; отмена — Command Z.")
+        setAccessibilityLabel("Разметка снимка. Масштаб — жестом увеличения; Escape — отмена; Command Z — отменить действие.")
     }
     required init?(coder: NSCoder) { nil }
     func commitPendingText() { textEntry?.commit() }
