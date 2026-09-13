@@ -28,6 +28,11 @@ extension Notification.Name {
 
 @MainActor
 enum PasteService {
+    private struct WriteResult {
+        let succeeded: Bool
+        let generation: Int
+    }
+
     typealias Completion = @MainActor @Sendable (PasteResult) -> Void
 
     static var isAccessibilityTrusted: Bool {
@@ -66,7 +71,16 @@ enum PasteService {
         copyOnly: Bool = false,
         completion: Completion? = nil
     ) {
-        guard write(item, plainText: plainText) else {
+        let pasteboard = NSPasteboard.general
+        let originalGeneration = pasteboard.changeCount
+        guard let savedItems = snapshotPasteboard(pasteboard),
+              pasteboard.changeCount == originalGeneration else {
+            finish(.failed(.clipboardSnapshot), completion: completion)
+            return
+        }
+        let writeResult = write(item, plainText: plainText)
+        guard writeResult.succeeded else {
+            restorePasteboard(savedItems, ifGenerationIs: writeResult.generation)
             finish(.failed(.clipboardWrite), completion: completion)
             return
         }
@@ -79,7 +93,16 @@ enum PasteService {
         copyOnly: Bool = false,
         completion: Completion? = nil
     ) {
-        guard writeString(snippet.content) else {
+        let pasteboard = NSPasteboard.general
+        let originalGeneration = pasteboard.changeCount
+        guard let savedItems = snapshotPasteboard(pasteboard),
+              pasteboard.changeCount == originalGeneration else {
+            finish(.failed(.clipboardSnapshot), completion: completion)
+            return
+        }
+        let writeResult = writeString(snippet.content)
+        guard writeResult.succeeded else {
+            restorePasteboard(savedItems, ifGenerationIs: writeResult.generation)
             finish(.failed(.clipboardWrite), completion: completion)
             return
         }
@@ -203,7 +226,7 @@ enum PasteService {
         }
     }
 
-    private static func write(_ item: ClipItem, plainText: Bool) -> Bool {
+    private static func write(_ item: ClipItem, plainText: Bool) -> WriteResult {
         let pb = NSPasteboard.general
         pb.clearContents()
 
@@ -221,9 +244,7 @@ enum PasteService {
                 success = false
             }
         case .file:
-            let urls = (item.text ?? "")
-                .split(separator: "\n")
-                .map { URL(fileURLWithPath: String($0)) }
+            let urls = FileClipboardCodec.decode(item.text ?? "")
             success = !urls.isEmpty && pb.writeObjects(urls as [NSURL])
             if success, plainText {
                 _ = pb.setString(item.text ?? "", forType: .string)
@@ -231,15 +252,15 @@ enum PasteService {
         }
 
         ClipboardWriteGuard.shared.markOwnWrite(changeCount: pb.changeCount)
-        return success
+        return WriteResult(succeeded: success, generation: pb.changeCount)
     }
 
-    private static func writeString(_ string: String) -> Bool {
+    private static func writeString(_ string: String) -> WriteResult {
         let pb = NSPasteboard.general
         pb.clearContents()
         let success = pb.setString(string, forType: .string)
         ClipboardWriteGuard.shared.markOwnWrite(changeCount: pb.changeCount)
-        return success
+        return WriteResult(succeeded: success, generation: pb.changeCount)
     }
 
     /// Captures every advertised representation or fails before the pasteboard
@@ -254,18 +275,25 @@ enum PasteService {
     /// be tested in headless environments where named pasteboards reject writes.
     static func snapshotPasteboardItems(
         _ sources: [NSPasteboardItem],
-        advertisedTypes: [NSPasteboard.PasteboardType]?
+        advertisedTypes: [NSPasteboard.PasteboardType]?,
+        maximumItems: Int = 32,
+        maximumBytes: Int = 16 * 1024 * 1024,
+        maximumTypesPerItem: Int = 32
     ) -> [NSPasteboardItem]? {
+        guard sources.count <= max(1, maximumItems) else { return nil }
         if sources.isEmpty {
             return advertisedTypes?.isEmpty == false ? nil : []
         }
         var snapshot: [NSPasteboardItem] = []
         snapshot.reserveCapacity(sources.count)
+        var totalBytes = 0
         for source in sources {
-            guard !source.types.isEmpty else { return nil }
+            guard !source.types.isEmpty, source.types.count <= max(1, maximumTypesPerItem) else { return nil }
             let copy = NSPasteboardItem()
             for type in source.types {
                 guard let data = source.data(forType: type) else { return nil }
+                totalBytes += data.count
+                guard totalBytes <= max(1, maximumBytes) else { return nil }
                 guard copy.setData(data, forType: type) else { return nil }
             }
             snapshot.append(copy)

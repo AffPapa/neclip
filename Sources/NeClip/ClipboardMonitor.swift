@@ -82,6 +82,29 @@ enum ClipboardCaptureSkipReason: String, Equatable {
     case pasteboardAccessDenied
 }
 
+/// File paths are stored as JSON rather than a newline-delimited string;
+/// macOS permits a newline in a filename and the old format could not round
+/// trip such a path.
+enum FileClipboardCodec {
+    static func encode(_ urls: [URL]) -> String? {
+        guard let data = try? JSONEncoder().encode(urls.map(\.path)) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func decode(_ value: String) -> [URL] {
+        if let data = value.data(using: .utf8),
+           let paths = try? JSONDecoder().decode([String].self, from: data) {
+            return paths.map { URL(fileURLWithPath: $0) }
+        }
+        // Legacy history entries used newline-delimited paths.
+        return value.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
+    }
+
+    static func displayText(_ value: String) -> String {
+        decode(value).map(\.path).joined(separator: "\n")
+    }
+}
+
 /// Remembers exact pasteboard generations observed while leaving an excluded
 /// app. A delayed timer tick must reject that copy even after the short
 /// transition grace period has elapsed.
@@ -292,42 +315,44 @@ final class ClipboardMonitor: @unchecked Sendable {
             return
         }
 
-        // Respect the representation priority while snapshotting as well, so
-        // a file/image copy does not also pull a large RTF/text payload through
-        // the main thread.
-        let fileURLs = pasteboard.readObjects(
-            forClasses: [NSURL.self],
-            options: [.urlReadingFileURLsOnly: true]
-        ) as? [URL] ?? []
-        if fileURLs.isEmpty,
-           !Settings.captureImages,
-           types.contains(.png) || types.contains(.tiff) {
-            notifySkipped(.disabledContentType)
-            return
-        }
-        let pngData = fileURLs.isEmpty ? pasteboard.data(forType: .png) : nil
-        let imageData = pngData ?? (fileURLs.isEmpty ? pasteboard.data(forType: .tiff) : nil)
-        let text = fileURLs.isEmpty && imageData == nil
-            ? pasteboard.string(forType: .string)
-            : nil
-        let rtf = text == nil ? nil : pasteboard.data(forType: .rtf)
-        // A different process may replace the pasteboard while representations
-        // are being read. Discard a mixed snapshot; the next timer tick will
-        // observe and process the newer generation with fresh attribution.
-        guard pasteboard.changeCount == changeCount else { return }
-        let snapshot = Snapshot(
-            appBundleID: frontApp,
-            createdAt: now,
-            fileURLs: fileURLs,
-            imageData: imageData,
-            imageDataIsPNG: pngData != nil,
-            text: text,
-            rtf: rtf
-        )
-
         processingQueue.async { [weak self] in
             autoreleasepool {
-                self?.process(snapshot)
+                guard let self else { return }
+                let pasteboard = NSPasteboard.general
+                guard pasteboard.changeCount == changeCount else { return }
+
+                // Representation reads can materialize large images, RTF or
+                // promised file lists. Keep that work off the main run loop;
+                // policy and change-count checks still happen before storage.
+                let fileURLs = pasteboard.readObjects(
+                    forClasses: [NSURL.self],
+                    options: [.urlReadingFileURLsOnly: true]
+                ) as? [URL] ?? []
+                if fileURLs.isEmpty,
+                   !Settings.captureImages,
+                   types.contains(.png) || types.contains(.tiff) {
+                    self.notifySkipped(.disabledContentType)
+                    return
+                }
+                let pngData = fileURLs.isEmpty ? pasteboard.data(forType: .png) : nil
+                let imageData = pngData ?? (fileURLs.isEmpty ? pasteboard.data(forType: .tiff) : nil)
+                let text = fileURLs.isEmpty && imageData == nil
+                    ? pasteboard.string(forType: .string)
+                    : nil
+                let rtf = text == nil ? nil : pasteboard.data(forType: .rtf)
+                // A different process may replace the pasteboard while
+                // representations are being read. Discard a mixed snapshot;
+                // the next timer tick will process the newer generation.
+                guard pasteboard.changeCount == changeCount else { return }
+                self.process(Snapshot(
+                    appBundleID: frontApp,
+                    createdAt: now,
+                    fileURLs: fileURLs,
+                    imageData: imageData,
+                    imageDataIsPNG: pngData != nil,
+                    text: text,
+                    rtf: rtf
+                ))
             }
         }
     }
@@ -357,7 +382,10 @@ final class ClipboardMonitor: @unchecked Sendable {
             return
         }
         let title = snapshot.fileURLs.map(\.lastPathComponent).joined(separator: ", ")
-        let paths = snapshot.fileURLs.map(\.path).joined(separator: "\n")
+        guard let paths = FileClipboardCodec.encode(snapshot.fileURLs) else {
+            notifySkipped(.tooLarge)
+            return
+        }
         let pathData = Data(paths.utf8)
         guard pathData.count <= ClipboardCapturePolicy.maxTextBytes else {
             notifySkipped(.tooLarge)

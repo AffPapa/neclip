@@ -41,7 +41,7 @@ struct OptionKeyGesturePolicy: Equatable, Sendable {
 /// recover if macOS disables the tap after a timeout.
 @MainActor
 final class OptionKeyCorrectionMonitor {
-    private let eventTap = OptionKeyEventTap()
+    private var eventTap: OptionKeyEventTap?
     var onTrigger: (() -> Void)?
 
     func applySetting() {
@@ -59,18 +59,26 @@ final class OptionKeyCorrectionMonitor {
 
     func start() {
         guard LayoutPermissions.canListen else { return }
-        let started = eventTap.start { [weak self] in
+        // Settings notifications can arrive more than once for one toggle.
+        // Do not replace a live tap with an unowned worker.
+        guard eventTap == nil else { return }
+        let tap = OptionKeyEventTap()
+        eventTap = tap
+        let started = tap.start { [weak self] in
             Task { @MainActor [weak self] in
                 self?.onTrigger?()
             }
         }
         if !started, Settings.manualCorrectionOptionKey {
+            eventTap = nil
             Settings.manualCorrectionOptionKey = false
         }
     }
 
     func stop() {
-        eventTap.stop()
+        let tap = eventTap
+        eventTap = nil
+        tap?.stop()
     }
 }
 
@@ -81,6 +89,7 @@ private final class OptionKeyEventTap: @unchecked Sendable {
     private var eventSource: CFRunLoopSource?
     private var eventRunLoop: CFRunLoop?
     private var worker: Thread?
+    private var workerFinished: DispatchSemaphore?
     private var startResult = false
     private var cancelled = false
     private var lastTriggerAt: TimeInterval = 0
@@ -99,7 +108,9 @@ private final class OptionKeyEventTap: @unchecked Sendable {
         lock.unlock()
 
         let semaphore = DispatchSemaphore(value: 0)
-        let thread = Thread { [self] in run(semaphore: semaphore) }
+        let finished = DispatchSemaphore(value: 0)
+        workerFinished = finished
+        let thread = Thread { [self] in run(semaphore: semaphore, finished: finished) }
         thread.name = "NeClip Option layout monitor"
         thread.qualityOfService = .userInteractive
         worker = thread
@@ -120,6 +131,8 @@ private final class OptionKeyEventTap: @unchecked Sendable {
         gesture = OptionKeyGesturePolicy()
         let tap = eventTap
         let runLoop = eventRunLoop
+        let finished = workerFinished
+        workerFinished = nil
         eventTap = nil
         eventSource = nil
         eventRunLoop = nil
@@ -127,6 +140,9 @@ private final class OptionKeyEventTap: @unchecked Sendable {
         lock.unlock()
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         if let runLoop { CFRunLoopStop(runLoop) }
+        // A new monitor instance is used for every start, but wait for this
+        // worker to release its unretained callback pointer before returning.
+        _ = finished?.wait(timeout: .now() + 1)
     }
 
     fileprivate func handle(type: CGEventType, event: CGEvent) {
@@ -148,7 +164,7 @@ private final class OptionKeyEventTap: @unchecked Sendable {
             let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             let flags = event.flags
             let hasOtherModifier = !flags.intersection([
-                .maskCommand, .maskControl, .maskShift, .maskHelp, .maskAlphaShift
+                .maskCommand, .maskControl, .maskShift, .maskHelp, .maskAlphaShift, .maskSecondaryFn
             ]).isEmpty
             if Self.optionKeyCodes.contains(keyCode) {
                 observed = .optionChanged(
@@ -174,8 +190,9 @@ private final class OptionKeyEventTap: @unchecked Sendable {
         callback?()
     }
 
-    private func run(semaphore: DispatchSemaphore) {
+    private func run(semaphore: DispatchSemaphore, finished: DispatchSemaphore) {
         autoreleasepool {
+            defer { finished.signal() }
             let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
                 | (1 << CGEventType.flagsChanged.rawValue)
                 | (1 << CGEventType.leftMouseDown.rawValue)

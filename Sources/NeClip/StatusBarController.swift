@@ -60,6 +60,7 @@ final class StatusBarController: NSObject {
         hasMoreSnippets: false
     )
     private var snapshotIsReady = false
+    private var snapshotError: String?
     private var refreshState = MenuRefreshState()
     private var pendingPresentation: (kind: MenuKind, anchoredToStatusItem: Bool)?
     private var targetPID: pid_t?
@@ -67,6 +68,8 @@ final class StatusBarController: NSObject {
     private var feedbackWorkItem: DispatchWorkItem?
     private var transientStatus: String?
     private weak var activeMenu: NSMenu?
+    private var activeMenuKind: MenuKind?
+    private var activeMenuAnchoredToStatusItem = false
     private var snapshotRefreshWorkItem: DispatchWorkItem?
     private var hotKeyWarnings: [String] = []
 
@@ -134,6 +137,7 @@ final class StatusBarController: NSObject {
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
                                     hasMoreHistory: false, hasMoreSnippets: false)
             snapshotIsReady = false
+            snapshotError = nil
             SequentialPasteSequence.shared.reset()
         }
         scheduleSnapshotRefresh()
@@ -174,6 +178,8 @@ final class StatusBarController: NSObject {
         let menu = kind == .history ? buildHistoryMenu() : buildSnippetsMenu()
         MenuAppearance.applyEffectiveAppearance(to: menu)
         activeMenu = menu
+        activeMenuKind = kind
+        activeMenuAnchoredToStatusItem = anchoredToStatusItem
         if anchoredToStatusItem, let button = statusItem.button {
             menu.popUp(
                 positioning: nil,
@@ -184,6 +190,8 @@ final class StatusBarController: NSObject {
             menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
         }
         activeMenu = nil
+        activeMenuKind = nil
+        activeMenuAnchoredToStatusItem = false
     }
 
     private func refreshSnapshot() {
@@ -213,6 +221,7 @@ final class StatusBarController: NSObject {
                     guard let self, self.refreshState.accept(generation) else { return }
                     self.snapshot = loaded
                     self.snapshotIsReady = true
+                    self.snapshotError = nil
                     if let pending = self.pendingPresentation {
                         self.pendingPresentation = nil
                         self.present(pending.kind, anchoredToStatusItem: pending.anchoredToStatusItem)
@@ -221,7 +230,8 @@ final class StatusBarController: NSObject {
             } catch {
                 DispatchQueue.main.async {
                     guard let self, generation == self.refreshState.generation else { return }
-                    self.snapshotIsReady = true
+                    self.snapshotIsReady = false
+                    self.snapshotError = "Не удалось обновить историю и сниппеты"
                     self.showFeedback("Не удалось обновить меню")
                     if let pending = self.pendingPresentation {
                         self.pendingPresentation = nil
@@ -251,6 +261,13 @@ final class StatusBarController: NSObject {
     }
 
     private func appendHistoryContents(to menu: NSMenu) {
+        if let snapshotError {
+            menu.addItem(item(snapshotError, nil, symbol: "exclamationmark.triangle"))
+            menu.addItem(item("Повторить обновление", #selector(retrySnapshot), symbol: "arrow.clockwise"))
+            menu.addItem(.separator())
+            Self.appendStandardFooter(to: menu, target: self)
+            return
+        }
         if let transientStatus {
             menu.addItem(item(transientStatus, nil, symbol: "info.circle"))
             menu.addItem(.separator())
@@ -347,6 +364,13 @@ final class StatusBarController: NSObject {
 
     private func buildSnippetsMenu() -> NSMenu {
         let menu = makeMenu(title: "Сниппеты")
+        if let snapshotError {
+            menu.addItem(item(snapshotError, nil, symbol: "exclamationmark.triangle"))
+            menu.addItem(item("Повторить обновление", #selector(retrySnapshot), symbol: "arrow.clockwise"))
+            menu.addItem(.separator())
+            Self.appendStandardFooter(to: menu, target: self)
+            return menu
+        }
         appendHotKeyWarnings(to: menu)
         menu.addItem(.sectionHeader(title: "Папки"))
         appendSnippetFolders(to: menu)
@@ -493,6 +517,16 @@ final class StatusBarController: NSObject {
         pasteNextSequentially()
     }
 
+    @objc private func retrySnapshot() {
+        let kind = activeMenuKind ?? .history
+        let anchored = activeMenuAnchoredToStatusItem
+        activeMenu?.cancelTracking()
+        pendingPresentation = (kind, anchored)
+        snapshotIsReady = false
+        snapshotError = nil
+        refreshSnapshot()
+    }
+
     @objc private func resetSequentialPaste() {
         SequentialPasteSequence.shared.reset()
         showFeedback("Последовательность сброшена")
@@ -617,7 +651,9 @@ final class StatusBarController: NSObject {
             "Вставить",
             #selector(pasteClipOriginal(_:)),
             symbol: "arrow.down.doc",
-            keyEquivalent: "↩",
+            // NSMenu uses CR for the physical Return key. The visible glyph
+            // “↩” is presentation text and is not a reliable key equivalent.
+            keyEquivalent: "\r",
             modifiers: []
         ))
         menu.items.last?.representedObject = NSNumber(value: clip.id)
@@ -1064,7 +1100,7 @@ final class StatusBarController: NSObject {
         Settings.automaticLayoutCorrection = true
         showLayoutFeedback(
             Settings.automaticLayoutCorrection
-                ? "Автоисправление включено · только по пробелу"
+                ? "Автоисправление включено · пробел, Tab, Return и безопасная пунктуация"
                 : "Автоисправление не удалось включить"
         )
     }

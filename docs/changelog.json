@@ -65,6 +65,18 @@
         "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",
         "276 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
       ]
+    },
+    {
+      "version": "2.7.1",
+      "build": 43,
+      "status": "candidate",
+      "changes": [
+        "Reduce main-thread clipboard materialization and bound pasteboard rollback snapshots",
+        "Make history search race-safe, Unicode-aware across the full history and display file paths safely",
+        "Refresh keyboard-layout caches on input-source changes and harden Option monitor lifecycle",
+        "Keep screenshot editor placement on the capture display and expose explicit menu/search retry states",
+        "295 XCTest, strict Swift 6, secret scan and opt-in search benchmarks passed locally"
+      ]
     }
   ]
 }

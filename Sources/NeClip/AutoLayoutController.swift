@@ -206,6 +206,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
                 lock.unlock()
                 return
             }
+            sequence &+= 1
             context = nil
             buffer.reset()
             let tap = eventTap
@@ -226,7 +227,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
             return
         }
 
-        if type == .leftMouseDown || type == .rightMouseDown {
+        if type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown || type == .scrollWheel {
             lock.lock()
             sequence &+= 1
             context = nil
@@ -255,7 +256,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
             context = nil
             buffer.reset()
             shouldRefresh = true
-        } else if !flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {
+        } else if !flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskSecondaryFn]).isEmpty {
             context = nil
             buffer.reset()
             shouldRefresh = true
@@ -310,6 +311,8 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
                 | (1 << CGEventType.flagsChanged.rawValue)
                 | (1 << CGEventType.leftMouseDown.rawValue)
                 | (1 << CGEventType.rightMouseDown.rawValue)
+                | (1 << CGEventType.otherMouseDown.rawValue)
+                | (1 << CGEventType.scrollWheel.rawValue)
             guard let tap = CGEvent.tapCreate(
                 tap: .cgSessionEventTap,
                 place: .tailAppendEventTap,

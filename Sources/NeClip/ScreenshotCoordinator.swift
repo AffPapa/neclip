@@ -60,7 +60,7 @@ final class ScreenshotCoordinator {
             // asynchronous shareable-content query. The user gets immediate
             // visual feedback; drag remains disabled until the frozen frame
             // arrives.
-            showSelectionPlaceholder(frame: frame, sourceBundleID: sourceBundleID)
+            showSelectionPlaceholder(frame: frame, sourceBundleID: sourceBundleID, sourceScreen: screen)
         }
         // Asking only here keeps ordinary clipboard use free of Screen Recording prompts.
         guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
@@ -160,7 +160,7 @@ final class ScreenshotCoordinator {
                         && $0.frame == frame
                 }) else { throw ScreenshotFailure.displayChanged }
                 if mode == .fullScreen {
-                    showEditor(image: image, sourceBundleID: sourceBundleID)
+                    showEditor(image: image, sourceBundleID: sourceBundleID, sourceScreen: screen)
                     return
                 }
                 guard selection != nil else { return }
@@ -197,7 +197,7 @@ final class ScreenshotCoordinator {
         return editor.windowShouldClose(window)
     }
 
-    private func showSelectionPlaceholder(frame: CGRect, sourceBundleID: String?) {
+    private func showSelectionPlaceholder(frame: CGRect, sourceBundleID: String?, sourceScreen: NSScreen) {
         closeSelection()
         capturedImage = nil
         let window = ScreenshotSelectionWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
@@ -231,7 +231,7 @@ final class ScreenshotCoordinator {
                         try ScreenshotRenderer.crop(image, to: pixels)
                     }.value
                     guard let self, !Task.isCancelled, self.captureGeneration == generation else { return }
-                    self.showEditor(image: cropped, sourceBundleID: sourceBundleID)
+                self.showEditor(image: cropped, sourceBundleID: sourceBundleID, sourceScreen: sourceScreen)
                 } catch {
                     guard !Task.isCancelled else { return }
                     self?.showError("Не удалось выделить область. Попробуйте снова.")
@@ -257,12 +257,14 @@ final class ScreenshotCoordinator {
         capturedSourceRect = .zero
     }
 
-    func showEditor(image: CGImage, sourceBundleID: String?) {
+    func showEditor(image: CGImage, sourceBundleID: String?, sourceScreen: NSScreen? = nil) {
         guard editor == nil else { return }
         // Synthetic QA must never overwrite the user's working clipboard.
         let pasteboard = RuntimeIdentity.isScreenshotQA
             ? NSPasteboard(name: .init("org.affpapa.neclip.screenshot-qa")) : .general
-        let controller = ScreenshotEditorWindowController(image: image, pasteboard: pasteboard)
+        let controller = ScreenshotEditorWindowController(
+            image: image, pasteboard: pasteboard, preferredScreen: sourceScreen
+        )
         controller.onCopy = { [weak self] data in
             guard let self else { return }
             let stored = monitor.recordScreenshot(data, width: image.width, height: image.height, sourceBundleID: sourceBundleID)
