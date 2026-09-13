@@ -1,6 +1,22 @@
 # Changelog
 
-## 2.7.0 / build 42 — released 2026-09-13
+## 2.7.1 / build 43 — released 2026-09-13
+
+- Move heavy clipboard representation reads off the main thread and protect
+  failed paste writes with a bounded, generation-checked clipboard rollback.
+- Make local history search race-safe and Unicode-aware across the full history;
+  preserve file paths containing newlines and show safe file previews.
+- Invalidate layout caches when the input source changes, harden Option event-tap
+  lifecycle, and verify the selected text before Accessibility replacement.
+- Keep screenshot editing on the capture display and expose explicit retry/error
+  states for history search and menu snapshots.
+
+Exact public artifact: [NeClip-2.7.1.dmg](https://github.com/AffPapa/neclip/releases/download/v2.7.1/NeClip-2.7.1.dmg)
+(2,104,771 bytes), SHA-256
+`655445405a9ee970b557cc71f9ebde01cd0b881335c1131cf3f92e19646ee23d`.
+See [release evidence](docs/RELEASE-2.7.1-STATUS.md).
+
+## 2.7.0 / build 42 — superseded 2026-09-13
 
 - Replace the high-level standalone Option monitor with a passive Quartz event
   tap that recovers after system timeouts without consuming user input.

@@ -20,8 +20,9 @@
   "sourceCandidate": {
     "version": "2.7.1",
     "build": 43,
-    "status": "candidate",
-    "publicVersion": "2.7.0",
+    "status": "released",
+    "publicVersion": "2.7.1",
+    "sourceCommit": "21c4a2812a6bd6eb72c5c3f87f4e7f69807ba44f",
     "scope": "maximum regression hardening: non-blocking history search reads, safe clipboard rollback, newline-safe file history, stale input-source invalidation, multi-monitor screenshot placement, and explicit error/retry states"
   },
   "canonical": {
@@ -32,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.0-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.0-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.1-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.1-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
