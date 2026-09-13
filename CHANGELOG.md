@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.6.2 / build 40 — released 2026-09-13
+
+- Add an explicit opt-in standalone Option (Alt) gesture for correcting selected
+  text or the last entered word; normal Option combinations remain untouched.
+- Add direct menu-bar toggles for standalone Option correction and automatic
+  EN/RU correction, with permission and layout-pair checks.
+- Keep the Option gesture event-safe: it triggers only on a standalone release,
+  never suppresses keyboard or mouse events, and preserves the existing manual
+  correction path.
+
+Exact public artifact: [NeClip-2.6.2.dmg](https://github.com/AffPapa/neclip/releases/download/v2.6.2/NeClip-2.6.2.dmg)
+(2,093,507 bytes), SHA-256
+`9dad1224530519df4bf0646e221db656fa828ffad7887a49635b9e9328e1dd48`.
+See [release evidence](docs/RELEASE-2.6.2-STATUS.md).
+
 ## 2.6.1 / build 39 — released 2026-09-13
 
 - Add a separate setting for how many recent history buffers appear in the

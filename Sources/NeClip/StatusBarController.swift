@@ -682,6 +682,13 @@ final class StatusBarController: NSObject {
         )
         automatic.state = Settings.automaticLayoutCorrection ? .on : .off
         submenu.addItem(automatic)
+        let optionOnly = item(
+            "Исправлять по одиночному Option (Alt)",
+            #selector(toggleManualCorrectionOptionKey),
+            symbol: "option"
+        )
+        optionOnly.state = Settings.manualCorrectionOptionKey ? .on : .off
+        submenu.addItem(optionOnly)
         let disableShortcut = shortcuts.shortcut(for: .disableAutomaticCorrection)
         let disable = item(
             "Быстро выключить автоисправление",
@@ -1045,8 +1052,44 @@ final class StatusBarController: NSObject {
             )
             return
         }
-        PreferencesWindowController.shared.show()
-        showLayoutFeedback("Включите автоисправление в разделе «Раскладка»")
+        guard KeyboardLayoutService.shared.layoutPair() != nil else {
+            showLayoutFeedback("Добавьте английскую и русскую раскладки в настройках macOS")
+            return
+        }
+        guard LayoutPermissions.requestForAutomaticCorrection() else {
+            PreferencesWindowController.shared.show()
+            showLayoutFeedback("Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова")
+            return
+        }
+        Settings.automaticLayoutCorrection = true
+        showLayoutFeedback(
+            Settings.automaticLayoutCorrection
+                ? "Автоисправление включено · только по пробелу"
+                : "Автоисправление не удалось включить"
+        )
+    }
+
+    @objc private func toggleManualCorrectionOptionKey() {
+        if Settings.manualCorrectionOptionKey {
+            Settings.manualCorrectionOptionKey = false
+            showLayoutFeedback("Исправление по одиночному Option выключено")
+            return
+        }
+        guard KeyboardLayoutService.shared.layoutPair() != nil else {
+            showLayoutFeedback("Добавьте английскую и русскую раскладки в настройках macOS")
+            return
+        }
+        guard LayoutPermissions.requestForManualOptionCorrection() else {
+            PreferencesWindowController.shared.show()
+            showLayoutFeedback("Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова")
+            return
+        }
+        Settings.manualCorrectionOptionKey = true
+        showLayoutFeedback(
+            Settings.manualCorrectionOptionKey
+                ? "Исправление по одиночному Option включено"
+                : "Исправление по одиночному Option не удалось включить"
+        )
     }
 
     @objc private func correctFocusedLayout() {

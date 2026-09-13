@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.6.1")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "39")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.6.2")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "40")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -46,6 +46,9 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(statusBar.contains("Вставить и удалить"))
         XCTAssertTrue(statusBar.contains("За последний час…"))
         XCTAssertTrue(statusBar.contains("Запоминать раскладку приложений"))
+        XCTAssertTrue(statusBar.contains("Исправлять по одиночному Option (Alt)"))
+        XCTAssertTrue(statusBar.contains("toggleManualCorrectionOptionKey"))
+        XCTAssertTrue(statusBar.contains("Settings.automaticLayoutCorrection = true"))
         XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
         XCTAssertTrue(statusBar.contains("Поиск истории…"))
@@ -77,6 +80,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(settings.contains("MenuTitleFormatter.normalizedLimit"))
         XCTAssertTrue(settings.contains("manualLayoutShortcut.v1"))
         XCTAssertTrue(settings.contains("disableAutomaticLayoutShortcut.v1"))
+        XCTAssertTrue(settings.contains("manualCorrectionOptionKey"))
         XCTAssertTrue(coordinator.contains("registrations[action] = replacement"))
         XCTAssertTrue(coordinator.contains("func resetToDefaults()"))
         XCTAssertTrue(editor.contains("guard flushPendingSave() else { return }"))
@@ -164,6 +168,8 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("Последняя: "))
         XCTAssertTrue(preferences.contains("updates.check()"))
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
+        XCTAssertTrue(preferences.contains("Исправлять по одиночному Option (Alt)"))
+        XCTAssertTrue(preferences.contains("updateManualCorrectionOptionKey"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))
         XCTAssertFalse(statusBar.contains("topEntry"))

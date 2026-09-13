@@ -14,6 +14,15 @@ enum LayoutPermissions {
         if !canListen { _ = CGRequestListenEventAccess() }
         return hasAccessibility && canControlEvents && canListen
     }
+
+    /// Manual Option-only correction only observes the key gesture and then
+    /// uses the existing Accessibility-based replacement path.
+    @discardableResult
+    static func requestForManualOptionCorrection() -> Bool {
+        if !hasAccessibility { PasteService.requestAccessibility() }
+        if !canListen { _ = CGRequestListenEventAccess() }
+        return hasAccessibility && canListen
+    }
 }
 
 @MainActor
