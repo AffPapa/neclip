@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.6.1 (build 39)**,
+Current supported release: **2.6.2 (build 40)**,
 released on 13 September 2026.
 
-[Download NeClip 2.6.1](https://github.com/AffPapa/neclip/releases/download/v2.6.1/NeClip-2.6.1.dmg)
-(2,088,898 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.6.2](https://github.com/AffPapa/neclip/releases/download/v2.6.2/NeClip-2.6.2.dmg)
+(2,093,507 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `f7dabbc368306ddebe14776866915b69e3931f7208f2fbfbee59db03d29267a3`.
-Artifact source: `4ff57a1ddac0d526009f8c3e5b6b061f47c9ceeb`.
+SHA-256: `9dad1224530519df4bf0646e221db656fa828ffad7887a49635b9e9328e1dd48`.
+Artifact source: `6414a364dc8f7dc3a0fc153b7365e2cdb45a2ddd`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.6.1-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.6.2-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -41,6 +41,10 @@ uses plain text. A changed target prevents automatic paste.
 
 All seven global shortcuts are configurable. Conflicts keep the previous working
 registration and show a menu fallback. Right-click the menu-bar icon for snippets.
+An optional standalone Option (Alt) release corrects selected text, or the last
+entered word when nothing is selected; Option plus a letter, click or another
+modifier remains untouched. The menu bar has direct toggles for both this gesture
+and automatic correction.
 History shows a configurable number of items inline; the complete remaining history
 is in one flat «Ещё из истории» submenu. Use Command-F in the history popup to
 search locally by text, type, application and date. Snippet menus show up
@@ -79,6 +83,10 @@ image bytes and legacy metadata remain intact; normal retention rules still appl
   Space, and rejects secure fields, terminals, IDEs, remote clients and uncertain
   focus. Typed tokens remain in bounded memory. Manual correction preserves the
   previous clipboard only while its generation is unchanged.
+- Standalone Option (Alt) correction is separately opt-in because macOS does not
+  represent a modifier-only press as a normal configurable global hotkey. It
+  observes only Option flags and cancellation input, never suppresses or mutates
+  events, and requires Input Monitoring plus Accessibility for the correction.
 - Optional per-application input-source memory observes layout and app changes,
   without reading key events. Existing fixed rules remain resettable in Settings.
 - History has count, age and byte limits; snippets have separate limits. Migration
