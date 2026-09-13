@@ -1,9 +1,20 @@
 {
   "versions": [
     {
+      "version": "2.6.3",
+      "build": 41,
+      "status": "released",
+      "changes": [
+        "Optional standalone Option (Alt) correction for selected text or the last entered word",
+        "Direct menu-bar toggles for automatic and standalone Option correction",
+        "Event-safe cancellation for Option plus typing, clicking or other modifiers",
+        "291 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed"
+      ]
+    },
+    {
       "version": "2.6.2",
       "build": 40,
-      "status": "released",
+      "status": "superseded",
       "changes": [
         "Optional standalone Option (Alt) correction for selected text or the last entered word",
         "Direct menu-bar toggles for automatic and standalone Option correction",
