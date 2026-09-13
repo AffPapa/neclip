@@ -12,6 +12,17 @@
       ]
     },
     {
+      "version": "2.7.0",
+      "build": 42,
+      "status": "candidate",
+      "changes": [
+        "Reliable standalone Option (Alt) correction through a passive CGEventTap with recovery after system timeout",
+        "Input-source selection retry and direct Accessibility replacement before the clipboard fallback",
+        "Selected-text correction now activates and verifies the converted layout; automatic correction preserves punctuation boundaries",
+        "292 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed locally"
+      ]
+    },
+    {
       "version": "2.6.2",
       "build": 40,
       "status": "superseded",
