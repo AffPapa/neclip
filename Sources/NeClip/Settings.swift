@@ -41,6 +41,7 @@ enum Settings {
 
     private enum Key {
         static let historyLimit = "historyLimit"
+        static let recentHistoryMenuLimit = "recentHistoryMenuLimit"
         static let excludedApps = "excludedApps"
         static let captureImages = "captureImages"
         static let retentionDays = "retentionDays"
@@ -80,6 +81,29 @@ enum Settings {
             return min(1_000, max(10, stored))
         }
         set { d.set(min(1_000, max(10, newValue)), forKey: Key.historyLimit) }
+    }
+
+    /// Controls how many entries are shown directly in the first history
+    /// menu. This is separate from `historyLimit`, which controls retention
+    /// and deletion.
+    static let recentHistoryMenuLimitRange = 10...1_000
+
+    static var recentHistoryMenuLimit: Int {
+        get {
+            let stored = d.object(forKey: Key.recentHistoryMenuLimit) as? Int
+                ?? recentHistoryMenuLimitRange.lowerBound
+            return min(
+                recentHistoryMenuLimitRange.upperBound,
+                max(recentHistoryMenuLimitRange.lowerBound, stored)
+            )
+        }
+        set {
+            d.set(
+                min(recentHistoryMenuLimitRange.upperBound,
+                    max(recentHistoryMenuLimitRange.lowerBound, newValue)),
+                forKey: Key.recentHistoryMenuLimit
+            )
+        }
     }
 
     static var excludedApps: [String] {

@@ -5,6 +5,7 @@ final class CapturePreferencesTests: XCTestCase {
     private var previousRetention = 0
     private var previousRules: [String] = []
     private var previousHistoryLimit = 100
+    private var previousRecentHistoryMenuLimit = 10
     private var previousMaximumTextCaptureKilobytes = 2_048
     private var previousClearHistoryOnQuit = false
 
@@ -13,16 +14,19 @@ final class CapturePreferencesTests: XCTestCase {
         previousRetention = Settings.retentionDays
         previousRules = Settings.sensitiveContentRules
         previousHistoryLimit = Settings.historyLimit
+        previousRecentHistoryMenuLimit = Settings.recentHistoryMenuLimit
         previousMaximumTextCaptureKilobytes = Settings.maximumTextCaptureKilobytes
         previousClearHistoryOnQuit = Settings.clearHistoryOnQuit
         Settings.retentionDays = 0
         Settings.sensitiveContentRules = []
+        Settings.recentHistoryMenuLimit = 10
     }
 
     override func tearDown() {
         Settings.retentionDays = previousRetention
         Settings.sensitiveContentRules = previousRules
         Settings.historyLimit = previousHistoryLimit
+        Settings.recentHistoryMenuLimit = previousRecentHistoryMenuLimit
         Settings.maximumTextCaptureKilobytes = previousMaximumTextCaptureKilobytes
         Settings.clearHistoryOnQuit = previousClearHistoryOnQuit
         super.tearDown()
@@ -43,6 +47,18 @@ final class CapturePreferencesTests: XCTestCase {
         XCTAssertEqual(Settings.historyLimit, 10)
         Settings.historyLimit = 10_000
         XCTAssertEqual(Settings.historyLimit, 1_000)
+    }
+
+    func testRecentHistoryMenuLimitAcceptsCustomValuesAndIsClampedSeparately() {
+        XCTAssertEqual(Settings.recentHistoryMenuLimit, 10)
+        Settings.recentHistoryMenuLimit = 37
+        XCTAssertEqual(Settings.recentHistoryMenuLimit, 37)
+        Settings.recentHistoryMenuLimit = 1
+        XCTAssertEqual(Settings.recentHistoryMenuLimit, 10)
+        Settings.recentHistoryMenuLimit = 10_000
+        XCTAssertEqual(Settings.recentHistoryMenuLimit, 1_000)
+        Settings.historyLimit = 100
+        XCTAssertEqual(Settings.recentHistoryMenuLimit, 1_000)
     }
 
     func testMaximumTextCaptureIsClampedAndCountsRichPayload() {

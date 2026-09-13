@@ -275,6 +275,7 @@ private struct PreferencesView: View {
     let onEscape: () -> Void
 
     @State private var historyLimit = Settings.historyLimit
+    @State private var recentHistoryMenuLimit = Settings.recentHistoryMenuLimit
     @State private var menuTitleLength = Settings.menuTitleLength
     @State private var maximumTextCaptureKilobytes = Settings.maximumTextCaptureKilobytes
     @State private var clipboardAccess = ClipboardAccess.current
@@ -498,6 +499,18 @@ private struct PreferencesView: View {
             }
 
             Section("Меню и вставка") {
+                NumericPreferenceRow(
+                    "Последние в первом списке",
+                    value: $recentHistoryMenuLimit,
+                    range: Settings.recentHistoryMenuLimitRange,
+                    step: 10,
+                    unit: "буферов",
+                    accessibilityLabel: "Количество буферов в первом списке",
+                    onCommit: applyRecentHistoryMenuLimit
+                )
+                Text("Остальные попадут в «Ещё из истории». Это не меняет общий лимит хранения и ничего не удаляет.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 NumericPreferenceRow(
                     "Длина строки в меню",
                     value: $menuTitleLength,
@@ -1180,6 +1193,16 @@ private struct PreferencesView: View {
         historyLimit = normalized
         Settings.historyLimit = normalized
         trimHistoryToLimits()
+    }
+
+    private func applyRecentHistoryMenuLimit(_ requested: Int) {
+        let normalized = min(
+            Settings.recentHistoryMenuLimitRange.upperBound,
+            max(Settings.recentHistoryMenuLimitRange.lowerBound, requested)
+        )
+        recentHistoryMenuLimit = normalized
+        Settings.recentHistoryMenuLimit = normalized
+        feedback = "В первом списке будет показано до \(normalized) буферов"
     }
 
     private func trimHistoryToLimits() {

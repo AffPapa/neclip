@@ -12,6 +12,22 @@ final class StorageSnippetDiscoveryTests: XCTestCase {
         XCTAssertFalse(SnippetSummary(snippet: short, previewLimit: 1).contentIsTruncated)
     }
 
+    func testAllClipSummariesReturnsCompleteFlatHistoryInDisplayOrder() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        for index in 0..<35 {
+            _ = try storage.insert(ClipItem(
+                kind: .text,
+                title: "Item \(index)",
+                text: "payload \(index)",
+                createdAt: Date(timeIntervalSince1970: TimeInterval(index))
+            ))
+        }
+
+        let summaries = try storage.allClipSummaries()
+        XCTAssertEqual(summaries.count, 35)
+        XCTAssertEqual(summaries.map(\.title), (0..<35).reversed().map { "Item \($0)" })
+    }
+
     func testDuplicatePreservesContentFolderPinButNotUsage() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let folder = try XCTUnwrap(storage.addFolder(title: "Work"))

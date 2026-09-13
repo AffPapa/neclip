@@ -10,9 +10,9 @@ private final class ClipSnippetTarget: NSObject {
     }
 }
 
-/// The default NeClip interface is a classic native menu: recent history is
-/// visible immediately, older entries are grouped by tens, and the dedicated
-/// snippets shortcut opens the same folders without the history.
+/// The default NeClip interface is a classic native menu: a configurable
+/// number of recent history entries is visible immediately, and older entries
+/// live in one flat "Ещё из истории" submenu.
 @MainActor
 final class StatusBarController: NSObject {
     private enum MenuKind: Equatable {
@@ -197,9 +197,8 @@ final class StatusBarController: NSObject {
                 var clips = previous.clips
                 var hasMoreHistory = previous.hasMoreHistory
                 if domains.contains(.clips) {
-                    let recent = try Storage.shared.summaries(limit: 101)
-                    clips = Array(recent.prefix(100))
-                    hasMoreHistory = recent.count > 100
+                    clips = try Storage.shared.allClipSummaries()
+                    hasMoreHistory = false
                 }
                 let snippetSnapshot = try domains.contains(.snippets)
                     ? Storage.shared.menuSnippetSnapshot() : nil
@@ -305,11 +304,11 @@ final class StatusBarController: NSObject {
         ))
         menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: "Недавние"))
-        // refreshSnapshot() already bounds the snapshot to 100 rows. Keep the
-        // existing storage and first page as slices instead of copying them
-        // every time the menu opens.
+        // The snapshot contains every summary so "Ещё из истории" can be a
+        // complete flat submenu. Slice only the configurable first list when
+        // presenting it.
         let history = snapshot.clips
-        let firstPage = history.prefix(10)
+        let firstPage = history.prefix(Settings.recentHistoryMenuLimit)
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
                 ? "История пуста — запись приостановлена"
@@ -321,17 +320,19 @@ final class StatusBarController: NSObject {
             }
         }
 
-        if history.count > 10 {
+        if history.count > firstPage.count {
             let moreItem = item("Ещё из истории", nil, symbol: "clock.arrow.circlepath")
             let moreMenu = makeMenu(title: "Ещё из истории")
-            MenuPagination.appendPages(count: history.count, to: moreMenu,
-                makeMenu: { self.makeMenu(title: $0) },
-                makeItem: { self.clipMenuItem(history[$0], absoluteIndex: $0, quickKey: nil, showNumber: true) })
+            for index in firstPage.count..<history.count {
+                moreMenu.addItem(clipMenuItem(
+                    history[index], absoluteIndex: index, quickKey: nil, showNumber: true
+                ))
+            }
             moreItem.submenu = moreMenu
             menu.addItem(moreItem)
         }
         if snapshot.hasMoreHistory {
-            menu.addItem(item("Показаны 100 последних копирований", nil))
+            menu.addItem(item("Показана не вся история", nil))
         }
         menu.addItem(.separator())
 

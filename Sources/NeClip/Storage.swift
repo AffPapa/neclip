@@ -754,6 +754,22 @@ final class Storage: @unchecked Sendable {
         }
     }
 
+    /// Returns every stored history summary in display order. The menu uses a
+    /// configurable first list, but its "Ещё из истории" submenu must remain
+    /// complete and flat rather than silently dropping older entries.
+    func allClipSummaries() throws -> [ClipSummary] {
+        try dbQueue.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT c.id, c.kind, c.title,
+                       substr(COALESCE(c.text, c.ocrText, ''), 1, 280) AS text,
+                       c.appBundleID, c.createdAt, c.isPinned
+                FROM clip c
+                ORDER BY c.createdAt DESC, c.id DESC
+                """)
+            return rows.compactMap(Self.summary(from:))
+        }
+    }
+
     /// Unicode-friendly local search over the bounded history. We deliberately
     /// keep this as a read-time query instead of rebuilding a persisted FTS
     /// index: clipboard text never needs another durable copy just to be found.
