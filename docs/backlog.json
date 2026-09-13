@@ -1,9 +1,9 @@
 {
   "currentRelease": {
-    "version": "2.7.0",
-    "build": 42,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.0/NeClip-2.7.0.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.0-STATUS.md"
+    "version": "2.7.1",
+    "build": 43,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.1/NeClip-2.7.1.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.1-STATUS.md"
   },
   "done": [
     "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore",
