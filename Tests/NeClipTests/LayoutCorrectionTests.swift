@@ -37,6 +37,14 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertEqual(maps.convert("РУДДЩ!")?.converted, "HELLO!")
     }
 
+    func testAutomaticBoundaryPolicyKeepsSafeTerminalPunctuationSeparate() {
+        for character in [",", ".", "!", "?", ";", ":", ")"] {
+            XCTAssertTrue(LayoutTextPolicy.isAutomaticBoundary(Character(character)))
+        }
+        XCTAssertFalse(LayoutTextPolicy.isAutomaticBoundary("_"))
+        XCTAssertFalse(LayoutTextPolicy.isAutomaticBoundary("б"))
+    }
+
     func testManualConversionFailsClosedForMixedScriptsOrNoLetters() {
         XCTAssertNil(maps.convert("ghbdтn"))
         XCTAssertNil(maps.convert("1234?!"))

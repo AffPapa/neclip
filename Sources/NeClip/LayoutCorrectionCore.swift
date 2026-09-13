@@ -58,6 +58,11 @@ struct LayoutCharacterMaps {
 
 enum LayoutTextPolicy {
     private static let trailingLiteralPunctuation: Set<Character> = [",", ".", "!", "?", ";", ":", ")"]
+    private static let automaticBoundaryPunctuation: Set<Character> = [",", ".", "!", "?", ";", ":", ")"]
+
+    static func isAutomaticBoundary(_ character: Character) -> Bool {
+        automaticBoundaryPunctuation.contains(character)
+    }
 
     static func splitTrailingLiteralPunctuation(_ text: String) -> (core: String, suffix: String) {
         var core = text[...]
@@ -122,7 +127,7 @@ enum LayoutWholeValueCASPolicy {
     }
 }
 
-struct LayoutTypedStroke: Equatable, Sendable {
+struct LayoutTypedStroke: Equatable, Hashable, Sendable {
     let keyCode: UInt16
     let shift: Bool
     let capsLock: Bool
