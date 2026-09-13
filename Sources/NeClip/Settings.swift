@@ -55,6 +55,7 @@ enum Settings {
         static let ignoreNextCopy = "ignoreNextCopy"
         static let appendNextCopy = "appendNextCopy"
         static let automaticLayoutCorrection = "automaticLayoutCorrection"
+        static let manualCorrectionOptionKey = "manualCorrectionOptionKey"
         static let layoutExcludedApps = "layoutExcludedApps"
         static let rememberLayoutPerApplication = "rememberLayoutPerApplication"
         static let screenshotFormat = "screenshotFormat"
@@ -214,6 +215,16 @@ enum Settings {
         get { d.bool(forKey: Key.automaticLayoutCorrection) }
         set {
             d.set(newValue, forKey: Key.automaticLayoutCorrection)
+            notifyLayoutSettingsChanged()
+        }
+    }
+
+    /// A separate opt-in gesture because Carbon global hotkeys require a key
+    /// code and cannot register a modifier-only Option/Alt press.
+    static var manualCorrectionOptionKey: Bool {
+        get { d.bool(forKey: Key.manualCorrectionOptionKey) }
+        set {
+            d.set(newValue, forKey: Key.manualCorrectionOptionKey)
             notifyLayoutSettingsChanged()
         }
     }

@@ -290,6 +290,7 @@ private struct PreferencesView: View {
     @State private var axTrusted = PasteService.isAccessibilityTrusted
     @State private var capturePaused = Settings.isCapturePaused
     @State private var automaticLayoutCorrection = Settings.automaticLayoutCorrection
+    @State private var manualCorrectionOptionKey = Settings.manualCorrectionOptionKey
     @State private var rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
     @State private var rememberedApplicationCount = Settings.rememberedApplicationCount
     @State private var fixedApplicationCount = Settings.fixedApplicationCount
@@ -368,6 +369,7 @@ private struct PreferencesView: View {
             capturePaused = Settings.isCapturePaused
             canListenToInput = LayoutPermissions.canListen
             automaticLayoutCorrection = Settings.automaticLayoutCorrection
+            manualCorrectionOptionKey = Settings.manualCorrectionOptionKey
         }
         .onReceive(NotificationCenter.default.publisher(for: .neClipHotKeysDidChange)) { _ in
             historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
@@ -385,6 +387,7 @@ private struct PreferencesView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .neClipLayoutSettingsDidChange)) { _ in
             automaticLayoutCorrection = Settings.automaticLayoutCorrection
+            manualCorrectionOptionKey = Settings.manualCorrectionOptionKey
             layoutExcludedApps = Settings.layoutExcludedApps
             rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
         }
@@ -736,6 +739,13 @@ private struct PreferencesView: View {
                 Text("Работает локально и только при высокой уверенности. NeClip не хранит введённый текст.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Исправлять по одиночному Option (Alt)", isOn: Binding(
+                    get: { manualCorrectionOptionKey },
+                    set: { updateManualCorrectionOptionKey($0) }
+                ))
+                Text("Срабатывает при отпускании одиночного Option. Option+буква, Option+клик и другие сочетания не затрагиваются.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 DisclosureGroup("Разрешения и память приложений") {
                     permissionRow(
                         title: "Мониторинг ввода",
@@ -944,6 +954,13 @@ private struct PreferencesView: View {
                     set: { updateAutomaticLayoutCorrection($0) }
                 ))
                 Text("Бета: английская и русская раскладки, только по пробелу и при высокой уверенности. Текст обрабатывается локально и не сохраняется.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Исправлять по одиночному Option (Alt)", isOn: Binding(
+                    get: { manualCorrectionOptionKey },
+                    set: { updateManualCorrectionOptionKey($0) }
+                ))
+                Text("Нажатие и отпускание Option исправляет выделение или последнее слово. Option+буква и другие сочетания остаются без изменений.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1164,6 +1181,27 @@ private struct PreferencesView: View {
         automaticLayoutCorrection = enabled
         Settings.automaticLayoutCorrection = enabled
         feedback = enabled ? "Автоисправление включено: только по пробелу" : "Автоисправление выключено"
+    }
+
+    private func updateManualCorrectionOptionKey(_ enabled: Bool) {
+        if enabled {
+            guard KeyboardLayoutService.shared.layoutPair() != nil else {
+                manualCorrectionOptionKey = false
+                feedback = "Добавьте английскую и русскую раскладки в настройках macOS"
+                return
+            }
+            guard LayoutPermissions.requestForManualOptionCorrection() else {
+                manualCorrectionOptionKey = false
+                Settings.manualCorrectionOptionKey = false
+                feedback = "Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова"
+                return
+            }
+        }
+        manualCorrectionOptionKey = enabled
+        Settings.manualCorrectionOptionKey = enabled
+        feedback = enabled
+            ? "Исправление по одиночному Option включено"
+            : "Исправление по одиночному Option выключено"
     }
 
     private func applyShortcut(_ action: NeClipShortcutAction, candidate: ShortcutDescriptor) {

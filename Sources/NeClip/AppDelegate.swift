@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyWarnings: [String] = []
     private let manualLayoutCorrection = ManualLayoutCorrectionService()
     private let automaticLayoutCorrection = AutoLayoutController()
+    private let optionKeyCorrection = OptionKeyCorrectionMonitor()
     private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -67,6 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         automaticLayoutCorrection.onFeedback = { [weak self] message in
             self?.statusBar.showLayoutFeedback(message)
         }
+        optionKeyCorrection.onTrigger = { [weak self] in
+            self?.correctLayoutOrUndo()
+        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(layoutSettingsChanged),
@@ -86,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         automaticLayoutCorrection.applySetting()
+        optionKeyCorrection.applySetting()
         applicationLayoutMemory.applySetting()
 
         // Accessibility is requested only after the onboarding explanation and
@@ -300,6 +305,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func layoutSettingsChanged() {
         automaticLayoutCorrection.applySetting()
+        optionKeyCorrection.applySetting()
         applicationLayoutMemory.applySetting()
     }
 
