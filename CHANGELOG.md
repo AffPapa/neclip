@@ -1,6 +1,24 @@
 # Changelog
 
-## 2.6.3 / build 41 — released 2026-09-13
+## 2.7.0 / build 42 — released 2026-09-13
+
+- Replace the high-level standalone Option monitor with a passive Quartz event
+  tap that recovers after system timeouts without consuming user input.
+- Retry and verify input-source switches so successful conversions are not lost
+  to notification timing races.
+- Prefer direct Accessibility replacement for manual correction, retain a safe
+  clipboard fallback, and report separately when text changed but the layout did
+  not switch.
+- Switch the active layout after selected-text correction and preserve Space,
+  Tab, Return and safe terminal punctuation during automatic correction.
+- Add competitor research and regression coverage for repeated Option gestures.
+
+Exact public artifact: [NeClip-2.7.0.dmg](https://github.com/AffPapa/neclip/releases/download/v2.7.0/NeClip-2.7.0.dmg)
+(2,096,579 bytes), SHA-256
+`4485ff2ee56f59f9665fdae81e8a1abff4cb29fcac12d706151260b6b77d23fa`.
+See [release evidence](docs/RELEASE-2.7.0-STATUS.md).
+
+## 2.6.3 / build 41 — superseded 2026-09-13
 
 - Add an explicit opt-in standalone Option (Alt) gesture for correcting selected
   text or the last entered word; normal Option combinations remain untouched.

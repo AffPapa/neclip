@@ -20,8 +20,8 @@
   "sourceCandidate": {
     "version": "2.7.0",
     "build": 42,
-    "status": "candidate",
-    "publicVersion": "2.6.3",
+    "status": "released",
+    "publicVersion": "2.7.0",
     "sourceCommit": "4af09ed19633fd135b6b35da2b06598b46e8e6ee",
     "scope": "reliable EN/RU layout correction: passive Option event tap, input-source retry, direct Accessibility replacement with safe fallback, selected-text layout activation and punctuation-aware automatic boundaries"
   },
@@ -33,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.3-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.6.3-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.0-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.0-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -116,5 +116,5 @@
     "a permanent Dock icon",
     "tags or smart collections"
   ],
-  "featuresVersion": "2.6.3 released; public downloadable artifact is identified by version.json"
+  "featuresVersion": "2.7.0 released; public downloadable artifact is identified by version.json"
 }
