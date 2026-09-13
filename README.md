@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.6.2 (build 40)**,
+Current supported release: **2.6.3 (build 41)**,
 released on 13 September 2026.
 
-[Download NeClip 2.6.2](https://github.com/AffPapa/neclip/releases/download/v2.6.2/NeClip-2.6.2.dmg)
+[Download NeClip 2.6.3](https://github.com/AffPapa/neclip/releases/download/v2.6.3/NeClip-2.6.3.dmg)
 (2,093,507 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `9dad1224530519df4bf0646e221db656fa828ffad7887a49635b9e9328e1dd48`.
-Artifact source: `6414a364dc8f7dc3a0fc153b7365e2cdb45a2ddd`.
+SHA-256: `c74e620488e109d3679a536c66b830b70b115347b58d4c984116c15ad44e0525`.
+Artifact source: `f14c900b8971956b8845e042d92ebb8c6512aba0`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.6.2-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.6.3-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
