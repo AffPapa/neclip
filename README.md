@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.6.3 (build 41)**,
+Current supported release: **2.7.0 (build 42)**,
 released on 13 September 2026.
 
-[Download NeClip 2.6.3](https://github.com/AffPapa/neclip/releases/download/v2.6.3/NeClip-2.6.3.dmg)
-(2,093,507 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.7.0](https://github.com/AffPapa/neclip/releases/download/v2.7.0/NeClip-2.7.0.dmg)
+(2,096,579 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `c74e620488e109d3679a536c66b830b70b115347b58d4c984116c15ad44e0525`.
-Artifact source: `f14c900b8971956b8845e042d92ebb8c6512aba0`.
+SHA-256: `4485ff2ee56f59f9665fdae81e8a1abff4cb29fcac12d706151260b6b77d23fa`.
+Artifact source: `4af09ed19633fd135b6b35da2b06598b46e8e6ee`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.6.3-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.7.0-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -80,9 +80,9 @@ image bytes and legacy metadata remain intact; normal retention rules still appl
   recovery is available in Settings. Accessibility is optional for ordinary use.
 - Automatic EN/RU correction is experimental and off by default. It requests
   Input Monitoring and Accessibility only when enabled, acts conservatively after
-  Space, and rejects secure fields, terminals, IDEs, remote clients and uncertain
-  focus. Typed tokens remain in bounded memory. Manual correction preserves the
-  previous clipboard only while its generation is unchanged.
+  word-ending separators, and rejects secure fields, terminals, IDEs, remote clients
+  and uncertain focus. Typed tokens remain in bounded memory. Manual correction
+  preserves the previous clipboard only while its generation is unchanged.
 - Standalone Option (Alt) correction is separately opt-in because macOS does not
   represent a modifier-only press as a normal configurable global hotkey. It
   observes only Option flags and cancellation input, never suppresses or mutates
