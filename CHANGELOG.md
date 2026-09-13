@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.6.1 / build 39 — release candidate
+
+- Add a separate setting for how many recent history buffers appear in the
+  first menu list; enter any value from 10 to 1,000.
+- Put every remaining stored buffer under one flat «Ещё из истории» submenu,
+  without folder/page grouping and without changing the retention limit.
+
 ## 2.6.0 / build 38 — released 2026-09-12
 
 - Add one-step history-to-snippet saving with first-line titles, folder choice,

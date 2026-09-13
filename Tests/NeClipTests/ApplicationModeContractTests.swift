@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.6.0")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "38")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.6.1")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "39")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -116,7 +116,10 @@ final class ApplicationModeContractTests: XCTestCase {
 
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)"))
         XCTAssertTrue(statusBar.contains("let history = snapshot.clips"))
-        XCTAssertTrue(statusBar.contains("let firstPage = history.prefix(10)"))
+        XCTAssertTrue(statusBar.contains("let firstPage = history.prefix(Settings.recentHistoryMenuLimit)"))
+        XCTAssertTrue(statusBar.contains("for index in firstPage.count..<history.count"))
+        XCTAssertTrue(statusBar.contains("allClipSummaries()"))
+        XCTAssertFalse(statusBar.contains("MenuPagination.appendPages"))
         XCTAssertFalse(statusBar.contains("Array(snapshot.clips.prefix(100))"))
         XCTAssertTrue(statusBar.contains("let displayTitle = cleanTitle(title)"))
         XCTAssertTrue(statusBar.contains("cleanTitle(snippet.title)"))
@@ -139,6 +142,10 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains(".sectionHeader(title: \"Папки\")"))
 
         XCTAssertTrue(preferences.contains("private struct NumericPreferenceRow: View"))
+        XCTAssertTrue(preferences.contains("Последние в первом списке"))
+        XCTAssertTrue(preferences.contains("Settings.recentHistoryMenuLimitRange"))
+        XCTAssertTrue(preferences.contains("applyRecentHistoryMenuLimit"))
+        XCTAssertTrue(preferences.contains("Это не меняет общий лимит хранения"))
         XCTAssertTrue(preferences.contains("Открыть папки сниппетов"))
         XCTAssertTrue(preferences.contains("TextField(\"\", text: $text)"))
         XCTAssertTrue(preferences.contains("\"Лимит истории\""))
