@@ -348,6 +348,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch result {
             case .corrected:
                 message = "Раскладка исправлена · \(HotKeyCoordinator.shared.shortcut(for: .manualCorrection).displayString) — отменить"
+            case .correctedLayoutUnchanged:
+                message = "Текст исправлен, но раскладка не переключилась"
             case .undone:
                 message = "Исправление отменено"
             case .nothingToCorrect:

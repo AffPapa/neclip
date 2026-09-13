@@ -24,6 +24,12 @@ final class LayoutAccessibility {
         case unsupported
     }
 
+    enum DirectReplacementResult: Equatable {
+        case unsupported
+        case replaced
+        case failedAfterMutation
+    }
+
     func focusedContext(
         scope: Scope,
         userExcluded: Set<String> = []
@@ -104,6 +110,62 @@ final class LayoutAccessibility {
             kAXSelectedTextRangeAttribute as CFString,
             value
         ) == .success
+    }
+
+    /// Prefer the Accessibility replacement path for manual correction. It
+    /// avoids touching the user's clipboard in native and AX-capable editors.
+    /// A successful AX write that cannot be verified is reported separately so
+    /// the caller never performs a second replacement over an unknown state.
+    func replaceSelectedTextDirectly(
+        expectedRange: CFRange,
+        expected: String,
+        replacement: String,
+        in original: FocusedContext
+    ) -> DirectReplacementResult {
+        guard let current = refreshedContext(matching: original, scope: .manual),
+              sameRange(current.selectedRange, expectedRange),
+              string(in: expectedRange, element: current.element) == expected else {
+            return .unsupported
+        }
+        var settable = DarwinBoolean(false)
+        guard AXUIElementIsAttributeSettable(
+            current.element,
+            kAXSelectedTextAttribute as CFString,
+            &settable
+        ) == .success, settable.boolValue else {
+            return .unsupported
+        }
+        guard AXUIElementSetAttributeValue(
+            current.element,
+            kAXSelectedTextAttribute as CFString,
+            replacement as CFString
+        ) == .success else {
+            return .unsupported
+        }
+
+        let replacementRange = CFRange(
+            location: expectedRange.location,
+            length: (replacement as NSString).length
+        )
+        for _ in 0..<4 {
+            if let refreshed = refreshedContext(matching: current, scope: .manual),
+               string(in: replacementRange, element: refreshed.element) == replacement {
+                var caret = CFRange(
+                    location: replacementRange.location + replacementRange.length,
+                    length: 0
+                )
+                if let value = AXValueCreate(.cfRange, &caret) {
+                    _ = AXUIElementSetAttributeValue(
+                        refreshed.element,
+                        kAXSelectedTextRangeAttribute as CFString,
+                        value
+                    )
+                }
+                return .replaced
+            }
+            _ = CFRunLoopRunInMode(.defaultMode, 0.015, false)
+        }
+        return .failedAfterMutation
     }
 
     func currentSelection(in context: FocusedContext) -> CFRange? {
@@ -260,6 +322,7 @@ final class ManualLayoutCorrectionService {
         case corrected
         case undone
         case nothingToCorrect
+        case correctedLayoutUnchanged
         case permissionRequired
         case protectedContext
         case unsupported
@@ -280,6 +343,7 @@ final class ManualLayoutCorrectionService {
     private let layouts: KeyboardLayoutService
     private var undoRecord: UndoRecord?
     private var undoExpiry: DispatchWorkItem?
+    private var isBusy = false
 
     init() {
         self.accessibility = LayoutAccessibility()
@@ -292,27 +356,67 @@ final class ManualLayoutCorrectionService {
     }
 
     func correctOrUndo(completion: @escaping (Result) -> Void) {
-        if tryUndo(completion: completion) { return }
+        guard !isBusy else {
+            completion(.failed)
+            return
+        }
+        isBusy = true
+        let finish: (Result) -> Void = { [weak self] result in
+            self?.isBusy = false
+            completion(result)
+        }
+
+        if tryUndo(completion: finish) { return }
         let contextResult = accessibility.focusedContext(scope: .manual)
         let context: LayoutAccessibility.FocusedContext
         switch contextResult {
         case .success(let value):
             context = value
         case .failure(.noPermission):
-            completion(.permissionRequired); return
+            finish(.permissionRequired); return
         case .failure(.secure), .failure(.excluded):
-            completion(.protectedContext); return
+            finish(.protectedContext); return
         case .failure(.unsupported):
-            completion(.unsupported); return
+            finish(.unsupported); return
         }
 
         guard let target = accessibility.selectedTextOrPreviousToken(in: context),
               let conversion = layouts.convert(target.text) else {
-            completion(.nothingToCorrect); return
+            finish(.nothingToCorrect); return
         }
-        let shouldSwitchSource = context.selectedRange.length == 0
         guard accessibility.select(target.range, in: context) else {
-            completion(.unsupported); return
+            finish(.unsupported); return
+        }
+
+        let finishCorrection: @MainActor (Bool) -> Void = { [weak self] switched in
+            guard let self else { return }
+            self.undoRecord = UndoRecord(
+                context: context,
+                range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
+                original: target.text,
+                converted: conversion.converted,
+                originalSourceID: conversion.sourceID,
+                switchedSource: switched,
+                createdAt: Date()
+            )
+            self.scheduleUndoExpiry()
+            finish(switched ? .corrected : .correctedLayoutUnchanged)
+        }
+
+        switch accessibility.replaceSelectedTextDirectly(
+            expectedRange: target.range,
+            expected: target.text,
+            replacement: conversion.converted,
+            in: context
+        ) {
+        case .replaced:
+            finishCorrection(layouts.selectSource(id: conversion.targetID))
+            return
+        case .failedAfterMutation:
+            finish(.failed)
+            return
+        case .unsupported:
+            break
         }
 
         PasteService.replaceSelection(
@@ -341,12 +445,9 @@ final class ManualLayoutCorrectionService {
             Task { @MainActor in
                 guard let self else { return }
                 guard result == .pasted else {
-                    completion(.failed); return
+                    finish(.failed); return
                 }
-                var switched = false
-                if shouldSwitchSource {
-                    switched = self.layouts.selectSource(id: conversion.targetID)
-                }
+                let switched = self.layouts.selectSource(id: conversion.targetID)
                 self.undoRecord = UndoRecord(
                     context: context,
                     range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
@@ -357,7 +458,7 @@ final class ManualLayoutCorrectionService {
                     createdAt: Date()
                 )
                 self.scheduleUndoExpiry()
-                completion(.corrected)
+                finish(switched ? .corrected : .correctedLayoutUnchanged)
             }
         }
     }

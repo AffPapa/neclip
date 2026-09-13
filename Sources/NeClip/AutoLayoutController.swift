@@ -62,6 +62,7 @@ private final class LayoutDictionary {
 
 private struct AutoLayoutBoundary: Sendable {
     let strokes: [LayoutTypedStroke]
+    let terminator: LayoutTypedStroke?
     let sourceID: String
     let pid: pid_t
     let contextID: UInt64
@@ -74,6 +75,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         let pid: pid_t
         let contextID: UInt64
         let validKeyCodes: Set<UInt16>
+        let boundaryKeyCodes: Set<UInt16>
     }
 
     private let lock = NSLock()
@@ -145,9 +147,21 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         if let runLoop { CFRunLoopStop(runLoop) }
     }
 
-    func updateContext(sourceID: String, pid: pid_t, contextID: UInt64, validKeyCodes: Set<UInt16>) {
+    func updateContext(
+        sourceID: String,
+        pid: pid_t,
+        contextID: UInt64,
+        validKeyCodes: Set<UInt16>,
+        boundaryKeyCodes: Set<UInt16>
+    ) {
         lock.lock()
-        context = Context(sourceID: sourceID, pid: pid, contextID: contextID, validKeyCodes: validKeyCodes)
+        context = Context(
+            sourceID: sourceID,
+            pid: pid,
+            contextID: contextID,
+            validKeyCodes: validKeyCodes,
+            boundaryKeyCodes: boundaryKeyCodes
+        )
         buffer.reset()
         lock.unlock()
     }
@@ -245,12 +259,17 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
             context = nil
             buffer.reset()
             shouldRefresh = true
-        } else if keyCode == UInt16(kVK_Space) {
+        } else if keyCode == UInt16(kVK_Space) || context?.boundaryKeyCodes.contains(keyCode) == true {
             if let context {
                 let strokes = buffer.takeAtBoundary()
                 if !strokes.isEmpty {
                     boundary = AutoLayoutBoundary(
                         strokes: strokes,
+                        terminator: keyCode == UInt16(kVK_Space) ? nil : LayoutTypedStroke(
+                            keyCode: keyCode,
+                            shift: flags.contains(.maskShift),
+                            capsLock: flags.contains(.maskAlphaShift)
+                        ),
                         sourceID: context.sourceID,
                         pid: context.pid,
                         contextID: context.contextID,
@@ -387,6 +406,7 @@ final class AutoLayoutController {
         let context: ContextRecord
         let original: String
         let converted: String
+        let terminator: String
         let targetSourceID: String
         let sequence: UInt64
         let createdAt: Date
@@ -543,7 +563,8 @@ final class AutoLayoutController {
             sourceID: sourceID,
             pid: focused.pid,
             contextID: record.id,
-            validKeyCodes: validKeyCodes
+            validKeyCodes: validKeyCodes,
+            boundaryKeyCodes: layouts.automaticBoundaryKeyCodes(sourceID: sourceID)
         )
     }
 
@@ -569,14 +590,14 @@ final class AutoLayoutController {
         ) { [self] in
             guard layouts.currentSourceID() == record.targetSourceID,
                   accessibility.replaceTailAtomically(
-                    expected: record.converted + " ",
-                    replacement: record.original + " ",
+                    expected: record.converted + record.terminator,
+                    replacement: record.original + record.terminator,
                     in: record.context.focused
                   ) else { return false }
             guard layouts.selectSource(id: record.context.sourceID) else {
                 _ = accessibility.replaceTailAtomically(
-                    expected: record.original + " ",
-                    replacement: record.converted + " ",
+                    expected: record.original + record.terminator,
+                    replacement: record.converted + record.terminator,
                     in: record.context.focused
                 )
                 return false
@@ -617,20 +638,23 @@ final class AutoLayoutController {
               ) == .correct,
               monitor.currentSequence() == boundary.sequence else { return }
 
+        let terminator = boundary.terminator.flatMap {
+            layouts.character(for: $0, sourceID: boundary.sourceID)
+        }.map(String.init) ?? " "
         let corrected = monitor.performIfSequenceMatches(
             boundary.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
             guard layouts.currentSourceID() == boundary.sourceID,
                   accessibility.replaceTailAtomically(
-                    expected: translation.original + " ",
-                    replacement: translation.converted + " ",
+                    expected: translation.original + terminator,
+                    replacement: translation.converted + terminator,
                     in: context.focused
                   ) else { return false }
             guard layouts.selectSource(id: translation.targetID) else {
                 _ = accessibility.replaceTailAtomically(
-                    expected: translation.converted + " ",
-                    replacement: translation.original + " ",
+                    expected: translation.converted + terminator,
+                    replacement: translation.original + terminator,
                     in: context.focused
                 )
                 return false
@@ -643,6 +667,7 @@ final class AutoLayoutController {
             context: context,
             original: translation.original,
             converted: translation.converted,
+            terminator: terminator,
             targetSourceID: translation.targetID,
             sequence: boundary.sequence,
             createdAt: Date()

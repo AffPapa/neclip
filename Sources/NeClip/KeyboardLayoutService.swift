@@ -113,6 +113,50 @@ final class KeyboardLayoutService {
         )
     }
 
+    func character(
+        for stroke: LayoutTypedStroke,
+        sourceID: String
+    ) -> Character? {
+        guard let pair = layoutPair() else { return nil }
+        let source: Source
+        if sourceID == pair.english.id {
+            source = pair.english
+        } else if sourceID == pair.russian.id {
+            source = pair.russian
+        } else {
+            return nil
+        }
+        return translate(
+            keyCode: stroke.keyCode,
+            shift: stroke.shift,
+            capsLock: stroke.capsLock,
+            data: source.layoutData
+        )
+    }
+
+    func automaticBoundaryKeyCodes(sourceID: String) -> Set<UInt16> {
+        guard let pair = layoutPair() else { return [] }
+        let source: Source
+        if sourceID == pair.english.id {
+            source = pair.english
+        } else if sourceID == pair.russian.id {
+            source = pair.russian
+        } else {
+            return []
+        }
+        return Set((UInt16(0)..<UInt16(128)).filter { keyCode in
+            [(false, false), (true, false)].contains { shift, capsLock in
+                guard let character = translate(
+                    keyCode: keyCode,
+                    shift: shift,
+                    capsLock: capsLock,
+                    data: source.layoutData
+                ) else { return false }
+                return LayoutTextPolicy.isAutomaticBoundary(character)
+            }
+        })
+    }
+
     func validLetterKeyCodes(sourceID: String) -> Set<UInt16> {
         if let cached = cachedValidLetterKeyCodes[sourceID] { return cached }
         guard let pair = layoutPair() else { return [] }
@@ -163,7 +207,7 @@ final class KeyboardLayoutService {
     func selectSource(id: String) -> Bool {
         guard let source = enabledKeyboardLayouts().first(where: { $0.id == id }) else { return false }
         guard TISSelectInputSource(source.inputSource) == noErr else { return false }
-        return currentSourceID() == id
+        return waitForCurrentSource(id: id)
     }
 
     @discardableResult
@@ -174,7 +218,7 @@ final class KeyboardLayoutService {
                     && (property($0, kTISPropertyInputSourceIsEnabled) as Bool?) == true
                     && (property($0, kTISPropertyInputSourceIsSelectCapable) as Bool?) == true
               }), TISSelectInputSource(source) == noErr else { return false }
-        return currentSelectableSourceID() == id
+        return waitForSelectableSource(id: id)
     }
 
     func invalidate() {
@@ -248,6 +292,28 @@ final class KeyboardLayoutService {
         } else {
             map[source] = target
         }
+    }
+
+    /// TISSelectInputSource returns before every client observes the selected
+    /// source notification. A single immediate read therefore reports false
+    /// on otherwise successful switches and can make a just-corrected word
+    /// look unreliable. Give the input-source server a short, bounded window
+    /// to publish the new source while keeping the operation synchronous for
+    /// the correction transaction.
+    private func waitForCurrentSource(id: String) -> Bool {
+        for _ in 0..<8 {
+            if currentSourceID() == id { return true }
+            _ = CFRunLoopRunInMode(.defaultMode, 0.015, false)
+        }
+        return currentSourceID() == id
+    }
+
+    private func waitForSelectableSource(id: String) -> Bool {
+        for _ in 0..<8 {
+            if currentSelectableSourceID() == id { return true }
+            _ = CFRunLoopRunInMode(.defaultMode, 0.015, false)
+        }
+        return currentSelectableSourceID() == id
     }
 
     private func translate(

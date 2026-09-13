@@ -34,4 +34,12 @@ final class OptionKeyCorrectionTests: XCTestCase {
         _ = policy.handle(.otherModifierChanged(hasOtherModifier: true))
         XCTAssertFalse(policy.handle(.optionChanged(isDown: false, hasOtherModifier: false)))
     }
+
+    func testRepeatedStandaloneReleaseArmsNextGestureWithoutDuplicateTrigger() {
+        var policy = OptionKeyGesturePolicy()
+
+        XCTAssertFalse(policy.handle(.optionChanged(isDown: false, hasOtherModifier: false)))
+        XCTAssertFalse(policy.handle(.optionChanged(isDown: true, hasOtherModifier: false)))
+        XCTAssertTrue(policy.handle(.optionChanged(isDown: false, hasOtherModifier: false)))
+    }
 }
