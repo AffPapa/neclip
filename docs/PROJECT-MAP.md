@@ -1,6 +1,6 @@
 # NeClip project map
 
-Current public release: **2.6.3 / build 41**. The exact signed artifact,
+Current public release: **2.7.0 / build 42**. The exact signed artifact,
 source commit and release checks are recorded in
 [RELEASE-2.6.3-STATUS.md](RELEASE-2.6.3-STATUS.md).
 
