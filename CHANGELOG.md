@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.8.1 / build 47 — released 2026-09-14
+
+- Replace verified word ranges in multiline Accessibility editors while preserving
+  surrounding rich text; retry briefly when the editor has not displayed a key yet.
+- Recover first strokes during focus refresh, reevaluate after Backspace and
+  prevent delayed callbacks from cancelling newer live correction attempts.
+- Fix punctuation-position mappings, exact undo, overlapping Option gestures and
+  manual/automatic operation overlap. Avoid nested input-source run-loop deadlock.
+- 312 XCTest (5 expected skips, 0 failures), 3 Swift Testing tests and strict Swift 6
+  passed. Signed, notarized, stapled app and DMG passed Gatekeeper verification.
+- Recognition uses local dictionaries starting at four characters. Physical-keyboard
+  end-to-end validation remains unconfirmed; synthetic UI events bypass the event tap.
+
+Exact public artifact: [NeClip-2.8.1.dmg](https://github.com/AffPapa/neclip/releases/download/v2.8.1/NeClip-2.8.1.dmg)
+(2,104,770 bytes), SHA-256
+`6dee89524f5349d1b92744f50862162f870ea86fc74060d9944907243246901b`.
+See [release evidence](docs/RELEASE-2.8.1-STATUS.md).
+
 ## 2.8.0 / build 46 — released 2026-09-14
 
 - Analyze automatic EN/RU layout correction after each eligible key instead of

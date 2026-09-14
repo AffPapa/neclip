@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.8.0 (build 46)**,
+Current supported release: **2.8.1 (build 47)**,
 released on 14 September 2026.
 
-[Download NeClip 2.8.0](https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg)
-(2,096,066 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.8.1](https://github.com/AffPapa/neclip/releases/download/v2.8.1/NeClip-2.8.1.dmg)
+(2,104,770 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `d7f869cb90a49d175f681c5d037d2f69ab499a0d44793ee11e54b1060a1d2e51`.
-Artifact source: `0f288c7c9c4fcc96decd36886e25f13113c81e6d`.
+SHA-256: `6dee89524f5349d1b92744f50862162f870ea86fc74060d9944907243246901b`.
+Artifact source: `7efb0c25679a4c8f0e4cdd6d86ad560f06d5a63f`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.8.0-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.8.1-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -45,7 +45,10 @@ An optional standalone Option (Alt) release corrects selected text, or the last
 entered word when nothing is selected; Option plus a letter, click or another
 modifier remains untouched. Automatic correction analyzes the current word after
 each eligible key and no longer waits for a space. The menu bar has direct toggles
-for both this gesture and automatic correction.
+for both this gesture and automatic correction. Recognition uses local dictionaries
+from four characters onward. Live replacement supports multiline/rich editors with
+writable selected-text Accessibility; brief bounded retries handle editor lag.
+Secure input, excluded apps and ambiguous words remain guarded.
 History shows a configurable number of items inline; the complete remaining history
 is in one flat «Ещё из истории» submenu. Use Command-F in the history popup to
 search locally by text, type, application and date. Snippet menus show up

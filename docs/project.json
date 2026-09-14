@@ -20,8 +20,8 @@
   "sourceCandidate": {
     "version": "2.8.1",
     "build": 47,
-    "status": "validated-candidate",
-    "publicVersion": "2.8.0",
+    "status": "released",
+    "publicVersion": "2.8.1",
     "sourceCommit": "7efb0c25679a4c8f0e4cdd6d86ad560f06d5a63f",
     "scope": "live multiline range replacement, bounded editor retry, first-stroke recovery, manual mappings and transaction-safe undo"
   },
@@ -33,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.0-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.0-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.1-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.1-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -116,5 +116,5 @@
     "a permanent Dock icon",
     "tags or smart collections"
   ],
-  "featuresVersion": "2.8.0 released; public downloadable artifact is identified by version.json"
+  "featuresVersion": "2.8.1 released; public downloadable artifact is identified by version.json"
 }
