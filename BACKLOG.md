@@ -4,12 +4,12 @@ NeClip remains a small local macOS utility: clipboard history, snippet folders
 and safe EN/RU layout correction. Accounts, cloud sync, subscriptions,
 telemetry, advertising and AI processing are not planned.
 
-## Current public release — 2.6.3 / build 41
+## Current public release — 2.8.1 / build 47
 
-Released 13 September 2026 after the normal Developer ID, notarization,
+Released 14 September 2026 after the normal Developer ID, notarization,
 stapling, Gatekeeper, mounted-DMG, independent public-download and required-CI
-gates. [Download NeClip 2.6.3](https://github.com/AffPapa/neclip/releases/download/v2.6.3/NeClip-2.6.3.dmg)
-and read the [release evidence](docs/RELEASE-2.6.3-STATUS.md).
+gates. [Download NeClip 2.8.1](https://github.com/AffPapa/neclip/releases/download/v2.8.1/NeClip-2.8.1.dmg)
+and read the [release evidence](docs/RELEASE-2.8.1-STATUS.md).
 
 - Save any text history item as a raw-text snippet with folder selection and duplicate checks.
 - Search local history with bounded text, type, application and date filters.
@@ -20,9 +20,13 @@ and read the [release evidence](docs/RELEASE-2.6.3-STATUS.md).
   available in one flat «Ещё из истории» submenu.
 - Correct a selected text or last entered word with an optional standalone
   Option (Alt) release, and toggle both correction modes directly from the menu bar.
+- Analyze live EN/RU input before Space using local dictionaries from four characters,
+  verified multiline range replacement and bounded editor-readiness retries.
 
 ## Current verification priorities
 
+- Confirm physical-keyboard live correction and standalone Option across supported
+  editors; targeted synthetic UI input does not establish global-key behavior.
 - Verify permissions and screen capture across additional supported macOS versions
   and physical display configurations.
 - Measure menu latency before changing storage or browse limits.
