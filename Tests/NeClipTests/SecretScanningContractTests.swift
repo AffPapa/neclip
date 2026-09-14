@@ -76,7 +76,8 @@ final class SecretScanningContractTests: XCTestCase {
 
         XCTAssertTrue(policy.contains("only supported public release is `v\(version)`"))
         XCTAssertTrue(policy.contains("immutable assets and tag"))
-        XCTAssertTrue(policy.contains("Older releases and tags have been removed"))
+        XCTAssertTrue(policy.contains("Older releases remain superseded and are retained for rollback"))
+        XCTAssertFalse(policy.contains("Older releases and tags have been removed"))
         XCTAssertFalse(policy.contains("Published releases and their assets are immutable"))
         XCTAssertFalse(policy.contains("blocks force-pushes"))
         XCTAssertTrue(policy.contains("authenticated GitHub release gate"))

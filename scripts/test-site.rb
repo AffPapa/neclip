@@ -71,6 +71,14 @@ class SiteCoherenceTest < Minitest::Test
     assert_includes err, 'changelog build mismatch'
   end
 
+  def test_rejects_stale_public_roadmap
+    path = File.join(@fixture, 'BACKLOG.md')
+    File.write(path, File.read(path).sub('Current public release —', 'Historical release —'))
+    _, err, status = verify
+    refute status.success?
+    assert_includes err, 'roadmap version mismatch'
+  end
+
   def test_unreleased_candidate_keeps_verified_public_download
     public_before = File.read(File.join(@fixture, 'docs/version.json'))
     candidate = JSON.parse(File.read(File.join(@fixture, 'docs/project.json'))).fetch('sourceCandidate')

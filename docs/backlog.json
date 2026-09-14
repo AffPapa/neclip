@@ -1,9 +1,9 @@
 {
   "currentRelease": {
-    "version": "2.8.0",
-    "build": 46,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.0-STATUS.md"
+    "version": "2.8.1",
+    "build": 47,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.1/NeClip-2.8.1.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.1-STATUS.md"
   },
   "done": [
     "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore",
@@ -13,7 +13,8 @@
     "2.7.0: reliable Option correction, input-source retry, AX replacement and punctuation-aware automatic correction",
     "2.7.2: move history search under the older-history submenu and harden selected-text layout correction",
     "2.7.3: use the active EN/RU layout for arbitrary manual text and special-symbol correction",
-    "2.8.0: analyze automatic correction after each key, correct the last word by Option, and separate layout/access/data settings"
+    "2.8.0: analyze automatic correction after each key, correct the last word by Option, and separate layout/access/data settings",
+    "2.8.1: verified multiline range replacement, bounded editor retries, first-stroke recovery and race-safe live correction"
   ],
   "inDevelopment": [],
   "next": [
