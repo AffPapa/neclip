@@ -32,4 +32,6 @@ Remaining product limits: recognition needs installed system dictionaries, secur
 
 ## Host diagnostic boundary
 
+Final queue review found that a recovered candidate could be delivered after a newer event-thread candidate. The scheduler now rejects a stale sequence before cancelling scheduled work. A deterministic asynchronous test delivers the newer candidate first and verifies that it still executes after an older recovery callback arrives.
+
 The signed local diagnostic candidate reported AX=true, listen=true, post=true and a running event tap. Actual incoming keyboard activity produced candidate diagnostics; CUA's targeted TextEdit key actions produced no event-tap callbacks. The CUA API also rejected modifier-only Alt with `keyPressIncludedNoNonModifierKeys`. Neither targeted text injection nor a modifier API rejection is evidence of the app's physical key behavior. A user-assisted physical-key check was requested separately.

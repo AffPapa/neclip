@@ -19,7 +19,7 @@
         "Live correction supports AX multiline editors and preserves surrounding rich text",
         "Bounded retries handle editor lag and first strokes during focus recovery",
         "Fix punctuation-position mappings, exact undo and overlapping Option gestures",
-        "311 XCTest, including real system dictionaries and native text-view regression checks"
+        "312 XCTest, including real system dictionaries, native text-view and out-of-order scheduling regression checks"
       ]
     },
     {

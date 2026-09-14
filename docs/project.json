@@ -22,7 +22,7 @@
     "build": 47,
     "status": "validated-candidate",
     "publicVersion": "2.8.0",
-    "sourceCommit": "f87ea60df41b7bdf11b99e4dc54f4add448bd78f",
+    "sourceCommit": "7efb0c25679a4c8f0e4cdd6d86ad560f06d5a63f",
     "scope": "live multiline range replacement, bounded editor retry, first-stroke recovery, manual mappings and transaction-safe undo"
   },
   "canonical": {
