@@ -18,12 +18,12 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.7.2",
-    "build": 44,
+    "version": "2.7.3",
+    "build": 45,
     "status": "released",
-    "publicVersion": "2.7.2",
-    "sourceCommit": "a36132ebb5cfc233885be3dece9be6e9f78f607f",
-    "scope": "history-search placement under the older-history submenu and more reliable selected-text EN/RU correction across Accessibility and clipboard fallback paths"
+    "publicVersion": "2.7.3",
+    "sourceCommit": "65c9779c7034e7357e31819673c64a38c7526e95",
+    "scope": "active-layout-aware manual correction for arbitrary selections, mixed text, digits and layout-specific symbols"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -33,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.2-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.2-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.3-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.3-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
