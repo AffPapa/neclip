@@ -1,9 +1,9 @@
 {
   "currentRelease": {
-    "version": "2.7.3",
-    "build": 45,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.3-STATUS.md"
+    "version": "2.8.0",
+    "build": 46,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.0-STATUS.md"
   },
   "done": [
     "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore",
@@ -12,7 +12,8 @@
     "2.6.3: supported binary release of standalone Option correction and direct menu-bar layout toggles",
     "2.7.0: reliable Option correction, input-source retry, AX replacement and punctuation-aware automatic correction",
     "2.7.2: move history search under the older-history submenu and harden selected-text layout correction",
-    "2.7.3: use the active EN/RU layout for arbitrary manual text and special-symbol correction"
+    "2.7.3: use the active EN/RU layout for arbitrary manual text and special-symbol correction",
+    "2.8.0: analyze automatic correction after each key, correct the last word by Option, and separate layout/access/data settings"
   ],
   "inDevelopment": [],
   "next": [
