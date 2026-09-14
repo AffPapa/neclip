@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.7.1",
-      "build": 43,
+      "version": "2.7.2",
+      "build": 44,
       "status": "released",
       "changes": [
-        "Reduce main-thread clipboard materialization and bound pasteboard rollback snapshots",
-        "Make history search race-safe, Unicode-aware across the full history and display file paths safely",
-        "Refresh keyboard-layout caches on input-source changes and harden Option monitor lifecycle",
-        "Keep screenshot editor placement on the capture display and expose explicit menu/search retry states",
-        "295 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed locally"
+        "Move history search out of the top-level menu and into the flat older-history submenu",
+        "Keep an already selected word intact instead of re-selecting it through Accessibility",
+        "Accept exact replacement verification when editors leave pasted text selected or collapse it to a caret",
+        "Add regression coverage for the menu placement and selected-layout correction path",
+        "296 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed locally"
       ]
     },
     {

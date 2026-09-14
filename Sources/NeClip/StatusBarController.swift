@@ -312,14 +312,6 @@ final class StatusBarController: NSObject {
         if RuntimeIdentity.isIsolatedPreview {
             menu.addItem(NSMenuItem(title: "Тестовая копия · отдельная история", action: nil, keyEquivalent: ""))
         }
-        menu.addItem(item(
-            "Поиск истории…",
-            #selector(openHistorySearch),
-            symbol: "magnifyingglass",
-            keyEquivalent: "f",
-            modifiers: [.command]
-        ))
-        menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: "Недавние"))
         // The snapshot contains every summary so "Ещё из истории" can be a
         // complete flat submenu. Slice only the configurable first list when
@@ -337,13 +329,23 @@ final class StatusBarController: NSObject {
             }
         }
 
-        if history.count > firstPage.count {
+        if !history.isEmpty {
             let moreItem = item("Ещё из истории", nil, symbol: "clock.arrow.circlepath")
             let moreMenu = makeMenu(title: "Ещё из истории")
-            for index in firstPage.count..<history.count {
-                moreMenu.addItem(clipMenuItem(
-                    history[index], absoluteIndex: index, quickKey: nil, showNumber: true
-                ))
+            moreMenu.addItem(item(
+                "Поиск истории…",
+                #selector(openHistorySearch),
+                symbol: "magnifyingglass",
+                keyEquivalent: "f",
+                modifiers: [.command]
+            ))
+            if history.count > firstPage.count {
+                moreMenu.addItem(.separator())
+                for index in firstPage.count..<history.count {
+                    moreMenu.addItem(clipMenuItem(
+                        history[index], absoluteIndex: index, quickKey: nil, showNumber: true
+                    ))
+                }
             }
             moreItem.submenu = moreMenu
             menu.addItem(moreItem)

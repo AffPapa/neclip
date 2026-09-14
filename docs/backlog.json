@@ -1,16 +1,17 @@
 {
   "currentRelease": {
-    "version": "2.7.1",
-    "build": 43,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.1/NeClip-2.7.1.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.1-STATUS.md"
+    "version": "2.7.2",
+    "build": 44,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.2/NeClip-2.7.2.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.2-STATUS.md"
   },
   "done": [
     "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore",
     "2.6.1: configurable first history list and complete flat older-history submenu",
     "2.6.2: standalone Option correction and direct menu-bar layout toggles (superseded empty immutable tag)",
     "2.6.3: supported binary release of standalone Option correction and direct menu-bar layout toggles",
-    "2.7.0: reliable Option correction, input-source retry, AX replacement and punctuation-aware automatic correction"
+    "2.7.0: reliable Option correction, input-source retry, AX replacement and punctuation-aware automatic correction",
+    "2.7.2: move history search under the older-history submenu and harden selected-text layout correction"
   ],
   "inDevelopment": [],
   "next": [

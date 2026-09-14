@@ -253,6 +253,30 @@ final class LayoutCorrectionTests: XCTestCase {
         ))
     }
 
+    func testReplacementVerificationAcceptsCaretOrExactSelectedReplacementOnly() {
+        let replacement = CFRange(location: 4, length: 6)
+        XCTAssertTrue(LayoutReplacementVerificationPolicy.accepts(
+            selectedRange: CFRange(location: 10, length: 0),
+            replacementRange: replacement,
+            textMatches: true
+        ))
+        XCTAssertTrue(LayoutReplacementVerificationPolicy.accepts(
+            selectedRange: replacement,
+            replacementRange: replacement,
+            textMatches: true
+        ))
+        XCTAssertFalse(LayoutReplacementVerificationPolicy.accepts(
+            selectedRange: CFRange(location: 3, length: 7),
+            replacementRange: replacement,
+            textMatches: true
+        ))
+        XCTAssertFalse(LayoutReplacementVerificationPolicy.accepts(
+            selectedRange: CFRange(location: 10, length: 0),
+            replacementRange: replacement,
+            textMatches: false
+        ))
+    }
+
     func testProtectedApplicationsCannotBeRemovedThroughUserExclusions() {
         XCTAssertTrue(LayoutProtectedApplicationPolicy.blocksAutomatic(bundleID: nil, userExcluded: []))
         XCTAssertTrue(LayoutProtectedApplicationPolicy.blocksAutomatic(

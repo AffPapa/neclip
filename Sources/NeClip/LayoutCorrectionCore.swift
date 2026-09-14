@@ -127,6 +127,25 @@ enum LayoutWholeValueCASPolicy {
     }
 }
 
+enum LayoutReplacementVerificationPolicy {
+    /// A paste is successful when the expected replacement occupies the exact
+    /// target range. Native editors differ on whether Cmd-V leaves that range
+    /// selected or collapses it to a caret, so both states are valid; a wider
+    /// or unrelated selection is never accepted.
+    static func accepts(
+        selectedRange: CFRange,
+        replacementRange: CFRange,
+        textMatches: Bool
+    ) -> Bool {
+        guard textMatches else { return false }
+        let sameSelection = selectedRange.location == replacementRange.location
+            && selectedRange.length == replacementRange.length
+        let caretAtEnd = selectedRange.length == 0
+            && selectedRange.location == replacementRange.location + replacementRange.length
+        return sameSelection || caretAtEnd
+    }
+}
+
 struct LayoutTypedStroke: Equatable, Hashable, Sendable {
     let keyCode: UInt16
     let shift: Bool
