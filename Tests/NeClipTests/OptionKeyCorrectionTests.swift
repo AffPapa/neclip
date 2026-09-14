@@ -2,6 +2,17 @@ import XCTest
 @testable import NeClip
 
 final class OptionKeyCorrectionTests: XCTestCase {
+    func testOverlappingOptionKeysCannotRearmCancelledGesture() {
+        var policy = OptionKeyGesturePolicy()
+        _ = policy.handle(.optionChanged(isDown: true, hasOtherModifier: false))
+        _ = policy.handle(.otherInput)
+        _ = policy.handle(.optionChanged(isDown: true, hasOtherModifier: false))
+        _ = policy.handle(.optionChanged(isDown: true, hasOtherModifier: false))
+        XCTAssertFalse(policy.handle(.optionChanged(isDown: false, hasOtherModifier: false)))
+        _ = policy.handle(.optionChanged(isDown: true, hasOtherModifier: false))
+        XCTAssertTrue(policy.handle(.optionChanged(isDown: false, hasOtherModifier: false)))
+    }
+
     func testStandaloneOptionReleaseTriggersCorrection() {
         var policy = OptionKeyGesturePolicy()
 

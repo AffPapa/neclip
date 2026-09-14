@@ -17,6 +17,12 @@ struct OptionKeyGesturePolicy: Equatable, Sendable {
         switch event {
         case let .optionChanged(isDown, hasOtherModifier):
             guard !isDown else {
+                if optionHeld {
+                    // Aggregate Option stays down while the other Option key
+                    // is pressed/released. Do not rearm a cancelled chord.
+                    usedWithOtherInput = true
+                    return false
+                }
                 optionHeld = true
                 usedWithOtherInput = hasOtherModifier
                 return false

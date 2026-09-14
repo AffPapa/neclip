@@ -26,7 +26,7 @@ enum LayoutPermissions {
 }
 
 @MainActor
-private final class LayoutDictionary {
+final class LayoutDictionary {
     private let checker = NSSpellChecker.shared
     private var languages: [String]?
 
@@ -60,7 +60,7 @@ private final class LayoutDictionary {
     }
 }
 
-private struct AutoLayoutBoundary: Sendable {
+struct AutoLayoutBoundary: Sendable {
     let strokes: [LayoutTypedStroke]
     let terminator: LayoutTypedStroke?
     let isBoundary: Bool
@@ -70,13 +70,13 @@ private struct AutoLayoutBoundary: Sendable {
     let sequence: UInt64
 }
 
-private final class AutoLayoutEventMonitor: @unchecked Sendable {
+final class AutoLayoutEventMonitor: @unchecked Sendable {
     private struct Context {
         let sourceID: String
         let pid: pid_t
         let contextID: UInt64
-        let validKeyCodes: Set<UInt16>
-        let boundaryKeyCodes: Set<UInt16>
+        let validStrokes: Set<LayoutTypedStroke>
+        let boundaryStrokes: Set<LayoutTypedStroke>
     }
 
     private let lock = NSLock()
@@ -152,16 +152,16 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         sourceID: String,
         pid: pid_t,
         contextID: UInt64,
-        validKeyCodes: Set<UInt16>,
-        boundaryKeyCodes: Set<UInt16>
+        validStrokes: Set<LayoutTypedStroke>,
+        boundaryStrokes: Set<LayoutTypedStroke>
     ) {
         lock.lock()
         context = Context(
             sourceID: sourceID,
             pid: pid,
             contextID: contextID,
-            validKeyCodes: validKeyCodes,
-            boundaryKeyCodes: boundaryKeyCodes
+            validStrokes: validStrokes,
+            boundaryStrokes: boundaryStrokes
         )
         buffer.reset()
         lock.unlock()
@@ -200,7 +200,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         return succeeded
     }
 
-    fileprivate func handle(type: CGEventType, event: CGEvent) {
+    func handle(type: CGEventType, event: CGEvent) {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             lock.lock()
             guard !cancelled else {
@@ -241,6 +241,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
 
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
+        let stroke = LayoutTypedStroke(keyCode: keyCode, shift: flags.contains(.maskShift), capsLock: flags.contains(.maskAlphaShift))
         // The manual/undo hotkey itself must not invalidate its correction.
         lock.lock()
         let isManualShortcut = manualShortcut.matches(keyCode: keyCode, cgEventFlags: flags)
@@ -253,7 +254,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
         sequence &+= 1
         let eventSequence = sequence
 
-        if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 {
+        if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 && keyCode != UInt16(kVK_Delete) {
             context = nil
             buffer.reset()
             shouldRefresh = true
@@ -261,7 +262,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
             context = nil
             buffer.reset()
             shouldRefresh = true
-        } else if keyCode == UInt16(kVK_Space) || context?.boundaryKeyCodes.contains(keyCode) == true {
+        } else if keyCode == UInt16(kVK_Space) || context?.boundaryStrokes.contains(stroke) == true {
             if let context {
                 let strokes = buffer.takeAtBoundary()
                 if !strokes.isEmpty {
@@ -285,13 +286,13 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
             }
         } else if keyCode == UInt16(kVK_Delete) {
             buffer.backspace()
+            if let context, AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: buffer.strokes.count) {
+                boundary = AutoLayoutBoundary(strokes: buffer.strokes, terminator: nil, isBoundary: false,
+                                              sourceID: context.sourceID, pid: context.pid,
+                                              contextID: context.contextID, sequence: eventSequence)
+            }
         } else if let context,
-                  context.validKeyCodes.contains(keyCode) {
-            let stroke = LayoutTypedStroke(
-                keyCode: keyCode,
-                shift: flags.contains(.maskShift),
-                capsLock: flags.contains(.maskAlphaShift)
-            )
+                  context.validStrokes.contains(stroke) {
             if !buffer.append(stroke) {
                 self.context = nil
                 shouldRefresh = true
@@ -440,6 +441,8 @@ final class AutoLayoutController {
     private var undoRecord: UndoRecord?
     private var undoExpiry: DispatchWorkItem?
     private var contextRefreshWorkItem: DispatchWorkItem?
+    private var liveAttemptWorkItem: DispatchWorkItem?
+    private var manualCorrectionInProgress = false
     private var ignoredTokens = BoundedLayoutIgnoreList()
     private var secureTimer: Timer?
     private var focusCheckCounter = 0
@@ -483,7 +486,7 @@ final class AutoLayoutController {
         let created = AutoLayoutEventMonitor(
             manualShortcut: Settings.manualLayoutShortcut,
             onBoundary: { [weak self] boundary in
-                DispatchQueue.main.async { self?.handle(boundary) }
+                DispatchQueue.main.async { self?.enqueue(boundary) }
             },
             onContextInvalidated: { [weak self] in
                 DispatchQueue.main.async { self?.scheduleContextRefresh() }
@@ -506,6 +509,10 @@ final class AutoLayoutController {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.layouts.invalidate()
+                // Our own successful switch already refreshed this context.
+                // A delayed duplicate notification must not drop newly typed
+                // letters from the next word.
+                if self.contextRecord?.sourceID == self.layouts.currentSourceID() { return }
                 self.contextRecord = nil
                 self.monitor?.invalidateContext()
                 self.refreshContext()
@@ -536,6 +543,8 @@ final class AutoLayoutController {
     }
 
     func disable() {
+        liveAttemptWorkItem?.cancel()
+        liveAttemptWorkItem = nil
         contextRefreshWorkItem?.cancel()
         contextRefreshWorkItem = nil
         secureTimer?.invalidate()
@@ -558,9 +567,11 @@ final class AutoLayoutController {
     }
 
     func refreshContext() {
+        liveAttemptWorkItem?.cancel()
+        liveAttemptWorkItem = nil
         contextRefreshWorkItem?.cancel()
         contextRefreshWorkItem = nil
-        guard state == .running, let monitor else { return }
+        guard state == .running, !manualCorrectionInProgress, let monitor else { return }
         guard case .success(let focused) = accessibility.focusedContext(
             scope: .automatic,
             userExcluded: Set(Settings.layoutExcludedApps)
@@ -569,8 +580,8 @@ final class AutoLayoutController {
             monitor.invalidateContext()
             return
         }
-        let validKeyCodes = layouts.validLetterKeyCodes(sourceID: sourceID)
-        guard !validKeyCodes.isEmpty else {
+        let validStrokes = layouts.automaticLetterStrokes(sourceID: sourceID)
+        guard !validStrokes.isEmpty else {
             contextRecord = nil
             monitor.invalidateContext()
             return
@@ -582,9 +593,21 @@ final class AutoLayoutController {
             sourceID: sourceID,
             pid: focused.pid,
             contextID: record.id,
-            validKeyCodes: validKeyCodes,
-            boundaryKeyCodes: layouts.automaticBoundaryKeyCodes(sourceID: sourceID)
+            validStrokes: validStrokes,
+            boundaryStrokes: layouts.automaticBoundaryStrokes(sourceID: sourceID)
         )
+    }
+
+    func suspendForManualCorrection() {
+        manualCorrectionInProgress = true
+        liveAttemptWorkItem?.cancel()
+        contextRecord = nil
+        monitor?.invalidateContext()
+    }
+
+    func resumeAfterManualCorrection() {
+        manualCorrectionInProgress = false
+        refreshContext()
     }
 
     private func scheduleContextRefresh() {
@@ -633,8 +656,15 @@ final class AutoLayoutController {
         return true
     }
 
-    private func handle(_ boundary: AutoLayoutBoundary) {
-        guard state == .running,
+    private func enqueue(_ boundary: AutoLayoutBoundary, attempt: Int = 0, delay: TimeInterval = LiveLayoutRetryPolicy.initialDelay) {
+        liveAttemptWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.handle(boundary, attempt: attempt) }
+        liveAttemptWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func handle(_ boundary: AutoLayoutBoundary, attempt: Int) {
+        guard state == .running, !manualCorrectionInProgress,
               let monitor,
               monitor.currentSequence() == boundary.sequence,
               let context = contextRecord,
@@ -645,7 +675,7 @@ final class AutoLayoutController {
               layouts.currentSourceID() == boundary.sourceID,
               let translation = layouts.translate(strokes: boundary.strokes, sourceID: boundary.sourceID),
               !ignoredTokens.contains(translation.original),
-              LayoutTextPolicy.isAutoCandidate(translation.original),
+              LayoutTextPolicy.isAutoInputCandidate(translation.original),
               LayoutTextPolicy.isAutoCandidate(translation.converted),
               let typedKnown = dictionary.isKnown(translation.original, language: translation.sourceLanguage),
               let convertedKnown = dictionary.isKnown(translation.converted, language: translation.targetLanguage),
@@ -664,16 +694,18 @@ final class AutoLayoutController {
         } else {
             terminator = boundary.isBoundary ? " " : ""
         }
+        var replacementResult = LiveLayoutReplacementResult.rejected
         let corrected = monitor.performIfSequenceMatches(
             boundary.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
-            guard layouts.currentSourceID() == boundary.sourceID,
-                  accessibility.replaceTailAtomically(
-                    expected: translation.original + terminator,
-                    replacement: translation.converted + terminator,
-                    in: context.focused
-                  ) else { return false }
+            guard layouts.currentSourceID() == boundary.sourceID else { return false }
+            replacementResult = accessibility.replaceLiveTail(
+                expected: translation.original + terminator,
+                replacement: translation.converted + terminator,
+                in: context.focused
+            )
+            guard replacementResult == .replaced else { return false }
             guard layouts.selectSource(id: translation.targetID) else {
                 _ = accessibility.replaceTailAtomically(
                     expected: translation.converted + terminator,
@@ -684,7 +716,13 @@ final class AutoLayoutController {
             }
             return true
         }
-        guard corrected else { return }
+        guard corrected else {
+            if let delay = LiveLayoutRetryPolicy.delay(after: replacementResult, attempt: attempt,
+                                                       sequence: boundary.sequence, currentSequence: monitor.currentSequence()) {
+                enqueue(boundary, attempt: attempt + 1, delay: delay)
+            }
+            return
+        }
 
         undoRecord = UndoRecord(
             context: context,

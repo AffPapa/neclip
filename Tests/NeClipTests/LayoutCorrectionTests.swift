@@ -368,6 +368,8 @@ final class LayoutCorrectionTests: XCTestCase {
         }
         XCTAssertEqual(service.convert("ghbdtn")?.converted, "привет")
         XCTAssertEqual(service.convert("руддщ")?.converted, "hello")
+        XCTAssertEqual(service.convert("[jxe")?.converted, "хочу")
+        XCTAssertEqual(service.convert("Хочу")?.converted, "{jxe")
     }
 
     @MainActor

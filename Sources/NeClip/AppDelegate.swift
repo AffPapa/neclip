@@ -342,8 +342,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        automaticLayoutCorrection.suspendForManualCorrection()
         manualLayoutCorrection.correctOrUndo { [weak self] result in
-            self?.automaticLayoutCorrection.refreshContext()
+            self?.automaticLayoutCorrection.resumeAfterManualCorrection()
             let message: String
             switch result {
             case .corrected:

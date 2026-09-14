@@ -71,7 +71,10 @@ final class KeyboardLayoutService {
         var ambiguousRussian = Set<Character>()
 
         for keyCode in UInt16(0)..<UInt16(128) {
-            for (shift, caps) in [(false, false), (true, false), (false, true), (true, true)] {
+            // Text alone cannot distinguish Shift from Caps Lock. Canonical
+            // unshifted/Shift strokes preserve punctuation-position letters;
+            // live typing separately retains the actual Caps Lock state.
+            for (shift, caps) in [(false, false), (true, false)] {
                 guard let english = translate(keyCode: keyCode, shift: shift, capsLock: caps, data: pair.english.layoutData),
                       let russian = translate(keyCode: keyCode, shift: shift, capsLock: caps, data: pair.russian.layoutData) else {
                     continue
@@ -128,7 +131,7 @@ final class KeyboardLayoutService {
                 shift: stroke.shift,
                 capsLock: stroke.capsLock,
                 data: target.layoutData
-            ), sourceCharacter.isLetter, targetCharacter.isLetter else { return nil }
+            ), sourceCharacter.isLetter || targetCharacter.isLetter else { return nil }
             original.append(sourceCharacter)
             converted.append(targetCharacter)
         }
@@ -195,6 +198,30 @@ final class KeyboardLayoutService {
         return boundaries
     }
 
+    func automaticLetterStrokes(sourceID: String) -> Set<LayoutTypedStroke> {
+        Set(validLetterKeyCodes(sourceID: sourceID).flatMap { key in
+            [(false, false), (true, false), (false, true), (true, true)].compactMap { shift, caps in
+                let stroke = LayoutTypedStroke(keyCode: key, shift: shift, capsLock: caps)
+                guard let character = character(for: stroke, sourceID: sourceID),
+                      !LayoutTextPolicy.isAutomaticBoundary(character),
+                      translate(strokes: [stroke], sourceID: sourceID) != nil else { return nil }
+                return stroke
+            }
+        })
+    }
+
+    func automaticBoundaryStrokes(sourceID: String) -> Set<LayoutTypedStroke> {
+        Set(automaticBoundaryKeyCodes(sourceID: sourceID).flatMap { key in
+            [(false, false), (true, false), (false, true), (true, true)].compactMap { shift, caps in
+                let stroke = LayoutTypedStroke(keyCode: key, shift: shift, capsLock: caps)
+                if [UInt16(kVK_Tab), UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter)].contains(key) { return stroke }
+                guard let character = character(for: stroke, sourceID: sourceID),
+                      LayoutTextPolicy.isAutomaticBoundary(character) else { return nil }
+                return stroke
+            }
+        })
+    }
+
     func validLetterKeyCodes(sourceID: String) -> Set<UInt16> {
         if let cached = cachedValidLetterKeyCodes[sourceID] { return cached }
         guard let pair = layoutPair() else { return [] }
@@ -214,7 +241,7 @@ final class KeyboardLayoutService {
                   let b = translate(keyCode: keyCode, shift: false, capsLock: false, data: target.layoutData) else {
                 return false
             }
-            return a.isLetter && b.isLetter
+            return a.isLetter || b.isLetter
         })
         cachedValidLetterKeyCodes[sourceID] = valid
         return valid
@@ -341,7 +368,9 @@ final class KeyboardLayoutService {
     private func waitForCurrentSource(id: String) -> Bool {
         for _ in 0..<8 {
             if currentSourceID() == id { return true }
-            _ = CFRunLoopRunInMode(.defaultMode, 0.015, false)
+            // Source-change observers can acquire the typing monitor's lock.
+            // Never pump that run loop inside the correction transaction.
+            Thread.sleep(forTimeInterval: 0.005)
         }
         return currentSourceID() == id
     }
@@ -349,7 +378,7 @@ final class KeyboardLayoutService {
     private func waitForSelectableSource(id: String) -> Bool {
         for _ in 0..<8 {
             if currentSelectableSourceID() == id { return true }
-            _ = CFRunLoopRunInMode(.defaultMode, 0.015, false)
+            Thread.sleep(forTimeInterval: 0.005)
         }
         return currentSelectableSourceID() == id
     }
