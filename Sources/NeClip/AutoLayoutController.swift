@@ -1,5 +1,6 @@
 import AppKit
 import Carbon
+import OSLog
 
 @MainActor
 enum LayoutPermissions {
@@ -70,6 +71,11 @@ struct AutoLayoutBoundary: Sendable {
     let sequence: UInt64
 }
 
+struct PendingLayoutInput: Sendable {
+    let strokes: [LayoutTypedStroke]
+    let sequence: UInt64
+}
+
 final class AutoLayoutEventMonitor: @unchecked Sendable {
     private struct Context {
         let sourceID: String
@@ -82,6 +88,7 @@ final class AutoLayoutEventMonitor: @unchecked Sendable {
     private let lock = NSLock()
     private var context: Context?
     private var buffer = AutoTypingBuffer(capacity: 64)
+    private var pendingSince: TimeInterval?
     private var sequence: UInt64 = 0
     private var eventTap: CFMachPort?
     private var eventSource: CFRunLoopSource?
@@ -148,14 +155,21 @@ final class AutoLayoutEventMonitor: @unchecked Sendable {
         if let runLoop { CFRunLoopStop(runLoop) }
     }
 
+    @discardableResult
     func updateContext(
         sourceID: String,
         pid: pid_t,
         contextID: UInt64,
         validStrokes: Set<LayoutTypedStroke>,
-        boundaryStrokes: Set<LayoutTypedStroke>
-    ) {
+        boundaryStrokes: Set<LayoutTypedStroke>,
+        recovering pending: PendingLayoutInput? = nil,
+        expectedSequence: UInt64? = nil
+    ) -> Bool {
         lock.lock()
+        if let expected = expectedSequence ?? pending?.sequence, expected != sequence {
+            lock.unlock()
+            return false
+        }
         context = Context(
             sourceID: sourceID,
             pid: pid,
@@ -164,7 +178,27 @@ final class AutoLayoutEventMonitor: @unchecked Sendable {
             boundaryStrokes: boundaryStrokes
         )
         buffer.reset()
+        pendingSince = nil
+        if let pending {
+            for stroke in pending.strokes { _ = buffer.append(stroke) }
+        }
+        let candidate: AutoLayoutBoundary? = AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: buffer.strokes.count)
+            ? AutoLayoutBoundary(strokes: buffer.strokes, terminator: nil, isBoundary: false,
+                                 sourceID: sourceID, pid: pid, contextID: contextID, sequence: sequence) : nil
         lock.unlock()
+        if let candidate { onBoundary(candidate) }
+        return true
+    }
+
+    func pendingInput() -> PendingLayoutInput? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard context == nil, !buffer.strokes.isEmpty else { return nil }
+        guard let pendingSince, ProcessInfo.processInfo.systemUptime - pendingSince <= 0.25 else {
+            buffer.reset()
+            return nil
+        }
+        return PendingLayoutInput(strokes: buffer.strokes, sequence: sequence)
     }
 
     func invalidateContext() {
@@ -216,6 +250,10 @@ final class AutoLayoutEventMonitor: @unchecked Sendable {
             onContextInvalidated()
             return
         }
+        if IsSecureEventInputEnabled() {
+            invalidateContext()
+            return
+        }
         if type == .flagsChanged {
             let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
             guard keyCode == UInt16(kVK_CapsLock) else { return }
@@ -262,7 +300,9 @@ final class AutoLayoutEventMonitor: @unchecked Sendable {
             context = nil
             buffer.reset()
             shouldRefresh = true
-        } else if keyCode == UInt16(kVK_Space) || context?.boundaryStrokes.contains(stroke) == true {
+        } else if keyCode == UInt16(kVK_Space)
+                    || [UInt16(kVK_Tab), UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter)].contains(keyCode)
+                    || context?.boundaryStrokes.contains(stroke) == true {
             if let context {
                 let strokes = buffer.takeAtBoundary()
                 if !strokes.isEmpty {
@@ -311,6 +351,13 @@ final class AutoLayoutEventMonitor: @unchecked Sendable {
                     sequence: eventSequence
                 )
             }
+        } else if context == nil, keyCode < 51 {
+            // Focus recovery is asynchronous. Retain only bounded physical
+            // strokes until the fresh AX context validates their exact text;
+            // mouse, modifiers, source changes and secure input discard them.
+            if buffer.strokes.isEmpty { pendingSince = ProcessInfo.processInfo.systemUptime }
+            _ = buffer.append(stroke)
+            shouldRefresh = true
         } else {
             context = nil
             buffer.reset()
@@ -409,6 +456,7 @@ private func neClipLayoutEventCallback(
 
 @MainActor
 final class AutoLayoutController {
+    private let diagnostic = Logger(subsystem: "org.affpapa.neclip", category: "layout")
     enum State: Equatable {
         case off
         case permissionRequired
@@ -442,7 +490,7 @@ final class AutoLayoutController {
     private var undoExpiry: DispatchWorkItem?
     private var contextRefreshWorkItem: DispatchWorkItem?
     private var liveAttemptWorkItem: DispatchWorkItem?
-    private var manualCorrectionInProgress = false
+    private var manualSuspension = LayoutManualSuspension()
     private var ignoredTokens = BoundedLayoutIgnoreList()
     private var secureTimer: Timer?
     private var focusCheckCounter = 0
@@ -469,6 +517,7 @@ final class AutoLayoutController {
     }
 
     func enable() {
+        diagnostic.info("Automatic permissions: AX=\(LayoutPermissions.hasAccessibility) listen=\(LayoutPermissions.canListen) post=\(LayoutPermissions.canControlEvents)")
         guard LayoutPermissions.hasAccessibility,
               LayoutPermissions.canControlEvents,
               LayoutPermissions.canListen else {
@@ -499,6 +548,7 @@ final class AutoLayoutController {
         }
         monitor = created
         state = .running
+        diagnostic.info("Automatic event monitor running")
         dictionary.warmUp()
         refreshContext()
         inputSourceObserver = DistributedNotificationCenter.default().addObserver(
@@ -530,7 +580,9 @@ final class AutoLayoutController {
                 self.focusCheckCounter += 1
                 if self.focusCheckCounter >= 5 {
                     self.focusCheckCounter = 0
-                    if let record = self.contextRecord,
+                    if self.contextRecord == nil {
+                        self.refreshContext()
+                    } else if let record = self.contextRecord,
                        (self.accessibility.refreshedContext(matching: record.focused, scope: .automatic) == nil
                         || self.layouts.currentSourceID() != record.sourceID) {
                         self.contextRecord = nil
@@ -571,7 +623,8 @@ final class AutoLayoutController {
         liveAttemptWorkItem = nil
         contextRefreshWorkItem?.cancel()
         contextRefreshWorkItem = nil
-        guard state == .running, !manualCorrectionInProgress, let monitor else { return }
+        guard state == .running, !manualSuspension.isSuspended, let monitor else { return }
+        let initialSequence = monitor.currentSequence()
         guard case .success(let focused) = accessibility.focusedContext(
             scope: .automatic,
             userExcluded: Set(Settings.layoutExcludedApps)
@@ -588,35 +641,57 @@ final class AutoLayoutController {
         }
         nextContextID &+= 1
         let record = ContextRecord(id: nextContextID, focused: focused, sourceID: sourceID)
+        var recovery: PendingLayoutInput?
+        if let pending = monitor.pendingInput(),
+           pending.strokes.allSatisfy(validStrokes.contains),
+           let translation = layouts.translate(strokes: pending.strokes, sourceID: sourceID),
+           focused.selectedRange.length == 0 {
+            let length = (translation.original as NSString).length
+            if focused.selectedRange.location >= length,
+               accessibility.string(in: CFRange(location: focused.selectedRange.location - length, length: length),
+                                    element: focused.element) == translation.original {
+                recovery = pending
+            } else {
+                // The just-delivered first key is not in AX yet. Keep the
+                // pending strokes and retry context acquisition, not an edit.
+                scheduleContextRefresh()
+                return
+            }
+        }
         contextRecord = record
-        monitor.updateContext(
+        if !monitor.updateContext(
             sourceID: sourceID,
             pid: focused.pid,
             contextID: record.id,
             validStrokes: validStrokes,
-            boundaryStrokes: layouts.automaticBoundaryStrokes(sourceID: sourceID)
-        )
+            boundaryStrokes: layouts.automaticBoundaryStrokes(sourceID: sourceID),
+            recovering: recovery,
+            expectedSequence: recovery?.sequence ?? initialSequence
+        ) {
+            contextRecord = nil
+            scheduleContextRefresh()
+        }
     }
 
     func suspendForManualCorrection() {
-        manualCorrectionInProgress = true
+        manualSuspension.begin()
         liveAttemptWorkItem?.cancel()
         contextRecord = nil
         monitor?.invalidateContext()
     }
 
     func resumeAfterManualCorrection() {
-        manualCorrectionInProgress = false
+        manualSuspension.end()
         refreshContext()
     }
 
     private func scheduleContextRefresh() {
-        contextRefreshWorkItem?.cancel()
+        guard contextRefreshWorkItem == nil else { return }
         let workItem = DispatchWorkItem { [weak self] in
             self?.refreshContext()
         }
         contextRefreshWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(40), execute: workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(12), execute: workItem)
     }
 
     func undoLastCorrectionIfPossible(completion: @escaping (Bool) -> Void) -> Bool {
@@ -626,16 +701,16 @@ final class AutoLayoutController {
         undoExpiry = nil
         guard Date().timeIntervalSince(record.createdAt) <= 5 else { return false }
 
+        var undoResult = LiveLayoutReplacementResult.rejected
         let succeeded = monitor.performIfSequenceMatches(
             record.sequence,
             invalidateContextOnSuccess: true
         ) { [self] in
-            guard layouts.currentSourceID() == record.targetSourceID,
-                  accessibility.replaceTailAtomically(
-                    expected: record.converted + record.terminator,
-                    replacement: record.original + record.terminator,
-                    in: record.context.focused
-                  ) else { return false }
+            guard layouts.currentSourceID() == record.targetSourceID else { return false }
+            undoResult = accessibility.replaceLiveTail(expected: record.converted + record.terminator,
+                                                       replacement: record.original + record.terminator,
+                                                       in: record.context.focused)
+            guard undoResult == .replaced else { return false }
             guard layouts.selectSource(id: record.context.sourceID) else {
                 _ = accessibility.replaceTailAtomically(
                     expected: record.original + record.terminator,
@@ -648,6 +723,10 @@ final class AutoLayoutController {
         }
         guard succeeded else {
             refreshContext()
+            if undoResult == .uncertain || undoResult == .replaced {
+                completion(false)
+                return true // A write was attempted: never fall through to manual conversion.
+            }
             return false
         }
         ignoredTokens.add(record.original)
@@ -664,7 +743,8 @@ final class AutoLayoutController {
     }
 
     private func handle(_ boundary: AutoLayoutBoundary, attempt: Int) {
-        guard state == .running, !manualCorrectionInProgress,
+        diagnostic.debug("Candidate keys=\(boundary.strokes.count) attempt=\(attempt) current=\(self.monitor?.currentSequence() == boundary.sequence)")
+        guard state == .running, !manualSuspension.isSuspended,
               let monitor,
               monitor.currentSequence() == boundary.sequence,
               let context = contextRecord,
@@ -685,7 +765,10 @@ final class AutoLayoutController {
                 typedIsKnownWord: typedKnown,
                 convertedIsKnownWord: convertedKnown
               ) == .correct,
-              monitor.currentSequence() == boundary.sequence else { return }
+              monitor.currentSequence() == boundary.sequence else {
+            diagnostic.debug("Candidate rejected before replacement")
+            return
+        }
 
         let terminator: String
         if let stroke = boundary.terminator {
@@ -717,6 +800,7 @@ final class AutoLayoutController {
             return true
         }
         guard corrected else {
+            diagnostic.debug("Replacement outcome=\(String(describing: replacementResult), privacy: .public)")
             if let delay = LiveLayoutRetryPolicy.delay(after: replacementResult, attempt: attempt,
                                                        sequence: boundary.sequence, currentSequence: monitor.currentSequence()) {
                 enqueue(boundary, attempt: attempt + 1, delay: delay)

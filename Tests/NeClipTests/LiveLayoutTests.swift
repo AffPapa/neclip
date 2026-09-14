@@ -93,6 +93,20 @@ final class LiveLayoutTests: XCTestCase {
         XCTAssertEqual(editor.access.replaceTail(expected: "руддщ", replacement: "hello"), .rejected)
         XCTAssertEqual(editor.value, "other")
         XCTAssertEqual(editor.writes, 0)
+        XCTAssertEqual(editor.range.location, 5)
+        XCTAssertEqual(editor.range.length, 0)
+    }
+
+    func testRejectedSecondManualCommandKeepsFirstTransactionSuspended() {
+        var suspension = LayoutManualSuspension()
+        suspension.begin()
+        suspension.begin()
+        suspension.end()
+        XCTAssertTrue(suspension.isSuspended)
+        suspension.end()
+        XCTAssertFalse(suspension.isSuspended)
+        suspension.end()
+        XCTAssertFalse(suspension.isSuspended)
     }
 
     func testFailedWriteIsTerminalAndRestoresOwnSelection() {
@@ -131,6 +145,30 @@ final class LiveLayoutTests: XCTestCase {
 
     private final class CapturedCandidates: @unchecked Sendable {
         var values: [AutoLayoutBoundary] = []
+    }
+
+    func testFocusRecoveryRetainsFirstKeystrokesAndRejectsStaleSnapshot() throws {
+        let captured = CapturedCandidates()
+        let monitor = AutoLayoutEventMonitor(manualShortcut: ShortcutDescriptor(keyCode: 40, modifiers: [.command, .option]),
+                                            onBoundary: { captured.values.append($0) }, onContextInvalidated: {})
+        let codes: [UInt16] = [4, 14, 37, 37, 31]
+        for code in codes {
+            let event = try XCTUnwrap(CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: true))
+            event.flags = []
+            monitor.handle(type: .keyDown, event: event)
+        }
+        let pending = try XCTUnwrap(monitor.pendingInput())
+        XCTAssertEqual(pending.strokes.map(\.keyCode), codes)
+        let valid = Set(pending.strokes)
+        XCTAssertFalse(monitor.updateContext(sourceID: "ru", pid: 123, contextID: 1, validStrokes: valid,
+                                             boundaryStrokes: [], recovering: pending, expectedSequence: pending.sequence - 1))
+        XCTAssertTrue(captured.values.isEmpty)
+        XCTAssertTrue(monitor.updateContext(sourceID: "ru", pid: 123, contextID: 2, validStrokes: valid,
+                                            boundaryStrokes: [], recovering: pending))
+        XCTAssertEqual(captured.values.last?.strokes.map(\.keyCode), codes)
+        XCTAssertEqual(captured.values.last?.isBoundary, false)
+        monitor.invalidateContext()
+        XCTAssertNil(monitor.pendingInput())
     }
 
     func testProductionEventHandlerEmitsOnLettersAndBackspaceWithoutBoundary() throws {

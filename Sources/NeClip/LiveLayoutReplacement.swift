@@ -34,12 +34,12 @@ struct LiveLayoutRangeAccess {
         guard same(selection(), target), text(target) == expected else {
             // Restore only our own selection on unchanged text, never a user's
             // later selection or a programmatic edit.
-            if same(selection(), target), text(target) == expected { _ = select(caret) }
+            restoreOwnedSelection(target, caret: caret)
             return .rejected
         }
         // A failed/ambiguous write is terminal: retrying could duplicate text.
         guard replaceSelection(replacement) else {
-            if same(selection(), target), text(target) == expected { _ = select(caret) }
+            restoreOwnedSelection(target, caret: caret)
             return .uncertain
         }
         let changed = CFRange(location: target.location, length: (replacement as NSString).length)
@@ -57,6 +57,22 @@ struct LiveLayoutRangeAccess {
     private func same(_ lhs: CFRange?, _ rhs: CFRange) -> Bool {
         lhs?.location == rhs.location && lhs?.length == rhs.length
     }
+
+    private func restoreOwnedSelection(_ target: CFRange, caret: CFRange) {
+        // Even if a formatter changed the text, leaving our temporary range
+        // selected would make the next key delete it. Preserve any selection
+        // changed independently, and restore only a still-valid caret.
+        guard same(selection(), target),
+              text(CFRange(location: caret.location, length: 0)) != nil else { return }
+        _ = select(caret)
+    }
+}
+
+struct LayoutManualSuspension {
+    private(set) var depth = 0
+    var isSuspended: Bool { depth > 0 }
+    mutating func begin() { depth += 1 }
+    mutating func end() { depth = max(0, depth - 1) }
 }
 
 /// A key reaches the event tap before an editor updates its AX text. Recheck

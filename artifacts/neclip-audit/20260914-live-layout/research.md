@@ -14,7 +14,7 @@ This is a documentation/source comparison, not a runtime benchmark of competitor
 
 ## Reproduced NeClip defects
 
-- Installed 2.8.0 had automatic and standalone Option correction enabled. Physical H E L L O in Russian input produced unchanged `руддщ` in a new TextEdit document without Space.
+- Installed 2.8.0 had automatic and standalone Option correction enabled. CUA H E L L O actions in Russian input produced unchanged `руддщ` in a new TextEdit document without Space. Later diagnostics established that these targeted synthetic events bypass NeClip's session event tap: this observation is NOT a physical-keyboard end-to-end reproduction. The AXTextArea exclusion below is independently confirmed from production code.
 - The automatic AX writer excluded AXTextArea and values over 512 characters. Callback generation alone did not prove editor correction.
 - No retry existed if AX text lagged the last key.
 - Manual canonical maps combined Shift and Caps Lock variants, removing punctuation-position mappings such as `[` → `х`.
@@ -26,4 +26,10 @@ This is a documentation/source comparison, not a runtime benchmark of competitor
 
 Live range replacement preserves surrounding multiline/rich text and UTF-16 caret positions. Only an untouched not-ready attempt may retry (12 ms initial coalescing plus at most 20/40/80 ms); later key/focus/source state cancels it. Failed or ambiguous writes are terminal. Backspace emits an updated candidate. Manual operations suspend automatic context until completion. Tests exercise production event handling, the real system dictionaries/maps, native NSTextView formatting, stale edits and bounded retries.
 
+Independent second review additionally found and closed: a temporary selection left behind after an intervening formatter edit; automatic undo falling through to a second conversion after an uncertain write; overlapping manual commands releasing suspension too early; and loss of first strokes during focus recovery. Pending first strokes are retained for at most 250 ms, adopted only against matching AX text/sequence, and cleared on invalidation or secure input. Context refresh is scheduled once after 12 ms rather than postponed by every key. A nil context is periodically reacquired. Recovered complete words can be evaluated without a separator.
+
 Remaining product limits: recognition needs installed system dictionaries, secure/protected/excluded fields stay untouched, ambiguous words and punctuation cannot always establish intent. Physical editor coverage is recorded separately, not inferred from unit tests.
+
+## Host diagnostic boundary
+
+The signed local diagnostic candidate reported AX=true, listen=true, post=true and a running event tap. Actual incoming keyboard activity produced candidate diagnostics; CUA's targeted TextEdit key actions produced no event-tap callbacks. The CUA API also rejected modifier-only Alt with `keyPressIncludedNoNonModifierKeys`. Neither targeted text injection nor a modifier API rejection is evidence of the app's physical key behavior. A user-assisted physical-key check was requested separately.
