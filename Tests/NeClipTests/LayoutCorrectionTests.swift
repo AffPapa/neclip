@@ -51,6 +51,21 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertNil(maps.convert(""))
     }
 
+    func testSourceAwareManualConversionTranslatesSymbolOnlyAndMixedText() {
+        var englishToRussian = maps.englishToRussian
+        englishToRussian["$"] = ";"
+        let sourceAware = LayoutCharacterMaps(
+            englishToRussian: englishToRussian,
+            russianToEnglish: maps.russianToEnglish,
+            englishSourceID: "en",
+            russianSourceID: "ru"
+        )
+
+        XCTAssertEqual(sourceAware.convert("$", sourceID: "en")?.converted, ";")
+        XCTAssertEqual(sourceAware.convert("ghbdtn 123$", sourceID: "en")?.converted, "привет 123;")
+        XCTAssertEqual(sourceAware.convert("$", sourceID: "en")?.direction, .englishToRussian)
+    }
+
     func testAutoDecisionRequiresOnlyConvertedWordToBeKnown() {
         XCTAssertEqual(AutoLayoutDecisionPolicy.decide(
             typed: "ghbdtn",

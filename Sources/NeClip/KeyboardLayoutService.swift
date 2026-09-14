@@ -95,7 +95,10 @@ final class KeyboardLayoutService {
     }
 
     func convert(_ text: String) -> LayoutConversion? {
-        characterMaps()?.convert(text)
+        guard let maps = characterMaps() else { return nil }
+        if let inferred = maps.convert(text) { return inferred }
+        guard let sourceID = currentSourceID() else { return nil }
+        return maps.convert(text, sourceID: sourceID)
     }
 
     func translate(strokes: [LayoutTypedStroke], sourceID: String) -> LayoutStrokeTranslation? {
