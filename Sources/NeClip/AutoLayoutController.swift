@@ -489,7 +489,7 @@ final class AutoLayoutController {
     private var undoRecord: UndoRecord?
     private var undoExpiry: DispatchWorkItem?
     private var contextRefreshWorkItem: DispatchWorkItem?
-    private var liveAttemptWorkItem: DispatchWorkItem?
+    private let liveAttempts = LiveLayoutAttemptScheduler()
     private var manualSuspension = LayoutManualSuspension()
     private var ignoredTokens = BoundedLayoutIgnoreList()
     private var secureTimer: Timer?
@@ -595,8 +595,7 @@ final class AutoLayoutController {
     }
 
     func disable() {
-        liveAttemptWorkItem?.cancel()
-        liveAttemptWorkItem = nil
+        liveAttempts.cancel()
         contextRefreshWorkItem?.cancel()
         contextRefreshWorkItem = nil
         secureTimer?.invalidate()
@@ -619,8 +618,7 @@ final class AutoLayoutController {
     }
 
     func refreshContext() {
-        liveAttemptWorkItem?.cancel()
-        liveAttemptWorkItem = nil
+        liveAttempts.cancel()
         contextRefreshWorkItem?.cancel()
         contextRefreshWorkItem = nil
         guard state == .running, !manualSuspension.isSuspended, let monitor else { return }
@@ -675,7 +673,7 @@ final class AutoLayoutController {
 
     func suspendForManualCorrection() {
         manualSuspension.begin()
-        liveAttemptWorkItem?.cancel()
+        liveAttempts.cancel()
         contextRecord = nil
         monitor?.invalidateContext()
     }
@@ -736,10 +734,11 @@ final class AutoLayoutController {
     }
 
     private func enqueue(_ boundary: AutoLayoutBoundary, attempt: Int = 0, delay: TimeInterval = LiveLayoutRetryPolicy.initialDelay) {
-        liveAttemptWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.handle(boundary, attempt: attempt) }
-        liveAttemptWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        guard state == .running, !manualSuspension.isSuspended,
+              let monitor, contextRecord?.id == boundary.contextID else { return }
+        liveAttempts.enqueue(sequence: boundary.sequence, currentSequence: monitor.currentSequence(), delay: delay) { [weak self] in
+            self?.handle(boundary, attempt: attempt)
+        }
     }
 
     private func handle(_ boundary: AutoLayoutBoundary, attempt: Int) {

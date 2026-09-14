@@ -5,6 +5,16 @@ import XCTest
 
 final class LiveLayoutTests: XCTestCase {
     @MainActor
+    func testLateRecoveredCandidateCannotCancelNewerScheduledAttempt() async {
+        let scheduler = LiveLayoutAttemptScheduler()
+        let newer = expectation(description: "newest word still corrected")
+        scheduler.enqueue(sequence: 6, currentSequence: 6, delay: 0.01) { newer.fulfill() }
+        scheduler.enqueue(sequence: 5, currentSequence: 6, delay: 0.01) { XCTFail("stale recovered candidate ran") }
+        await fulfillment(of: [newer], timeout: 1)
+        scheduler.cancel()
+    }
+
+    @MainActor
     func testProductionDictionaryRecognizesBothCorrectionExamples() throws {
         let dictionary = LayoutDictionary()
         for (typed, converted, source, target) in [("руддщ", "hello", "ru", "en"), ("ghbdtn", "привет", "en", "ru"), ("[jxe", "хочу", "en", "ru")] {

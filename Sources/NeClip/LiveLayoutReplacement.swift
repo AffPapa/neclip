@@ -75,6 +75,27 @@ struct LayoutManualSuspension {
     mutating func end() { depth = max(0, depth - 1) }
 }
 
+@MainActor
+final class LiveLayoutAttemptScheduler {
+    private var pending: DispatchWorkItem?
+
+    func cancel() {
+        pending?.cancel()
+        pending = nil
+    }
+
+    func enqueue(sequence: UInt64, currentSequence: UInt64, delay: TimeInterval,
+                 operation: @escaping () -> Void) {
+        // A recovered candidate can arrive after a newer event-thread
+        // candidate. Reject it BEFORE cancelling the newer scheduled attempt.
+        guard sequence == currentSequence else { return }
+        cancel()
+        let work = DispatchWorkItem(block: operation)
+        pending = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+}
+
 /// A key reaches the event tap before an editor updates its AX text. Recheck
 /// that same candidate briefly, but never after another key/focus/source epoch.
 enum LiveLayoutRetryPolicy {
