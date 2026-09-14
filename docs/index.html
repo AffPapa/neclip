@@ -21,16 +21,16 @@
       <div class="navlinks"><a href="#features">Возможности</a><a href="#release">Выпуск</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>2.7.3 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>2.8.0 · выпущена</span>
       <h1>Скопировал.<br>Выбрал. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg">Скачать NeClip 2.7.3</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg">Скачать NeClip 2.8.0</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.3-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.0-STATUS.md">Проверки выпуска</a>.</p>
     </div>
   </header>
 
@@ -71,10 +71,10 @@
 
     <section class="wrap" id="release">
       <h2>Единственный поддерживаемый выпуск</h2>
-      <p class="section-lead">NeClip 2.7.3 / build 45 — текущая подписанная и нотарифицированная версия.</p>
-      <div class="timeline"><article class="card release"><div><strong>2.7.3</strong><br><span class="status">выпущена · 14 сентября 2026</span></div><div><b>Раскладка теперь учитывает произвольный выделенный текст.</b><ul><li>Символы, цифры и смешанный текст используют активную EN/RU-раскладку</li><li>Лишнее «нечего исправлять» для непохожих на слова выделений устранено</li><li>Поиск истории остаётся внутри «Ещё из истории»</li><li>Добавлены regression-проверки символов и mixed input</li></ul><p>297 XCTest, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.7.3-STATUS.md">Результаты проверки</a></div></article></div>
-      <p class="fine">DMG: 2,104,771 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg.sha256">SHA-256</a>: <code>cf77a7ea28b237d7307b05488ff41ad1c533a74cbd8db7dab99a54c31968a54e</code></p>
-      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/65c9779c7034e7357e31819673c64a38c7526e95"><code>65c9779c7034e7357e31819673c64a38c7526e95</code></a></p>
+      <p class="section-lead">NeClip 2.8.0 / build 46 — текущая подписанная и нотарифицированная версия.</p>
+      <div class="timeline"><article class="card release"><div><strong>2.8.0</strong><br><span class="status">выпущена · 14 сентября 2026</span></div><div><b>Раскладка исправляется прямо во время набора.</b><ul><li>Автоисправление анализирует слово после каждой буквы и не ждёт пробела</li><li>Option исправляет выделенный текст или последнее слово, включая символы</li><li>Настройки раскладки, приватности, данных и доступов разделены</li><li>Добавлены regression-проверки раннего исправления и новых разделов</li></ul><p>299 XCTest, strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.0-STATUS.md">Результаты проверки</a></div></article></div>
+      <p class="fine">DMG: 2,096,066 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg.sha256">SHA-256</a>: <code>d7f869cb90a49d175f681c5d037d2f69ab499a0d44793ee11e54b1060a1d2e51</code></p>
+      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/0f288c7c9c4fcc96decd36886e25f13113c81e6d"><code>0f288c7c9c4fcc96decd36886e25f13113c81e6d</code></a></p>
     </section>
 
     <section class="wrap" id="backlog">

@@ -195,9 +195,9 @@ final class LayoutAccessibility {
         return current
     }
 
-    /// Space-only automatic correction uses one guarded AX value mutation and
-    /// verifies the entire value. Its caller serializes this operation with
-    /// keyboard delivery. Rich editors and longer values fail closed.
+    /// Automatic correction uses one guarded AX value mutation and verifies the
+    /// entire value. Its caller serializes this operation with keyboard
+    /// delivery. Rich editors and longer values fail closed.
     func replaceTailAtomically(
         expected: String,
         replacement: String,

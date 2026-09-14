@@ -816,7 +816,7 @@ final class StatusBarController: NSObject {
             submenu.addItem(item("Разрешить автовставку…", #selector(requestAccessibility), symbol: "hand.raised"))
         }
         submenu.addItem(.separator())
-        submenu.addItem(item("Открыть настройки…", #selector(openPreferences), symbol: "gearshape"))
+        submenu.addItem(item("Открыть «Доступы»…", #selector(openAccessPreferences), symbol: "lock.open"))
         root.submenu = submenu
         return root
     }
@@ -1102,7 +1102,7 @@ final class StatusBarController: NSObject {
         Settings.automaticLayoutCorrection = true
         showLayoutFeedback(
             Settings.automaticLayoutCorrection
-                ? "Автоисправление включено · пробел, Tab, Return и безопасная пунктуация"
+                ? "Автоисправление включено · анализ после каждой буквы"
                 : "Автоисправление не удалось включить"
         )
     }
@@ -1382,6 +1382,10 @@ final class StatusBarController: NSObject {
 
     @objc private func openPreferences() {
         PreferencesWindowController.shared.show()
+    }
+
+    @objc private func openAccessPreferences() {
+        PreferencesWindowController.shared.show(section: .safety)
     }
 
     @objc private func openSnippetsEditor() {

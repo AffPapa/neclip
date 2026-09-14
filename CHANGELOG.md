@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.8.0 / build 46 — released 2026-09-14
+
+- Analyze automatic EN/RU layout correction after each eligible key instead of
+  waiting for a space; `руддщ` can become `hello` while the user is still typing.
+- Keep safe dictionary confidence, protected-field exclusions, sequence checks,
+  exact AX compare-and-set replacement and boundary fallback for Space, Tab,
+  Return and safe punctuation.
+- Make standalone Option correction reliable for the selected text or the last
+  word, including active-layout conversion of mixed text and layout-specific
+  symbols such as `$`.
+- Split settings into logical `Раскладка`, `Приватность`, `Данные` and `Доступы`
+  sections instead of mixing them under security.
+
+Exact public artifact: [NeClip-2.8.0.dmg](https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg)
+(2,096,066 bytes), SHA-256
+`d7f869cb90a49d175f681c5d037d2f69ab499a0d44793ee11e54b1060a1d2e51`.
+See [release evidence](docs/RELEASE-2.8.0-STATUS.md).
+
 ## 2.7.3 / build 45 — released 2026-09-14
 
 - Use the active EN/RU keyboard layout when manual correction receives

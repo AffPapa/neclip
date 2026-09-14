@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.7.3")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "45")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.8.0")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "46")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -49,7 +49,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(statusBar.contains("Исправлять по одиночному Option (Alt)"))
         XCTAssertTrue(statusBar.contains("toggleManualCorrectionOptionKey"))
         XCTAssertTrue(statusBar.contains("Settings.automaticLayoutCorrection = true"))
-        XCTAssertTrue(statusBar.contains("пробел, Tab, Return и безопасная пунктуация"))
+        XCTAssertTrue(statusBar.contains("после каждой буквы"))
         XCTAssertFalse(statusBar.contains("только по пробелу"))
         XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
@@ -180,7 +180,10 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertTrue(preferences.contains("Исправлять по одиночному Option (Alt)"))
         XCTAssertTrue(preferences.contains("updateManualCorrectionOptionKey"))
-        XCTAssertTrue(preferences.contains("пробела, Tab, Return и безопасной пунктуации"))
+        XCTAssertTrue(preferences.contains("после каждой буквы"))
+        XCTAssertTrue(preferences.contains("case .safety: \"Доступы\""))
+        XCTAssertTrue(preferences.contains("Раскладка приложений"))
+        XCTAssertTrue(preferences.contains("Перенос сниппетов"))
         XCTAssertFalse(preferences.contains("только по пробелу"))
         XCTAssertTrue(preferences.contains("case .needsChoice: \"questionmark.diamond.fill\""))
         XCTAssertFalse(statusBar.contains("if let existing = folders.first?.id"))

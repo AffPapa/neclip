@@ -174,7 +174,7 @@ final class KeyboardLayoutService {
         } else {
             return []
         }
-        return Set((UInt16(0)..<UInt16(128)).filter { keyCode in
+        var boundaries = Set((UInt16(0)..<UInt16(128)).filter { keyCode in
             [(false, false), (true, false)].contains { shift, capsLock in
                 guard let character = translate(
                     keyCode: keyCode,
@@ -185,6 +185,14 @@ final class KeyboardLayoutService {
                 return LayoutTextPolicy.isAutomaticBoundary(character)
             }
         })
+        // Control keys are boundaries even though they have no printable
+        // character in a keyboard-layout data table.
+        boundaries.formUnion([
+            UInt16(kVK_Tab),
+            UInt16(kVK_Return),
+            UInt16(kVK_ANSI_KeypadEnter)
+        ])
+        return boundaries
     }
 
     func validLetterKeyCodes(sourceID: String) -> Set<UInt16> {

@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.7.3 (build 45)**,
+Current supported release: **2.8.0 (build 46)**,
 released on 14 September 2026.
 
-[Download NeClip 2.7.3](https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg)
-(2,104,771 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.8.0](https://github.com/AffPapa/neclip/releases/download/v2.8.0/NeClip-2.8.0.dmg)
+(2,096,066 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `cf77a7ea28b237d7307b05488ff41ad1c533a74cbd8db7dab99a54c31968a54e`.
-Artifact source: `65c9779c7034e7357e31819673c64a38c7526e95`.
+SHA-256: `d7f869cb90a49d175f681c5d037d2f69ab499a0d44793ee11e54b1060a1d2e51`.
+Artifact source: `0f288c7c9c4fcc96decd36886e25f13113c81e6d`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.7.3-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.8.0-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -43,8 +43,9 @@ All seven global shortcuts are configurable. Conflicts keep the previous working
 registration and show a menu fallback. Right-click the menu-bar icon for snippets.
 An optional standalone Option (Alt) release corrects selected text, or the last
 entered word when nothing is selected; Option plus a letter, click or another
-modifier remains untouched. The menu bar has direct toggles for both this gesture
-and automatic correction.
+modifier remains untouched. Automatic correction analyzes the current word after
+each eligible key and no longer waits for a space. The menu bar has direct toggles
+for both this gesture and automatic correction.
 History shows a configurable number of items inline; the complete remaining history
 is in one flat «Ещё из истории» submenu. Use Command-F in the history popup to
 search locally by text, type, application and date. Snippet menus show up
@@ -79,9 +80,9 @@ image bytes and legacy metadata remain intact; normal retention rules still appl
 - On macOS 15.4+, denied pasteboard access stops background reads. Permission
   recovery is available in Settings. Accessibility is optional for ordinary use.
 - Automatic EN/RU correction is experimental and off by default. It requests
-  Input Monitoring and Accessibility only when enabled, acts conservatively after
-  word-ending separators, and rejects secure fields, terminals, IDEs, remote clients
-  and uncertain focus. Typed tokens remain in bounded memory. Manual correction
+  Input Monitoring and Accessibility only when enabled, analyzes after each
+  eligible key, and rejects secure fields, terminals, IDEs, remote clients and
+  uncertain focus. Typed tokens remain in bounded memory. Manual correction
   preserves the previous clipboard only while its generation is unchanged.
 - Standalone Option (Alt) correction is separately opt-in because macOS does not
   represent a modifier-only press as a normal configurable global hotkey. It
