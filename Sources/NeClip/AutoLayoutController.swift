@@ -63,6 +63,7 @@ private final class LayoutDictionary {
 private struct AutoLayoutBoundary: Sendable {
     let strokes: [LayoutTypedStroke]
     let terminator: LayoutTypedStroke?
+    let isBoundary: Bool
     let sourceID: String
     let pid: pid_t
     let contextID: UInt64
@@ -271,6 +272,7 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
                             shift: flags.contains(.maskShift),
                             capsLock: flags.contains(.maskAlphaShift)
                         ),
+                        isBoundary: true,
                         sourceID: context.sourceID,
                         pid: context.pid,
                         contextID: context.contextID,
@@ -293,6 +295,20 @@ private final class AutoLayoutEventMonitor: @unchecked Sendable {
             if !buffer.append(stroke) {
                 self.context = nil
                 shouldRefresh = true
+            } else if AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: buffer.strokes.count) {
+                // Analyze the live token after every eligible character. The
+                // app still receives the original key event; replacement is
+                // attempted only after dictionary and AX compare-and-set
+                // guards succeed.
+                boundary = AutoLayoutBoundary(
+                    strokes: buffer.strokes,
+                    terminator: nil,
+                    isBoundary: false,
+                    sourceID: context.sourceID,
+                    pid: context.pid,
+                    contextID: context.contextID,
+                    sequence: eventSequence
+                )
             }
         } else {
             context = nil
@@ -641,9 +657,13 @@ final class AutoLayoutController {
               ) == .correct,
               monitor.currentSequence() == boundary.sequence else { return }
 
-        let terminator = boundary.terminator.flatMap {
-            layouts.character(for: $0, sourceID: boundary.sourceID)
-        }.map(String.init) ?? " "
+        let terminator: String
+        if let stroke = boundary.terminator {
+            terminator = layouts.character(for: stroke, sourceID: boundary.sourceID).map(String.init)
+                ?? Self.fallbackTerminator(for: stroke)
+        } else {
+            terminator = boundary.isBoundary ? " " : ""
+        }
         let corrected = monitor.performIfSequenceMatches(
             boundary.sequence,
             invalidateContextOnSuccess: true
@@ -678,6 +698,14 @@ final class AutoLayoutController {
         scheduleUndoExpiry()
         onFeedback?("Раскладка исправлена · \(Settings.manualLayoutShortcut.displayString) — отменить")
         refreshContext()
+    }
+
+    private static func fallbackTerminator(for stroke: LayoutTypedStroke) -> String {
+        switch Int(stroke.keyCode) {
+        case Int(kVK_Tab): return "\t"
+        case Int(kVK_Return), Int(kVK_ANSI_KeypadEnter): return "\n"
+        default: return ""
+        }
     }
 
     private func contextStillMatches(_ record: ContextRecord) -> Bool {

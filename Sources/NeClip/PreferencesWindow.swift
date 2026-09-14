@@ -103,10 +103,11 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
 enum PreferencesSection: String, CaseIterable {
     case general, shortcuts, safety, privacy, layout, data, version
 
-    /// Only the three questions most people need belong in the toolbar.
-    /// Legacy sections remain addressable for QA and migration-safe deep links,
-    /// while Version is opened from About rather than competing with settings.
-    static let visibleSections: [PreferencesSection] = [.general, .shortcuts, .safety]
+    /// Keep each operational concern in its own destination. Version remains
+    /// opened from About rather than competing with settings.
+    static let visibleSections: [PreferencesSection] = [
+        .general, .shortcuts, .layout, .privacy, .data, .safety
+    ]
 
     var identifier: NSToolbarItem.Identifier { .init(rawValue) }
     var windowTitle: String { "\(RuntimeIdentity.displayName) — \(title)" }
@@ -114,7 +115,7 @@ enum PreferencesSection: String, CaseIterable {
         switch self {
         case .general: "Основные"
         case .shortcuts: "Клавиши"
-        case .safety: "Безопасность"
+        case .safety: "Доступы"
         case .privacy: "Приватность"
         case .layout: "Раскладка"
         case .data: "Данные"
@@ -125,7 +126,7 @@ enum PreferencesSection: String, CaseIterable {
         switch self {
         case .general: "gearshape"
         case .shortcuts: "keyboard"
-        case .safety: "checkmark.shield"
+        case .safety: "lock.open"
         case .privacy: "hand.raised"
         case .layout: "character.cursor.ibeam"
         case .data: "externaldrive"
@@ -637,13 +638,11 @@ private struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
-    /// The default settings surface is intentionally one screen: permissions,
-    /// recording controls, layout correction, and local data actions are all
-    /// safety decisions. The old privacy/layout/data cases stay available only
-    /// as compatibility deep links; they are not separate toolbar destinations.
+    /// macOS permissions live here. Recording/privacy, layout behavior, and
+    /// local data each have their own settings destination below.
     private var safetyTab: some View {
         Form {
-            Section("Доступ NeClip") {
+            Section("Разрешения macOS") {
                 HStack(alignment: .top) {
                     Image(systemName: clipboardPermissionSymbol)
                         .foregroundStyle(clipboardPermissionColor)
@@ -673,135 +672,17 @@ private struct PreferencesView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                permissionRow(
+                    title: "Мониторинг ввода",
+                    granted: canListenToInput,
+                    requiredFor: "для автоисправления раскладки",
+                    buttonTitle: "Открыть «Мониторинг ввода»…",
+                    openSettings: { openPrivacyPane("Privacy_ListenEvent") }
+                )
             }
 
-            Section("Запись истории") {
-                HStack {
-                    Label(
-                        capturePaused ? "Запись приостановлена" : "История записывается",
-                        systemImage: capturePaused ? "pause.circle.fill" : "checkmark.circle.fill"
-                    )
-                    .foregroundStyle(capturePaused ? .orange : .green)
-                    Spacer()
-                    Button(capturePaused ? "Возобновить" : "Пауза на 15 минут") {
-                        if capturePaused {
-                            Settings.resumeCapture()
-                            feedback = Settings.captureResumeFailureMessage ?? "Запись возобновлена"
-                        } else {
-                            Settings.pauseFor15Minutes()
-                        }
-                        capturePaused = Settings.isCapturePaused
-                    }
-                }
-                DisclosureGroup("Фразы, которые нельзя сохранять") {
-                    let rules = SensitiveRulesPresentation(text: sensitiveRulesText)
-                    TextEditor(text: $sensitiveRulesText)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(height: 76)
-                        .onChange(of: sensitiveRulesText) { _, value in
-                            Settings.sensitiveContentRules = value.components(separatedBy: .newlines)
-                        }
-                    Text("Активно правил: \(rules.activeCount) из \(SensitiveContentPolicy.maximumRuleCount). Одна фраза на строку.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    if let warning = rules.warning {
-                        Label(warning, systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                DisclosureGroup("Приложения-исключения") {
-                    Text("Защищённые менеджеры паролей не записываются всегда. Остальные приложения можно добавить из этого списка или прямо из меню NeClip.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    List {
-                        ForEach(excludedApps, id: \.self) { bundleID in
-                            ExcludedApplicationRow(
-                                bundleIdentifier: bundleID,
-                                isProtected: SensitiveApplicationPolicy.protects(bundleID)
-                            ) {
-                                excludedApps.removeAll { $0 == bundleID }
-                                Settings.excludedApps = excludedApps
-                            }
-                        }
-                    }
-                    .frame(height: 125)
-                    Button("Добавить приложение…", action: addApp)
-                }
-            }
-
-            Section("Исправление раскладки") {
-                Toggle("Исправлять раскладку автоматически", isOn: Binding(
-                    get: { automaticLayoutCorrection },
-                    set: { updateAutomaticLayoutCorrection($0) }
-                ))
-                Text("Работает локально и только при высокой уверенности. NeClip не хранит введённый текст.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Toggle("Исправлять по одиночному Option (Alt)", isOn: Binding(
-                    get: { manualCorrectionOptionKey },
-                    set: { updateManualCorrectionOptionKey($0) }
-                ))
-                Text("Срабатывает при отпускании одиночного Option. Option+буква, Option+клик и другие сочетания не затрагиваются.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                DisclosureGroup("Разрешения и память приложений") {
-                    permissionRow(
-                        title: "Мониторинг ввода",
-                        granted: canListenToInput,
-                        requiredFor: "для автоматического режима",
-                        buttonTitle: "Открыть настройки…",
-                        openSettings: { openPrivacyPane("Privacy_ListenEvent") }
-                    )
-                    permissionRow(
-                        title: "Универсальный доступ",
-                        granted: axTrusted,
-                        requiredFor: "для безопасной замены",
-                        buttonTitle: "Открыть настройки…",
-                        openSettings: { openPrivacyPane("Privacy_Accessibility") }
-                    )
-                    Toggle("Запоминать раскладку для каждого приложения", isOn: $rememberLayoutPerApplication)
-                        .onChange(of: rememberLayoutPerApplication) { _, value in
-                            Settings.rememberLayoutPerApplication = value
-                        }
-                    HStack {
-                        Text("Память: \(rememberedApplicationCount) автоматически, \(fixedApplicationCount) вручную")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Очистить") {
-                            Settings.clearRememberedApplicationLayouts()
-                            Settings.clearFixedApplicationLayouts()
-                            feedback = "Память раскладок сброшена"
-                        }
-                        .disabled(rememberedApplicationCount == 0 && fixedApplicationCount == 0)
-                    }
-                }
-                DisclosureGroup("Исключения раскладки") {
-                    List {
-                        ForEach(layoutExcludedApps, id: \.self) { bundleID in
-                            ExcludedApplicationRow(bundleIdentifier: bundleID, isProtected: false) {
-                                layoutExcludedApps.removeAll { $0 == bundleID }
-                                Settings.layoutExcludedApps = layoutExcludedApps
-                            }
-                        }
-                    }
-                    .frame(height: 90)
-                    Button("Добавить приложение…", action: addLayoutExcludedApp)
-                }
-            }
-
-            Section("Локальные данные") {
-                HStack {
-                    Button("Экспортировать сниппеты…", action: exportSnippets)
-                    Button("Импортировать сниппеты…", action: importSnippets)
-                }
-                Button("Восстановить готовые сниппеты") { restoreStarterSnippets() }
-                Divider()
-                Button("Очистить историю…", role: .destructive) { clearHistoryConfirmation = true }
-                Button("Удалить историю и сниппеты…", role: .destructive) { deleteAllConfirmation = true }
-                Text("История и сниппеты остаются только на этом Mac. Перед удалением экспортируйте нужные сниппеты.")
+            Section("Как используются доступы") {
+                Text("Буфер обмена нужен для локальной истории. Универсальный доступ — для автовставки и ручной замены выделения. Мониторинг ввода — только для анализа клавиш в автоматическом режиме.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -812,38 +693,6 @@ private struct PreferencesView: View {
 
     private var privacyTab: some View {
         Form {
-            Section("Доступ") {
-                HStack(alignment: .top) {
-                    Image(systemName: clipboardPermissionSymbol)
-                        .foregroundStyle(clipboardPermissionColor)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(clipboardAccessTitle)
-                        Text(clipboardAccessDetail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer()
-                    if clipboardAccess == .denied || clipboardAccess == .needsChoice {
-                        Button("Настройки macOS…") { ClipboardAccess.openPrivacySettings() }
-                    }
-                }
-                HStack {
-                    Image(systemName: axTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                        .foregroundStyle(axTrusted ? .green : .orange)
-                    Text(axTrusted ? "Автовставка разрешена" : "Автовставка выключена")
-                    Spacer()
-                    if !axTrusted {
-                        Button("Разрешить вставку…") { PasteService.requestAccessibility() }
-                    }
-                }
-                if !axTrusted {
-                    Text("Без Универсального доступа NeClip только копирует. Если программа уже есть в списке macOS, включите её переключатель — кнопка + не нужна.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             Section("Запись истории") {
                 HStack {
                     Label(
@@ -953,7 +802,7 @@ private struct PreferencesView: View {
                     get: { automaticLayoutCorrection },
                     set: { updateAutomaticLayoutCorrection($0) }
                 ))
-                Text("Английская и русская раскладки, после пробела, Tab, Return и безопасной пунктуации, только при высокой уверенности. Текст обрабатывается локально и не сохраняется.")
+                Text("Английская и русская раскладки анализируются после каждой буквы. Замена выполняется только при высокой уверенности; пробел, Tab, Return и безопасная пунктуация остаются резервными границами. Текст обрабатывается локально и не сохраняется.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Исправлять по одиночному Option (Alt)", isOn: Binding(
@@ -965,26 +814,10 @@ private struct PreferencesView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Разрешения автоматического режима") {
-                permissionRow(
-                    title: "Мониторинг ввода",
-                    granted: canListenToInput,
-                    requiredFor: "для автоматического режима",
-                    buttonTitle: "Открыть «Мониторинг ввода»…",
-                    openSettings: { openPrivacyPane("Privacy_ListenEvent") }
-                )
-                permissionRow(
-                    title: "Универсальный доступ",
-                    granted: axTrusted,
-                    requiredFor: "для безопасной замены",
-                    buttonTitle: "Открыть «Универсальный доступ»…",
-                    openSettings: { openPrivacyPane("Privacy_Accessibility") }
-                )
-                if !axTrusted {
-                    Text("NeClip уже включён? Выключите и включите его снова. Нажимать + не нужно.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            Section("Доступы") {
+                Text("Для автоматического режима нужны «Мониторинг ввода» и «Универсальный доступ». Состояние и кнопки разрешений находятся во вкладке «Доступы».")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Исключения приложений") {

@@ -142,6 +142,14 @@ enum AutoLayoutVerdict: Equatable {
     case stay
 }
 
+enum AutoLayoutTypingPolicy {
+    static let minimumAnalyzableLength = 4
+
+    static func shouldAnalyze(strokeCount: Int) -> Bool {
+        strokeCount >= minimumAnalyzableLength
+    }
+}
+
 enum AutoLayoutDecisionPolicy {
     static func decide(
         typed: String,

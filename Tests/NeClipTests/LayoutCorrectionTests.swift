@@ -111,6 +111,25 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertTrue(buffer.strokes.isEmpty)
     }
 
+    func testAutomaticTypingAnalyzesFromMinimumLengthOnEveryEligibleKey() {
+        XCTAssertFalse(AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: 3))
+        XCTAssertTrue(AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: 4))
+        XCTAssertTrue(AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: 5))
+    }
+
+    func testAutomaticTypingCanCorrectRuddщWithoutWaitingForSpace() {
+        let typed = Array("руддщ")
+        let translated = typed.map { maps.russianToEnglish[$0] ?? $0 }
+        XCTAssertEqual(String(translated), "hello")
+        XCTAssertEqual(AutoLayoutTypingPolicy.shouldAnalyze(strokeCount: typed.count), true)
+        XCTAssertEqual(AutoLayoutDecisionPolicy.decide(
+            typed: "руддщ",
+            converted: "hello",
+            typedIsKnownWord: false,
+            convertedIsKnownWord: true
+        ), .correct)
+    }
+
     func testAutomaticUndoIgnoreListIsBoundedAndCaseInsensitive() {
         var ignored = BoundedLayoutIgnoreList(capacity: 2)
         ignored.add(" Ghbdtn ")
