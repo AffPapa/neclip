@@ -14,7 +14,7 @@
 
 ## Verified locally
 
-312 XCTest executed, 5 expected opt-in/environment skips, 0 failures; 3 Swift Testing tests passed. Strict Swift 6 release build passed. App and DMG are Developer ID signed, notarized, stapled and accepted by Gatekeeper; the mounted DMG app was independently verified. App notarization: `35cfdc83-be8a-43d0-a035-8c6a2713acec`; DMG notarization: `072d348f-e7be-4b6d-a6f7-bb014018bf72`.
+312 XCTest executed, 5 expected opt-in/environment skips, 0 failures; 3 Swift Testing tests passed. Strict Swift 6 release build passed. App and DMG are Developer ID signed, notarized, stapled and accepted by Gatekeeper; the mounted DMG app was independently verified. Submission identifiers are omitted from this report.
 
 Regression coverage includes production event-handler live candidates before a delimiter and after Backspace; pending first strokes and stale-context rejection; actual EN/RU system maps and dictionaries for `руддщ`, `ghbdtn`, `[jxe`; bounded editor-readiness retries; native NSTextView rich-text preservation; UTF-16 caret positions in long multiline documents; restoration of temporary selections; balanced manual suspension; overlapping Option gestures; and a real asynchronous scheduler test proving that a late recovered candidate cannot cancel a newer attempt.
 
