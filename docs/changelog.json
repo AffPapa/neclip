@@ -12,6 +12,17 @@
       ]
     },
     {
+      "version": "2.8.1",
+      "build": 47,
+      "status": "candidate",
+      "changes": [
+        "Live correction supports AX multiline editors and preserves surrounding rich text",
+        "Bounded retries handle editor lag and first strokes during focus recovery",
+        "Fix punctuation-position mappings, exact undo and overlapping Option gestures",
+        "312 XCTest, including real system dictionaries, native text-view and out-of-order scheduling regression checks"
+      ]
+    },
+    {
       "version": "2.7.3",
       "build": 45,
       "status": "superseded",

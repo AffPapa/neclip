@@ -18,12 +18,12 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.8.0",
-    "build": 46,
-    "status": "released",
+    "version": "2.8.1",
+    "build": 47,
+    "status": "validated-candidate",
     "publicVersion": "2.8.0",
-    "sourceCommit": "0f288c7c9c4fcc96decd36886e25f13113c81e6d",
-    "scope": "character-by-character automatic EN/RU correction, reliable last-word Option correction, symbols and logical settings categories"
+    "sourceCommit": "7efb0c25679a4c8f0e4cdd6d86ad560f06d5a63f",
+    "scope": "live multiline range replacement, bounded editor retry, first-stroke recovery, manual mappings and transaction-safe undo"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

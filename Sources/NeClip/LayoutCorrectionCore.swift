@@ -135,6 +135,17 @@ enum LayoutTextPolicy {
         }
         return true
     }
+
+    static func isAutoInputCandidate(_ text: String) -> Bool {
+        // Physical punctuation keys can represent Russian letters (х, ъ, э).
+        // Delimiters remain excluded from this live token path.
+        let letterPositions: Set<Character> = ["[", "]", "'", "{", "}", "\""]
+        guard (4...32).contains(text.count),
+              text.allSatisfy({ $0.isLetter || letterPositions.contains($0) }) else { return false }
+        return isAutoCandidate(String(text.filter(\.isLetter)))
+            || (direction(for: text) != nil && text.count >= 4
+                && text == text.lowercased() && text.contains(where: \.isLetter))
+    }
 }
 
 enum AutoLayoutVerdict: Equatable {
@@ -157,7 +168,7 @@ enum AutoLayoutDecisionPolicy {
         typedIsKnownWord: Bool,
         convertedIsKnownWord: Bool
     ) -> AutoLayoutVerdict {
-        guard LayoutTextPolicy.isAutoCandidate(typed),
+        guard LayoutTextPolicy.isAutoInputCandidate(typed),
               LayoutTextPolicy.isAutoCandidate(converted),
               convertedIsKnownWord,
               !typedIsKnownWord else { return .stay }

@@ -48,7 +48,7 @@ final class LayoutAccessibility {
         }
 
         let application = AXUIElementCreateApplication(app.processIdentifier)
-        AXUIElementSetMessagingTimeout(application, 0.2)
+        AXUIElementSetMessagingTimeout(application, scope == .automatic ? 0.03 : 0.2)
         guard let element: AXUIElement = attribute(application, kAXFocusedUIElementAttribute),
               let role: String = attribute(element, kAXRoleAttribute),
               isTextRole(role),
@@ -56,6 +56,7 @@ final class LayoutAccessibility {
               let selectedRange = selectedRange(element) else {
             return .failure(.unsupported)
         }
+        AXUIElementSetMessagingTimeout(element, scope == .automatic ? 0.03 : 0.2)
         return .success(FocusedContext(
             pid: app.processIdentifier,
             bundleID: bundleID,
@@ -170,6 +171,7 @@ final class LayoutAccessibility {
     }
 
     func string(in range: CFRange, element: AXUIElement) -> String? {
+        guard range.location >= 0, range.length >= 0 else { return nil }
         var mutableRange = range
         if let rangeValue = AXValueCreate(.cfRange, &mutableRange) {
             var result: CFTypeRef?
@@ -183,7 +185,22 @@ final class LayoutAccessibility {
             }
         }
 
-        return nil
+        // Some native fields and Chromium clients expose selected text/value
+        // but not AXStringForRange. Keep reads bounded and return only the
+        // requested range; no clipboard fallback is needed for these clients.
+        if let selected = selectedRange(element), sameRange(selected, range),
+           let selectedText: String = attribute(element, kAXSelectedTextAttribute),
+           (selectedText as NSString).length == range.length {
+            return selectedText
+        }
+        guard let count: NSNumber = attribute(element, kAXNumberOfCharactersAttribute),
+              count.intValue >= 0, count.intValue <= 65_536,
+              range.location <= count.intValue,
+              range.length <= count.intValue - range.location,
+              let value: String = attribute(element, kAXValueAttribute) else { return nil }
+        let text = value as NSString
+        guard range.location <= text.length, range.length <= text.length - range.location else { return nil }
+        return text.substring(with: NSRange(location: range.location, length: range.length))
     }
 
     func refreshedContext(matching original: FocusedContext, scope: Scope) -> FocusedContext? {
@@ -195,10 +212,50 @@ final class LayoutAccessibility {
         return current
     }
 
-    /// Automatic correction uses one guarded AX value mutation and verifies the
+    func replaceLiveTail(
+        expected: String, replacement: String, in original: FocusedContext
+    ) -> LiveLayoutReplacementResult {
+        guard let current = refreshedContext(matching: original, scope: .automatic),
+              current.selectedRange.length == 0 else { return .rejected }
+        var settable = DarwinBoolean(false)
+        if AXUIElementIsAttributeSettable(current.element, kAXSelectedTextAttribute as CFString, &settable) == .success,
+           settable.boolValue {
+            let access = LiveLayoutRangeAccess(
+                selection: { [self] in refreshedContext(matching: current, scope: .automatic)?.selectedRange },
+                text: { [self] range in
+                    guard refreshedContext(matching: current, scope: .automatic) != nil else { return nil }
+                    return string(in: range, element: current.element)
+                },
+                select: { [self] in select($0, in: current, scope: .automatic) },
+                replaceSelection: { [self] replacement in
+                    guard refreshedContext(matching: current, scope: .automatic) != nil else { return false }
+                    return AXUIElementSetAttributeValue(current.element, kAXSelectedTextAttribute as CFString,
+                                                        replacement as CFString) == .success
+                }
+            )
+            return access.replaceTail(expected: expected, replacement: replacement)
+        }
+        // Legacy single-line controls may offer only whole-value writes. Test
+        // editor readiness before entering that terminal mutation path.
+        let length = (expected as NSString).length
+        guard current.selectedRange.location >= length else { return .notReady }
+        let target = CFRange(location: current.selectedRange.location - length, length: length)
+        guard string(in: target, element: current.element) == expected else { return .notReady }
+        if target.location > 0 {
+            guard let preceding = string(in: CFRange(location: target.location - 1, length: 1), element: current.element),
+                  !preceding.contains(where: { $0.isLetter || $0.isNumber || $0 == "_" }) else { return .rejected }
+        }
+        return replaceWholeValueTail(expected: expected, replacement: replacement, in: current) ? .replaced : .rejected
+    }
+
+    func replaceTailAtomically(expected: String, replacement: String, in original: FocusedContext) -> Bool {
+        replaceLiveTail(expected: expected, replacement: replacement, in: original) == .replaced
+    }
+
+    /// Single-line fallback uses one guarded AX value mutation and verifies the
     /// entire value. Its caller serializes this operation with keyboard
     /// delivery. Rich editors and longer values fail closed.
-    func replaceTailAtomically(
+    private func replaceWholeValueTail(
         expected: String,
         replacement: String,
         in original: FocusedContext
@@ -377,6 +434,7 @@ final class ManualLayoutCorrectionService {
               let conversion = layouts.convert(target.text) else {
             finish(.nothingToCorrect); return
         }
+        let originalSourceID = layouts.currentSelectableSourceID() ?? conversion.sourceID
         // If the user already selected the target, keep the editor's native
         // selection intact. Some AX clients expose the selected text as
         // writable but reject an otherwise harmless re-selection of the same
@@ -394,7 +452,7 @@ final class ManualLayoutCorrectionService {
                 range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
                 original: target.text,
                 converted: conversion.converted,
-                originalSourceID: conversion.sourceID,
+                originalSourceID: originalSourceID,
                 switchedSource: switched,
                 createdAt: Date()
             )
@@ -456,7 +514,7 @@ final class ManualLayoutCorrectionService {
                     range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
                     original: target.text,
                     converted: conversion.converted,
-                    originalSourceID: conversion.sourceID,
+                    originalSourceID: originalSourceID,
                     switchedSource: switched,
                     createdAt: Date()
                 )
@@ -473,10 +531,25 @@ final class ManualLayoutCorrectionService {
         undoExpiry = nil
         guard Date().timeIntervalSince(record.createdAt) <= 5,
               let current = accessibility.refreshedContext(matching: record.context, scope: .manual),
-              current.selectedRange.length == 0,
-              current.selectedRange.location == record.range.location + record.range.length,
-              accessibility.string(in: record.range, element: current.element) == record.converted,
-              accessibility.select(record.range, in: current) else { return false }
+              LayoutReplacementVerificationPolicy.accepts(
+                selectedRange: current.selectedRange, replacementRange: record.range,
+                textMatches: accessibility.string(in: record.range, element: current.element) == record.converted
+              ) else { return false }
+        if !accessibility.sameRange(current.selectedRange, record.range),
+           !accessibility.select(record.range, in: current) { return false }
+
+        switch accessibility.replaceSelectedTextDirectly(expectedRange: record.range, expected: record.converted,
+                                                        replacement: record.original, in: current) {
+        case .replaced:
+            if record.switchedSource { _ = layouts.selectSelectableSource(id: record.originalSourceID) }
+            completion(.undone)
+            return true
+        case .failedAfterMutation:
+            completion(.failed)
+            return true
+        case .unsupported:
+            break
+        }
 
         PasteService.replaceSelection(
             with: record.original,
@@ -509,7 +582,7 @@ final class ManualLayoutCorrectionService {
                 guard let self else { return }
                 if result == .pasted {
                     if record.switchedSource {
-                        _ = self.layouts.selectSource(id: record.originalSourceID)
+                        _ = self.layouts.selectSelectableSource(id: record.originalSourceID)
                     }
                     completion(.undone)
                 } else {
