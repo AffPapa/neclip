@@ -1,14 +1,14 @@
 {
-  "version": "2.7.2",
-  "build": 44,
+  "version": "2.7.3",
+  "build": 45,
   "status": "released",
   "platform": "macOS 14+ on Apple Silicon",
-  "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.2/NeClip-2.7.2.dmg",
-  "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.7.2",
-  "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.7.2/NeClip-2.7.2.dmg.sha256",
-  "sha256": "f83fe7e5d0782b4d1a797c6c8ff1c34333d915642e11093044435180a6ea4343",
-  "sizeBytes": 2104770,
-  "publishedAt": "2026-09-14T06:53:00Z",
+  "release": "https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg",
+  "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.7.3",
+  "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg.sha256",
+  "sha256": "cf77a7ea28b237d7307b05488ff41ad1c533a74cbd8db7dab99a54c31968a54e",
+  "sizeBytes": 2104771,
+  "publishedAt": "2026-09-14T17:36:00Z",
   "source": "https://github.com/AffPapa/neclip",
-  "sourceCommit": "a36132ebb5cfc233885be3dece9be6e9f78f607f"
+  "sourceCommit": "65c9779c7034e7357e31819673c64a38c7526e95"
 }

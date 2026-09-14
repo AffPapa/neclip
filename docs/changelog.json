@@ -1,15 +1,14 @@
 {
   "versions": [
     {
-      "version": "2.7.2",
-      "build": 44,
+      "version": "2.7.3",
+      "build": 45,
       "status": "released",
       "changes": [
-        "Move history search out of the top-level menu and into the flat older-history submenu",
-        "Keep an already selected word intact instead of re-selecting it through Accessibility",
-        "Accept exact replacement verification when editors leave pasted text selected or collapse it to a caret",
-        "Add regression coverage for the menu placement and selected-layout correction path",
-        "296 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed locally"
+        "Use the active EN/RU layout as a manual correction source for arbitrary selections",
+        "Translate layout-specific punctuation and symbols, including symbol-only selections",
+        "Preserve support for mixed text and digits instead of reporting that there is nothing to correct",
+        "297 XCTest, strict Swift 6, signed notarized DMG and Gatekeeper validation passed locally"
       ]
     },
     {

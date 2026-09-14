@@ -54,6 +54,42 @@ struct LayoutCharacterMaps {
             targetID: targetID
         )
     }
+
+    /// Explicit manual correction can use the active keyboard layout as the
+    /// source when the selection contains only symbols, digits or mixed text.
+    /// Unlike the script-inferred path, this deliberately translates every
+    /// mapped key, including layout-specific punctuation and symbols.
+    func convert(_ text: String, sourceID: String) -> LayoutConversion? {
+        let direction: LayoutDirection
+        let map: [Character: Character]
+        let targetID: String
+        if sourceID == englishSourceID {
+            direction = .englishToRussian
+            map = englishToRussian
+            targetID = russianSourceID
+        } else if sourceID == russianSourceID {
+            direction = .russianToEnglish
+            map = russianToEnglish
+            targetID = englishSourceID
+        } else {
+            return nil
+        }
+
+        var mapped = 0
+        let converted = String(text.map { character in
+            guard let replacement = map[character] else { return character }
+            mapped += 1
+            return replacement
+        })
+        guard mapped > 0, converted != text else { return nil }
+        return LayoutConversion(
+            original: text,
+            converted: converted,
+            direction: direction,
+            sourceID: sourceID,
+            targetID: targetID
+        )
+    }
 }
 
 enum LayoutTextPolicy {

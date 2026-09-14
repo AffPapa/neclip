@@ -1,6 +1,19 @@
 # Changelog
 
-## 2.7.2 / build 44 — released 2026-09-14
+## 2.7.3 / build 45 — released 2026-09-14
+
+- Use the active EN/RU keyboard layout when manual correction receives
+  arbitrary selected text, mixed content, digits or symbol-only input.
+- Translate layout-specific punctuation and symbols instead of stopping at the
+  script-only heuristic used by automatic correction.
+- Add regression coverage for symbol-only and mixed manual selections.
+
+Exact public artifact: [NeClip-2.7.3.dmg](https://github.com/AffPapa/neclip/releases/download/v2.7.3/NeClip-2.7.3.dmg)
+(2,104,771 bytes), SHA-256
+`cf77a7ea28b237d7307b05488ff41ad1c533a74cbd8db7dab99a54c31968a54e`.
+See [release evidence](docs/RELEASE-2.7.3-STATUS.md).
+
+## 2.7.2 / build 44 — superseded 2026-09-14
 
 - Move history search out of the top-level menu and into «Ещё из истории»,
   keeping the older history flat and discoverable.
