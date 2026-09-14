@@ -1,6 +1,21 @@
 # Changelog
 
-## 2.7.1 / build 43 — released 2026-09-13
+## 2.7.2 / build 44 — released 2026-09-14
+
+- Move history search out of the top-level menu and into «Ещё из истории»,
+  keeping the older history flat and discoverable.
+- Preserve an already selected word instead of re-selecting it through
+  Accessibility before correction.
+- Accept exact replacement verification when an editor keeps pasted text
+  selected as well as when it collapses the selection to a caret.
+- Add regression coverage for menu placement and selected-layout correction.
+
+Exact public artifact: [NeClip-2.7.2.dmg](https://github.com/AffPapa/neclip/releases/download/v2.7.2/NeClip-2.7.2.dmg)
+(2,104,770 bytes), SHA-256
+`f83fe7e5d0782b4d1a797c6c8ff1c34333d915642e11093044435180a6ea4343`.
+See [release evidence](docs/RELEASE-2.7.2-STATUS.md).
+
+## 2.7.1 / build 43 — superseded 2026-09-13
 
 - Move heavy clipboard representation reads off the main thread and protect
   failed paste writes with a bounded, generation-checked clipboard rollback.
