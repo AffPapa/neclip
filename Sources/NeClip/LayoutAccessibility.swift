@@ -56,13 +56,6 @@ final class LayoutAccessibility {
               let selectedRange = selectedRange(element) else {
             return .failure(.unsupported)
         }
-        var settable = DarwinBoolean(false)
-        guard AXUIElementIsAttributeSettable(
-            element,
-            kAXSelectedTextRangeAttribute as CFString,
-            &settable
-        ) == .success, settable.boolValue else { return .failure(.unsupported) }
-
         return .success(FocusedContext(
             pid: app.processIdentifier,
             bundleID: bundleID,
@@ -384,7 +377,13 @@ final class ManualLayoutCorrectionService {
               let conversion = layouts.convert(target.text) else {
             finish(.nothingToCorrect); return
         }
-        guard accessibility.select(target.range, in: context) else {
+        // If the user already selected the target, keep the editor's native
+        // selection intact. Some AX clients expose the selected text as
+        // writable but reject an otherwise harmless re-selection of the same
+        // range. A range under the caret still needs to be selected before the
+        // clipboard fallback can replace it.
+        if context.selectedRange.length == 0,
+           !accessibility.select(target.range, in: context) {
             finish(.unsupported); return
         }
 
@@ -438,9 +437,12 @@ final class ManualLayoutCorrectionService {
                     location: target.range.location,
                     length: (conversion.converted as NSString).length
                 )
-                return current.selectedRange.length == 0
-                    && current.selectedRange.location == replacementRange.location + replacementRange.length
-                    && self.accessibility.string(in: replacementRange, element: current.element) == conversion.converted
+                return LayoutReplacementVerificationPolicy.accepts(
+                    selectedRange: current.selectedRange,
+                    replacementRange: replacementRange,
+                    textMatches: self.accessibility.string(in: replacementRange, element: current.element)
+                        == conversion.converted
+                )
             }
         ) { [weak self] result in
             Task { @MainActor in
@@ -495,9 +497,12 @@ final class ManualLayoutCorrectionService {
                     location: record.range.location,
                     length: (record.original as NSString).length
                 )
-                return refreshed.selectedRange.length == 0
-                    && refreshed.selectedRange.location == restoredRange.location + restoredRange.length
-                    && self.accessibility.string(in: restoredRange, element: refreshed.element) == record.original
+                return LayoutReplacementVerificationPolicy.accepts(
+                    selectedRange: refreshed.selectedRange,
+                    replacementRange: restoredRange,
+                    textMatches: self.accessibility.string(in: restoredRange, element: refreshed.element)
+                        == record.original
+                )
             }
         ) { [weak self] result in
             Task { @MainActor in

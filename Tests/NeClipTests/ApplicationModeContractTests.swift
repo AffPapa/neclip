@@ -15,8 +15,8 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.7.1")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "43")
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.7.2")
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, "44")
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),
@@ -54,6 +54,14 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(statusBar.contains("Закрепить текущую для"))
         XCTAssertTrue(statusBar.contains("Объединить следующий текст с предыдущим"))
         XCTAssertTrue(statusBar.contains("Поиск истории…"))
+        let historyMenuStart = try XCTUnwrap(statusBar.range(of: "let history = snapshot.clips"))
+        let historyMenuSource = String(statusBar[historyMenuStart.lowerBound...])
+        XCTAssertTrue(historyMenuSource.contains("if !history.isEmpty"))
+        XCTAssertTrue(historyMenuSource.contains("let moreMenu = makeMenu(title: \"Ещё из истории\")"))
+        XCTAssertTrue(historyMenuSource.contains("moreMenu.addItem(item(\n                \"Поиск истории…\""))
+        let recentStart = try XCTUnwrap(statusBar.range(of: "menu.addItem(.sectionHeader(title: \"Недавние\"))"))
+        let recentPrefix = String(statusBar[..<recentStart.lowerBound])
+        XCTAssertFalse(recentPrefix.contains("Поиск истории…"))
         XCTAssertTrue(statusBar.contains("Состояние и приватность…"))
         XCTAssertTrue(statusBar.contains("Сохранить в сниппеты…"))
         XCTAssertFalse(statusBar.contains("MenuSearchKeyPolicy"))
