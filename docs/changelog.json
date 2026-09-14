@@ -14,7 +14,7 @@
     {
       "version": "2.7.3",
       "build": 45,
-      "status": "released",
+      "status": "superseded",
       "changes": [
         "Use the active EN/RU layout as a manual correction source for arbitrary selections",
         "Translate layout-specific punctuation and symbols, including symbol-only selections",
