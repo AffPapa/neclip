@@ -1,6 +1,23 @@
 # Changelog
 
-## 2.8.1 / build 47 — released 2026-09-14
+## 2.8.2 / build 48 — released 2026-09-19
+
+- Cancel stale history-search actions before local storage work and clear temporary
+  result rows after a changed query, close or full history erase.
+- Let standalone Option correction use the preceding text token after whitespace,
+  preserving surrounding whitespace and punctuation.
+- Restrict restore cleanup to app-managed snapshot names and serialize restore
+  with full data erasure.
+- Add keyboard and VoiceOver controls for screenshot selection and annotations.
+- 333 XCTest (5 expected skips, 0 failures), 3 Swift Testing tests and strict Swift 6
+  passed. Signed, notarized, stapled app and DMG passed Gatekeeper and mounted-DMG validation.
+
+Exact public artifact: [NeClip-2.8.2.dmg](https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg)
+(2,124,738 bytes), SHA-256
+`84b16e5396ca5dbc3093fe1dbdd2b3e9173e9f77e2600e7e23f63dfd694e916a`.
+See [release evidence](docs/RELEASE-2.8.2-STATUS.md).
+
+## 2.8.1 / build 47 — superseded 2026-09-14
 
 - Replace verified word ranges in multiline Accessibility editors while preserving
   surrounding rich text; retry briefly when the editor has not displayed a key yet.

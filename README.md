@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.8.1 (build 47)**,
-released on 14 September 2026.
+Current supported release: **2.8.2 (build 48)**,
+released on 19 September 2026.
 
-[Download NeClip 2.8.1](https://github.com/AffPapa/neclip/releases/download/v2.8.1/NeClip-2.8.1.dmg)
-(2,104,770 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.8.2](https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg)
+(2,124,738 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `6dee89524f5349d1b92744f50862162f870ea86fc74060d9944907243246901b`.
-Artifact source: `7efb0c25679a4c8f0e4cdd6d86ad560f06d5a63f`.
+SHA-256: `84b16e5396ca5dbc3093fe1dbdd2b3e9173e9f77e2600e7e23f63dfd694e916a`.
+Artifact source: `1524627efb4de62274d433915651945a1c8e2b3e`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.8.1-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.8.2-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
