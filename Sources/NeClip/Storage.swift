@@ -288,6 +288,10 @@ enum StorageChangeDomain: String, Sendable {
 
 final class Storage: @unchecked Sendable {
     static let maximumStorageBytes: Int64 = 250 * 1024 * 1024
+    /// Restore input has a deliberately separate, early cap. The live storage
+    /// limit is 250 MiB; a snapshot may carry SQLite overhead, but a chosen
+    /// file must never be opened by SQLite or mapped into memory beyond 500 MiB.
+    static let maximumBackupBytes: Int64 = maximumStorageBytes * 2
     static let maximumSnippetImportBytes = 16 * 1024 * 1024
     static let maximumSnippetTitleCharacters = 200
     static let snippetPreviewCharacterLimit = 280
@@ -308,6 +312,9 @@ final class Storage: @unchecked Sendable {
     let startupError: Error?
     private let dbQueue: DatabaseQueue
     private let databasePath: String?
+    // Covers backup publication as well as DB work. Take this before dbQueue,
+    // never from inside it, so restore cannot publish an old snapshot after erase.
+    private let restoreAndEraseLock = NSLock()
     private let installStarterContent: Bool
     // Tests can measure read scaling without making a user's history exceed
     // its configured retention limit. Production construction keeps this on.
@@ -972,9 +979,11 @@ final class Storage: @unchecked Sendable {
         return removed
     }
 
-    /// Erases every user-created record in one transaction. Keeping this
-    /// atomic avoids partially cleared state and one transaction per snippet.
+    /// Commits record erasure atomically, then removes app-owned restore copies.
+    /// File cleanup failure is explicitly partial: the DB and undo are already cleared.
     func deleteAllUserData() throws {
+        restoreAndEraseLock.lock()
+        defer { restoreAndEraseLock.unlock() }
         try dbQueue.writeWithoutTransaction { db in
             try db.inTransaction {
                 try ClipItem.deleteAll(db)
@@ -986,7 +995,11 @@ final class Storage: @unchecked Sendable {
             // a queued restore cannot slip between erasure and invalidation.
             undoGeneration = UUID()
         }
-        notifyChange(.all)
+        // Views must drop cached content even when filesystem cleanup fails.
+        defer { notifyChange(.all) }
+        if let databasePath {
+            try ManagedRestoreSnapshots.removeAll(beside: URL(fileURLWithPath: databasePath))
+        }
     }
 
     /// Also guards late menu completions; failure to read means fail closed.
@@ -1052,6 +1065,9 @@ final class Storage: @unchecked Sendable {
     /// restores through SQLite's online backup API. Invalid input never
     /// touches the live database.
     func restoreDatabaseBackup(from sourceURL: URL) throws -> DatabaseBackupManifest {
+        restoreAndEraseLock.lock()
+        defer { restoreAndEraseLock.unlock() }
+        try Self.validateRestoreInput(sourceURL)
         let source = try DatabaseQueue(path: sourceURL.path)
         let manifest = try source.read { db -> DatabaseBackupManifest in
             let integrity = try String.fetchOne(db, sql: "PRAGMA integrity_check") ?? ""
@@ -1064,7 +1080,7 @@ final class Storage: @unchecked Sendable {
                 }
             }
             let bytes = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
-            guard Int64(bytes.count) <= Self.maximumStorageBytes * 2 else { throw DatabaseBackupError.backupTooLarge }
+            guard Int64(bytes.count) <= Self.maximumBackupBytes else { throw DatabaseBackupError.backupTooLarge }
             return DatabaseBackupManifest(
                 version: DatabaseBackupManifest.currentVersion,
                 schemaVersion: try Int.fetchOne(db, sql: "PRAGMA user_version") ?? 0,
@@ -1081,6 +1097,24 @@ final class Storage: @unchecked Sendable {
         try source.backup(to: dbQueue)
         notifyChange(.all)
         return manifest
+    }
+
+    /// Validate user-selected restore input before SQLite opens it. A symlink
+    /// could point outside the chosen location, and a large sparse/ordinary
+    /// file can otherwise force avoidable SQLite work before rejection.
+    static func validateRestoreInput(_ sourceURL: URL) throws {
+        let values = try sourceURL.resourceValues(forKeys: [
+            .isRegularFileKey,
+            .isSymbolicLinkKey,
+            .fileSizeKey
+        ])
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw DatabaseBackupError.invalidDatabase
+        }
+        guard let size = values.fileSize, size > 0,
+              Int64(size) <= maximumBackupBytes else {
+            throw DatabaseBackupError.backupTooLarge
+        }
     }
 
     func trimToLimits() throws {

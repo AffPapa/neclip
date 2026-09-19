@@ -49,14 +49,20 @@ final class LayoutAccessibility {
 
         let application = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(application, scope == .automatic ? 0.03 : 0.2)
-        guard let element: AXUIElement = attribute(application, kAXFocusedUIElementAttribute),
+        guard let element: AXUIElement = attribute(application, kAXFocusedUIElementAttribute) else {
+            return .failure(.unsupported)
+        }
+        // The timeout is specific to an AX object. Configure the focused
+        // element before reading its role, secure state, or selection, so a
+        // slow editor cannot hold the automatic-correction event transaction.
+        AXUIElementSetMessagingTimeout(element, scope == .automatic ? 0.03 : 0.2)
+        guard
               let role: String = attribute(element, kAXRoleAttribute),
               isTextRole(role),
               !isSecureElement(element),
               let selectedRange = selectedRange(element) else {
             return .failure(.unsupported)
         }
-        AXUIElementSetMessagingTimeout(element, scope == .automatic ? 0.03 : 0.2)
         return .success(FocusedContext(
             pid: app.processIdentifier,
             bundleID: bundleID,
@@ -66,12 +72,12 @@ final class LayoutAccessibility {
         ))
     }
 
-    func selectedTextOrPreviousToken(in context: FocusedContext) -> (range: CFRange, text: String)? {
+    func selectedTextOrPreviousToken(in context: FocusedContext) -> ManualLayoutTarget? {
         if context.selectedRange.length > 0 {
             guard let text = string(in: context.selectedRange, element: context.element), !text.isEmpty else {
                 return nil
             }
-            return (context.selectedRange, text)
+            return .selection(range: context.selectedRange, text: text)
         }
 
         let cursor = context.selectedRange.location
@@ -81,18 +87,7 @@ final class LayoutAccessibility {
         guard let prefix = string(in: prefixRange, element: context.element), !prefix.isEmpty else {
             return nil
         }
-        let nsPrefix = prefix as NSString
-        let separator = nsPrefix.rangeOfCharacter(
-            from: .whitespacesAndNewlines,
-            options: .backwards,
-            range: NSRange(location: 0, length: nsPrefix.length)
-        )
-        let localStart = separator.location == NSNotFound ? 0 : NSMaxRange(separator)
-        let length = nsPrefix.length - localStart
-        guard length > 0 else { return nil }
-        let range = CFRange(location: windowStart + localStart, length: length)
-        guard let token = string(in: range, element: context.element), !token.isEmpty else { return nil }
-        return (range, token)
+        return ManualLayoutTarget.previousToken(in: prefix, windowStart: windowStart)
     }
 
     func select(_ range: CFRange, in context: FocusedContext, scope: Scope = .manual) -> Bool {
@@ -168,6 +163,27 @@ final class LayoutAccessibility {
 
     func sameRange(_ lhs: CFRange, _ rhs: CFRange) -> Bool {
         lhs.location == rhs.location && lhs.length == rhs.length
+    }
+
+    /// A manual correction selects the previous token only when the user had
+    /// a caret. If the clipboard fallback fails before editing it, restore the
+    /// caret only while the focused element, selection, and token are still
+    /// exactly the ones that NeClip selected.
+    func restoreTemporaryCaret(
+        _ caret: CFRange,
+        temporarySelection: CFRange,
+        expectedText: String,
+        in original: FocusedContext
+    ) {
+        guard let current = refreshedContext(matching: original, scope: .manual),
+              LayoutSelectionRestorationPolicy.shouldRestore(
+                caret: caret,
+                temporarySelection: temporarySelection,
+                currentSelection: current.selectedRange,
+                currentText: string(in: temporarySelection, element: current.element),
+                expectedText: expectedText
+              ) else { return }
+        _ = select(caret, in: current)
     }
 
     func string(in range: CFRange, element: AXUIElement) -> String? {
@@ -431,16 +447,19 @@ final class ManualLayoutCorrectionService {
         }
 
         guard let target = accessibility.selectedTextOrPreviousToken(in: context),
-              let conversion = layouts.convert(target.text) else {
+              let conversion = layouts.convert(target.conversionText) else {
             finish(.nothingToCorrect); return
         }
+        let replacement = target.replacement(with: conversion.converted)
         let originalSourceID = layouts.currentSelectableSourceID() ?? conversion.sourceID
         // If the user already selected the target, keep the editor's native
         // selection intact. Some AX clients expose the selected text as
         // writable but reject an otherwise harmless re-selection of the same
         // range. A range under the caret still needs to be selected before the
         // clipboard fallback can replace it.
-        if context.selectedRange.length == 0,
+        let originalCaret = context.selectedRange
+        let selectedTemporaryToken = context.selectedRange.length == 0
+        if selectedTemporaryToken,
            !accessibility.select(target.range, in: context) {
             finish(.unsupported); return
         }
@@ -449,9 +468,9 @@ final class ManualLayoutCorrectionService {
             guard let self else { return }
             self.undoRecord = UndoRecord(
                 context: context,
-                range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
+                range: CFRange(location: target.range.location, length: (replacement as NSString).length),
                 original: target.text,
-                converted: conversion.converted,
+                converted: replacement,
                 originalSourceID: originalSourceID,
                 switchedSource: switched,
                 createdAt: Date()
@@ -463,7 +482,7 @@ final class ManualLayoutCorrectionService {
         switch accessibility.replaceSelectedTextDirectly(
             expectedRange: target.range,
             expected: target.text,
-            replacement: conversion.converted,
+            replacement: replacement,
             in: context
         ) {
         case .replaced:
@@ -477,7 +496,7 @@ final class ManualLayoutCorrectionService {
         }
 
         PasteService.replaceSelection(
-            with: conversion.converted,
+            with: replacement,
             targetPID: context.pid,
             validateTarget: { [weak self] in
                 guard let self,
@@ -493,27 +512,35 @@ final class ManualLayoutCorrectionService {
                 }
                 let replacementRange = CFRange(
                     location: target.range.location,
-                    length: (conversion.converted as NSString).length
+                    length: (replacement as NSString).length
                 )
                 return LayoutReplacementVerificationPolicy.accepts(
                     selectedRange: current.selectedRange,
                     replacementRange: replacementRange,
                     textMatches: self.accessibility.string(in: replacementRange, element: current.element)
-                        == conversion.converted
+                        == replacement
                 )
             }
         ) { [weak self] result in
             Task { @MainActor in
                 guard let self else { return }
                 guard result == .pasted else {
+                    if selectedTemporaryToken {
+                        self.accessibility.restoreTemporaryCaret(
+                            originalCaret,
+                            temporarySelection: target.range,
+                            expectedText: target.text,
+                            in: context
+                        )
+                    }
                     finish(.failed); return
                 }
                 let switched = self.layouts.selectSource(id: conversion.targetID)
                 self.undoRecord = UndoRecord(
                     context: context,
-                    range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
+                    range: CFRange(location: target.range.location, length: (replacement as NSString).length),
                     original: target.text,
-                    converted: conversion.converted,
+                    converted: replacement,
                     originalSourceID: originalSourceID,
                     switchedSource: switched,
                     createdAt: Date()

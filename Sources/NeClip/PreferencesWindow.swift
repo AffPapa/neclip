@@ -1114,6 +1114,13 @@ private struct PreferencesView: View {
                 do { try Storage.shared.vacuum() }
                 catch { return "История и сниппеты удалены. Не удалось освободить неиспользуемое место в файле базы." }
                 return "История, сниппеты и их папки удалены"
+            } catch let error as UserDataErasureError {
+                // The DB commit succeeded; finish its cleanup even if an
+                // internal rollback file could not be removed.
+                do { try Storage.shared.vacuum() }
+                catch { return UserDataErasureError.managedSnapshotsRemain.localizedDescription
+                    + " Не удалось освободить неиспользуемое место в файле базы." }
+                return error.localizedDescription
             } catch {
                 return "Не удалось удалить все данные"
             }

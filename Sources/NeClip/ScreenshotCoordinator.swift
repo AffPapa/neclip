@@ -311,7 +311,12 @@ final class ScreenshotSelectionView: NSView {
     init(frame: CGRect, image: CGImage?) {
         self.image = image.map { NSImage(cgImage: $0, size: frame.size) }
         super.init(frame: frame)
-        setAccessibilityLabel("Нажмите и проведите мышью, чтобы выделить область экрана. Escape — отмена.")
+        ScreenshotRegionAccessibility.configure(self, label: "Область снимка экрана",
+                                                confirmName: "Создать или подтвердить область",
+                                                adjust: { [weak self] dx, dy, resize in
+            self?.adjustKeyboardRegion(dx: dx, dy: resize ? dy : -dy, resizing: resize) ?? false
+        }, confirm: { [weak self] in self?.accessibilityPerformPress() ?? false })
+        updateRegionAccessibility(announce: false)
     }
     required init?(coder: NSCoder) { nil }
     func setImage(_ image: CGImage) {
@@ -320,6 +325,7 @@ final class ScreenshotSelectionView: NSView {
         selection = .zero
         hasDragged = false
         needsDisplay = true
+        updateRegionAccessibility()
     }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
     override func updateTrackingAreas() {
@@ -346,11 +352,41 @@ final class ScreenshotSelectionView: NSView {
         needsDisplay = true
     }
     override func keyDown(with event: NSEvent) {
+        if let delta = ScreenshotKeyboardRegion.delta(for: event, flipped: false) {
+            _ = adjustKeyboardRegion(dx: delta.x, dy: delta.y, resizing: event.modifierFlags.contains(.shift))
+            return
+        }
+        guard event.modifierFlags.intersection([.command, .control]).isEmpty else {
+            super.keyDown(with: event); return
+        }
         switch event.keyCode {
         case 53: onCancel?()
         case 49: spaceHeld = true
-        default: break
+        case 36, 76: _ = accessibilityPerformPress()
+        default: super.keyDown(with: event)
         }
+    }
+
+    private func adjustKeyboardRegion(dx: CGFloat, dy: CGFloat, resizing: Bool) -> Bool {
+        guard image != nil else { return false }
+        selection = ScreenshotKeyboardRegion.adjusted(selection, dx: dx, dy: dy, resizing: resizing, in: bounds)
+        hasDragged = true
+        needsDisplay = true
+        updateRegionAccessibility()
+        return true
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard image != nil else { return false }
+        if selection.isEmpty { return adjustKeyboardRegion(dx: 0, dy: 0, resizing: false) }
+        guard selection.width >= 2, selection.height >= 2 else { return false }
+        onSelect?(selection)
+        return true
+    }
+
+    private func updateRegionAccessibility(announce: Bool = true) {
+        let value = image == nil ? "Подготовка снимка…" : ScreenshotKeyboardRegion.description(selection, in: bounds, flipped: false)
+        ScreenshotRegionAccessibility.update(self, value: value, announce: announce)
     }
     override func keyUp(with event: NSEvent) {
         if event.keyCode == 49 { spaceHeld = false }
@@ -414,7 +450,7 @@ final class ScreenshotSelectionView: NSView {
             if pointerInside && !hasDragged { drawCrosshair() }
             if !hasDragged {
                 drawInstruction(title: "Проведите мышью, чтобы выделить область",
-                                subtitle: "Esc — отмена")
+                                subtitle: "Или стрелки · Shift — размер · Return — готово · Esc — отмена")
             }
         } else {
             CGRect(x: 0, y: 0, width: bounds.width, height: selection.minY).fill()

@@ -10,11 +10,19 @@ private final class ClipSnippetTarget: NSObject {
     }
 }
 
+private final class ClipActionsMenuContext: NSObject {
+    let clip: ClipSummary
+
+    init(_ clip: ClipSummary) {
+        self.clip = clip
+    }
+}
+
 /// The default NeClip interface is a classic native menu: a configurable
 /// number of recent history entries is visible immediately, and older entries
 /// live in one flat "Ещё из истории" submenu.
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSMenuDelegate {
     private enum MenuKind: Equatable {
         case history
         case snippets
@@ -61,6 +69,12 @@ final class StatusBarController: NSObject {
     )
     private var snapshotIsReady = false
     private var snapshotError: String?
+    /// NSMenu has no representedObject. Weak keys keep deferred submenu
+    /// contexts alive only for the menu object that owns them.
+    private let clipActionMenuContexts = NSMapTable<NSMenu, ClipActionsMenuContext>(
+        keyOptions: .weakMemory,
+        valueOptions: .strongMemory
+    )
     private var refreshState = MenuRefreshState()
     private var pendingPresentation: (kind: MenuKind, anchoredToStatusItem: Bool)?
     private var targetPID: pid_t?
@@ -649,6 +663,21 @@ final class StatusBarController: NSObject {
     /// links and history-to-snippet conversion.
     private func clipActionsMenu(for clip: ClipSummary) -> NSMenu {
         let menu = makeMenu(title: "Действия")
+        // Do not build a full folder chooser for every visible history item.
+        // NSMenu requests this submenu only when the user opens it, avoiding
+        // hundreds of thousands of NSMenuItems for a large local history.
+        menu.delegate = self
+        clipActionMenuContexts.setObject(ClipActionsMenuContext(clip), forKey: menu)
+        return menu
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let context = clipActionMenuContexts.object(forKey: menu) else { return }
+        populateClipActionsMenu(menu, for: context.clip)
+    }
+
+    private func populateClipActionsMenu(_ menu: NSMenu, for clip: ClipSummary) {
+        menu.removeAllItems()
         menu.addItem(item(
             "Вставить",
             #selector(pasteClipOriginal(_:)),
@@ -698,7 +727,6 @@ final class StatusBarController: NSObject {
             save.submenu = folders
             menu.addItem(save)
         }
-        return menu
     }
 
     private func layoutMenuItem() -> NSMenuItem {

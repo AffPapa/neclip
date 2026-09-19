@@ -1,4 +1,96 @@
 import AppKit
+import Carbon
+
+/// Keyboard commands accepted by the search surface. Keeping the mapping
+/// separate makes the same Return/plain/copy model testable without creating a
+/// window or touching a user's history.
+enum HistorySearchKeyboardAction: Equatable {
+    case passThrough
+    case pasteOriginal
+    case pastePlain
+    case copyOnly
+    case moveSelection(Int)
+    case dismiss
+
+    static func resolve(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Self {
+        let flags = modifiers.intersection(.deviceIndependentFlagsMask)
+        switch keyCode {
+        case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
+            if flags.contains(.command) { return .copyOnly }
+            if flags.contains(.shift) { return .pastePlain }
+            return .pasteOriginal
+        case UInt16(kVK_UpArrow):
+            return .moveSelection(-1)
+        case UInt16(kVK_DownArrow):
+            return .moveSelection(1)
+        case UInt16(kVK_Escape):
+            return .dismiss
+        default:
+            return .passThrough
+        }
+    }
+}
+
+/// A serial worker cannot cancel SQLite while it is executing, but it must not
+/// spend time on stale keystrokes that are still queued behind it. This lock is
+/// intentionally small and contains no history contents.
+final class HistorySearchRequestGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var generation: UInt64 = 0
+
+    @discardableResult
+    func begin() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        generation &+= 1
+        return generation
+    }
+
+    func isCurrent(_ value: UInt64) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return generation == value
+    }
+}
+
+private final class HistorySearchCellView: NSTableCellView {
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let detailLabel = NSTextField(labelWithString: "")
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configureView()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureView()
+    }
+
+    func configure(with item: ClipSummary) {
+        titleLabel.stringValue = item.title
+        detailLabel.stringValue = [item.kind.rawValue, item.appBundleID, item.text]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+
+    private func configureView() {
+        titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        titleLabel.lineBreakMode = .byTruncatingTail
+        detailLabel.font = .systemFont(ofSize: 11)
+        detailLabel.textColor = .secondaryLabelColor
+        detailLabel.lineBreakMode = .byTruncatingTail
+        let stack = NSStackView(views: [titleLabel, detailLabel])
+        stack.orientation = .vertical
+        stack.spacing = 2
+        addSubview(stack)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+}
 
 /// A small, temporary search surface. It is intentionally separate from the
 /// native history menu so Command-F has a real first responder and a stable
@@ -15,33 +107,42 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         case all, today, week, month
     }
 
-    private let dataQueue = DispatchQueue(label: "org.affpapa.neclip.history-search", qos: .userInitiated)
+    private let storage: Storage
+    private let dataQueue: DispatchQueue
     private let searchField = NSSearchField()
     private let kindPopup = NSPopUpButton()
     private let appPopup = NSPopUpButton()
     private let datePopup = NSPopUpButton()
     private let tableView = NSTableView()
     private let countLabel = NSTextField(labelWithString: "")
-    private var window: NSPanel?
+    private(set) var window: NSPanel?
     private var results: [ClipSummary] = []
     private var targetPID: pid_t?
     private var pasteAction: ((Int64, Bool, Bool, pid_t?) -> Void)?
     private var saveAction: ((Int64) -> Void)?
     private var openAction: ((Int64) -> Void)?
-    private var queryGeneration: UInt64 = 0
+    private let requestGate = HistorySearchRequestGate()
+    private var pendingTextSearch: DispatchWorkItem?
+    private var localKeyMonitor: Any?
     private var pasteButton: NSButton?
     private var plainButton: NSButton?
     private var copyButton: NSButton?
     private var saveButton: NSButton?
     private var openButton: NSButton?
     private var retryButton: NSButton?
+    private var sessionOpen = false
 
-    private override init() {
+    init(storage: Storage = .shared,
+         dataQueue: DispatchQueue = DispatchQueue(label: "org.affpapa.neclip.history-search", qos: .userInitiated)) {
+        self.storage = storage
+        self.dataQueue = dataQueue
         super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(storageDidChange(_:)),
+                                              name: .neClipStorageDidChange, object: storage)
         searchField.placeholderString = "Найти в истории…"
         searchField.sendsSearchStringImmediately = true
         searchField.target = self
-        searchField.action = #selector(queryChanged)
+        searchField.action = #selector(searchFieldChanged)
 
         configurePopup(kindPopup, values: [
             ("Все типы", KindFilter.all.rawValue),
@@ -56,11 +157,11 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
             ("Последние 30 дней", DateFilter.month.rawValue)
         ])
         kindPopup.target = self
-        kindPopup.action = #selector(queryChanged)
+        kindPopup.action = #selector(filterChanged)
         datePopup.target = self
-        datePopup.action = #selector(queryChanged)
+        datePopup.action = #selector(filterChanged)
         appPopup.target = self
-        appPopup.action = #selector(queryChanged)
+        appPopup.action = #selector(filterChanged)
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip"))
         column.title = "История"
@@ -83,12 +184,28 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         save: @escaping (Int64) -> Void,
         open: @escaping (Int64) -> Void
     ) {
+        prepare(targetPID: targetPID, paste: paste, save: save, open: open)
+        if localKeyMonitor == nil { installKeyboardMonitor() }
+        positionWindowOnPointerScreen()
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+        window?.makeFirstResponder(searchField)
+    }
+
+    /// Prepare the search independently of presentation, including for an
+    /// isolated in-memory history without activating a window.
+    func prepare(
+        targetPID: pid_t?,
+        paste: @escaping (Int64, Bool, Bool, pid_t?) -> Void,
+        save: @escaping (Int64) -> Void,
+        open: @escaping (Int64) -> Void
+    ) {
+        sessionOpen = true
         self.targetPID = targetPID
         pasteAction = paste
         saveAction = save
         openAction = open
         if window == nil { buildWindow() }
-        refreshApps()
         searchField.stringValue = ""
         kindPopup.selectItem(at: 0)
         // The app list is loaded asynchronously. Reset this filter before the
@@ -97,18 +214,21 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         appPopup.selectItem(at: 0)
         datePopup.selectItem(at: 0)
         reloadResults()
-        positionWindowOnPointerScreen()
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
-        window?.makeFirstResponder(searchField)
     }
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        queryGeneration &+= 1
+    func windowWillClose(_ notification: Notification) {
+        // close() as well as the close button must erase the retained results
+        // and reject outstanding database completions.
+        sessionOpen = false
+        invalidateResults()
         pasteAction = nil
         saveAction = nil
         openAction = nil
-        return true
+        targetPID = nil
+        if let localKeyMonitor {
+            NSEvent.removeMonitor(localKeyMonitor)
+            self.localKeyMonitor = nil
+        }
     }
 
     private func buildWindow() {
@@ -120,6 +240,7 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         )
         panel.title = "NeClip — Поиск истории"
         panel.isFloatingPanel = true
+        panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.level = .floating
         panel.minSize = NSSize(width: 600, height: 380)
@@ -179,11 +300,13 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         }
     }
 
-    private func refreshApps() {
+    private func refreshApps(generation: UInt64) {
+        let storage = storage, requestGate = requestGate
         dataQueue.async { [weak self] in
-            let apps = (try? Storage.shared.clipAppBundleIDs()) ?? []
+            guard requestGate.isCurrent(generation) else { return }
+            let apps = (try? storage.clipAppBundleIDs()) ?? []
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, requestGate.isCurrent(generation) else { return }
                 let selected = self.appPopup.selectedItem?.representedObject as? String
                 self.appPopup.removeAllItems()
                 self.appPopup.addItem(withTitle: "Все приложения")
@@ -192,24 +315,69 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
                     self.appPopup.addItem(withTitle: app)
                     self.appPopup.lastItem?.representedObject = app
                 }
+                var selectionDisappeared = false
                 if let selected, !selected.isEmpty {
                     if let index = self.appPopup.itemArray.firstIndex(where: {
                         ($0.representedObject as? String) == selected
                     }) {
                         self.appPopup.selectItem(at: index)
+                    } else {
+                        selectionDisappeared = true
                     }
                 }
+                // The popup now truthfully says “All applications”; rerun the
+                // query with that same filter rather than leaving an empty
+                // result list produced by an application that no longer exists.
+                if selectionDisappeared { self.reloadResults() }
             }
         }
     }
 
-    @objc private func queryChanged() {
+    @objc private func searchFieldChanged() {
+        invalidateResults()
+        let work = DispatchWorkItem { [weak self] in
+            self?.reloadResults()
+        }
+        pendingTextSearch = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(120), execute: work)
+    }
+
+    @objc private func filterChanged() {
         reloadResults()
     }
 
+    @objc private func storageDidChange(_ notification: Notification) {
+        guard StorageChangeDomain.from(notification) != .snippets else { return }
+        // Clear both visible text and queued replies before starting a fresh
+        // read. Full erasure must not leave private text in the app filter.
+        if StorageChangeDomain.from(notification) == .all {
+            appPopup.removeAllItems()
+            appPopup.addItem(withTitle: "Все приложения")
+            appPopup.lastItem?.representedObject = ""
+        }
+        if sessionOpen { reloadResults() }
+        else { invalidateResults() }
+    }
+
+    @discardableResult
+    private func invalidateResults() -> UInt64 {
+        let generation = requestGate.begin()
+        pendingTextSearch?.cancel()
+        pendingTextSearch = nil
+        results = []
+        tableView.reloadData()
+        updateActionButtons()
+        countLabel.stringValue = sessionOpen ? "Поиск…" : ""
+        retryButton?.isHidden = true
+        retryButton?.isEnabled = false
+        return generation
+    }
+
     private func reloadResults() {
-        queryGeneration &+= 1
-        let generation = queryGeneration
+        let generation = invalidateResults()
+        guard sessionOpen else { return }
+        let requestGate = requestGate
+        let storage = storage
         let query = searchField.stringValue
         let kind = (kindPopup.selectedItem?.representedObject as? String).flatMap { KindFilter(rawValue: $0) }
         let app = appPopup.selectedItem?.representedObject as? String
@@ -227,16 +395,18 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
         default: nil
         }
         dataQueue.async { [weak self] in
+            guard requestGate.isCurrent(generation) else { return }
             let values: [ClipSummary]?
             do {
-                values = try Storage.shared.searchClipSummaries(
+                values = try storage.searchClipSummaries(
                     query: query, kind: selectedKind, appBundleID: app, createdAfter: createdAfter, limit: 2_000
                 )
             } catch {
                 values = nil
             }
+            guard requestGate.isCurrent(generation) else { return }
             DispatchQueue.main.async {
-                guard let self, self.queryGeneration == generation else { return }
+                guard let self, requestGate.isCurrent(generation) else { return }
                 guard let values else {
                     self.results = []
                     self.tableView.reloadData()
@@ -255,9 +425,40 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
                 self.updateActionButtons()
             }
         }
+        refreshApps(generation: generation)
     }
 
     @objc private func retrySearch() { reloadResults() }
+
+    private func installKeyboardMonitor() {
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            switch HistorySearchKeyboardAction.resolve(keyCode: event.keyCode, modifiers: event.modifierFlags) {
+            case .pasteOriginal:
+                self.pasteOriginal()
+            case .pastePlain:
+                self.pastePlain()
+            case .copyOnly:
+                self.copyOnly()
+            case .moveSelection(let delta):
+                self.moveSelection(by: delta)
+            case .dismiss:
+                self.window?.close()
+            case .passThrough:
+                return event
+            }
+            return nil
+        }
+    }
+
+    private func moveSelection(by delta: Int) {
+        guard !results.isEmpty else { return }
+        let current = tableView.selectedRow < 0 ? 0 : tableView.selectedRow
+        let next = min(max(current + delta, 0), results.count - 1)
+        tableView.selectRowIndexes(IndexSet(integer: next), byExtendingSelection: false)
+        tableView.scrollRowToVisible(next)
+        updateActionButtons()
+    }
 
     private func positionWindowOnPointerScreen() {
         guard let window else { return }
@@ -342,24 +543,11 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let item = results[row]
-        let cell = NSTableCellView()
-        let title = NSTextField(labelWithString: item.title)
-        title.font = .systemFont(ofSize: 13, weight: .medium)
-        title.lineBreakMode = .byTruncatingTail
-        let detail = NSTextField(labelWithString: [item.kind.rawValue, item.appBundleID, item.text].compactMap { $0 }.joined(separator: " · "))
-        detail.font = .systemFont(ofSize: 11)
-        detail.textColor = .secondaryLabelColor
-        detail.lineBreakMode = .byTruncatingTail
-        let stack = NSStackView(views: [title, detail])
-        stack.orientation = .vertical
-        stack.spacing = 2
-        cell.addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
-            stack.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-            stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
-        ])
+        let identifier = NSUserInterfaceItemIdentifier("HistorySearchCell")
+        let cell = (tableView.makeView(withIdentifier: identifier, owner: self) as? HistorySearchCellView)
+            ?? HistorySearchCellView(frame: .zero)
+        cell.identifier = identifier
+        cell.configure(with: item)
         return cell
     }
 }

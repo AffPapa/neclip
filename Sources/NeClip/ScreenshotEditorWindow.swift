@@ -423,7 +423,9 @@ private final class ScreenshotInlineTextField: NSTextField, NSTextFieldDelegate 
 final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     let image: CGImage
     var edits = ScreenshotEdits()
-    var tool = ScreenshotTool.redact
+    var tool = ScreenshotTool.redact {
+        didSet { updateRegionAccessibility(announce: false) }
+    }
     var isEditingEnabled = true
     var onChange: (() -> Void)?
     var onLimit: (() -> Void)?
@@ -433,23 +435,72 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     var annotationColor: ScreenshotMarkupColor = .red
     private var draft: ScreenshotAnnotation?
     private var textEntry: ScreenshotInlineTextField?
+    private var keyboardRegion = CGRect.zero
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     init(image: CGImage) {
         self.image = image
         super.init(frame: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        setAccessibilityLabel("Разметка снимка. Масштаб — жестом увеличения; Escape — отмена; Command Z — отменить действие.")
+        ScreenshotRegionAccessibility.configure(self, label: "Разметка снимка",
+                                                confirmName: "Создать область или добавить пометку",
+                                                adjust: { [weak self] dx, dy, resize in
+            self?.adjustKeyboardRegion(dx: dx, dy: dy, resizing: resize) ?? false
+        }, confirm: { [weak self] in self?.accessibilityPerformPress() ?? false })
+        updateRegionAccessibility(announce: false)
     }
     required init?(coder: NSCoder) { nil }
     func commitPendingText() { textEntry?.commit() }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
     override func keyDown(with event: NSEvent) {
+        if let delta = ScreenshotKeyboardRegion.delta(for: event, flipped: true) {
+            // Shift+Up/Down grows/shrinks height in the same way as capture.
+            let resizing = event.modifierFlags.contains(.shift)
+            _ = adjustKeyboardRegion(dx: delta.x, dy: resizing ? -delta.y : delta.y, resizing: resizing)
+            return
+        }
+        guard event.modifierFlags.intersection([.command, .control]).isEmpty else {
+            super.keyDown(with: event); return
+        }
         if event.keyCode == 53 { onCancel?(); return }
+        if event.keyCode == 36 || event.keyCode == 76 { _ = accessibilityPerformPress(); return }
         if let value = event.charactersIgnoringModifiers.flatMap({ Int($0) }), (1...5).contains(value) {
             onToolRequested?(value - 1)
             return
         }
         super.keyDown(with: event)
+    }
+
+    private func adjustKeyboardRegion(dx: CGFloat, dy: CGFloat, resizing: Bool) -> Bool {
+        guard isEditingEnabled else { return false }
+        keyboardRegion = ScreenshotKeyboardRegion.adjusted(keyboardRegion, dx: dx, dy: dy, resizing: resizing, in: bounds)
+        scrollToVisible(keyboardRegion)
+        needsDisplay = true
+        updateRegionAccessibility()
+        return true
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard isEditingEnabled else { return false }
+        if keyboardRegion.isEmpty { return adjustKeyboardRegion(dx: 0, dy: 0, resizing: false) }
+        // Match the mouse path: a keyboard/VoiceOver action must not discard a
+        // live text draft when it starts the next annotation.
+        textEntry?.commit()
+        guard edits.annotations.count < ScreenshotEdits.maximumAnnotations else { onLimit?(); return false }
+        let point = keyboardRegion.origin
+        if tool == .text { beginTextEntry(at: point) }
+        else {
+            edits.append(ScreenshotAnnotation(tool: tool,
+                points: [point, CGPoint(x: keyboardRegion.maxX, y: keyboardRegion.maxY)], color: annotationColor))
+            onChange?()
+            needsDisplay = true
+            ScreenshotRegionAccessibility.announce("Добавлена пометка: \(tool.rawValue)")
+        }
+        return true
+    }
+
+    private func updateRegionAccessibility(announce: Bool = true) {
+        let value = "\(tool.rawValue). " + ScreenshotKeyboardRegion.description(keyboardRegion, in: bounds, flipped: true)
+        ScreenshotRegionAccessibility.update(self, value: value, announce: announce)
     }
     @objc func undo(_ sender: Any?) { edits.undo(); onChange?() }
     @objc func redo(_ sender: Any?) { edits.redo(); onChange?() }
@@ -460,6 +511,8 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
     }
     override func mouseDown(with event: NSEvent) {
         guard isEditingEnabled else { return }
+        keyboardRegion = .zero
+        updateRegionAccessibility(announce: false)
         textEntry?.commit()
         guard edits.annotations.count < ScreenshotEdits.maximumAnnotations else { onLimit?(); return }
         window?.makeFirstResponder(self)
@@ -528,5 +581,12 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
         context.scaleBy(x: 1, y: -1)
         ScreenshotRenderer.draw(image, annotations: edits.annotations + (draft.map { [$0] } ?? []), in: context)
         context.restoreGState()
+        if !keyboardRegion.isEmpty {
+            NSColor.keyboardFocusIndicatorColor.setStroke()
+            let outline = NSBezierPath(rect: keyboardRegion)
+            outline.lineWidth = 2
+            outline.setLineDash([5, 3], count: 2, phase: 0)
+            outline.stroke()
+        }
     }
 }

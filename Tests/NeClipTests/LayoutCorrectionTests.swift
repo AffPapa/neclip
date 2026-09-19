@@ -32,6 +32,42 @@ final class LayoutCorrectionTests: XCTestCase {
         XCTAssertEqual(maps.convert("руддщ")?.direction, .russianToEnglish)
     }
 
+    func testPreviousWordCorrectionPreservesDelimitersPunctuationAndUndoRange() throws {
+        for suffix in ["", " ", "  ", "\t", "\n", "\r\n"] {
+            let input = "🦊 prefix ghbdtn," + suffix
+            let target = try XCTUnwrap(ManualLayoutTarget.previousToken(in: input, windowStart: 0))
+            let converted = try XCTUnwrap(maps.convert(target.conversionText))
+            let replacement = target.replacement(with: converted.converted)
+            XCTAssertEqual(replacement, "привет," + suffix)
+            XCTAssertEqual(target.range.location, ("🦊 prefix " as NSString).length)
+            XCTAssertEqual(target.range.location + target.range.length, (input as NSString).length)
+            let nsRange = NSRange(location: target.range.location, length: target.range.length)
+            let corrected = (input as NSString).replacingCharacters(in: nsRange, with: replacement)
+            XCTAssertEqual(corrected, "🦊 prefix привет," + suffix)
+            let replacementRange = CFRange(location: target.range.location, length: (replacement as NSString).length)
+            let caret = CFRange(location: replacementRange.location + replacementRange.length, length: 0)
+            XCTAssertTrue(LayoutReplacementVerificationPolicy.accepts(selectedRange: caret,
+                replacementRange: replacementRange, textMatches: true))
+            XCTAssertFalse(LayoutReplacementVerificationPolicy.accepts(selectedRange: caret,
+                replacementRange: replacementRange, textMatches: false), "A changed delimiter must reject undo")
+            XCTAssertEqual((corrected as NSString).replacingCharacters(in:
+                NSRange(location: replacementRange.location, length: replacementRange.length), with: target.text), input)
+        }
+    }
+
+    func testPreviousWordTargetRejectsEmptyAndTruncatedTokensAndPreservesExplicitSelection() throws {
+        for input in ["", " ", "\t\r\n"] {
+            XCTAssertNil(ManualLayoutTarget.previousToken(in: input, windowStart: 0))
+        }
+        XCTAssertNil(ManualLayoutTarget.previousToken(in: "partial ", windowStart: 256))
+        let bounded = try XCTUnwrap(ManualLayoutTarget.previousToken(in: "prefix ghbdtn ", windowStart: 256))
+        XCTAssertEqual(bounded.range.location, 263)
+        XCTAssertEqual(bounded.conversionText, "ghbdtn")
+        let selection = ManualLayoutTarget.selection(range: CFRange(location: 4, length: 8), text: "one two ")
+        XCTAssertEqual(selection.conversionText, "one two ")
+        XCTAssertEqual(selection.trailingWhitespace, "")
+    }
+
     func testManualConversionPreservesCaseAndLiteralTrailingPunctuation() {
         XCTAssertEqual(maps.convert("Ghbdtn,")?.converted, "Привет,")
         XCTAssertEqual(maps.convert("РУДДЩ!")?.converted, "HELLO!")
