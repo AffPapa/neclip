@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.8.3 / build 49 — candidate
+
+- Recheck clipboard generation before deferred paste; never restore unrelated
+  clipboard data after an unacknowledged layout-correction paste.
+- Restore validated records into an app-created database instead of importing
+  arbitrary schema/triggers. Reject incompatible backups and invalidate old undo.
+- Publish SQLite backups atomically and preserve existing destination-folder permissions.
+- Align screenshot crops with the visible preview, synchronize remembered PNG/JPEG
+  formats and filenames, and keep committed text at its visible editing anchor.
+- Add optional light/dark backgrounds with bounded padding and unchanged source
+  pixels. Show export dimensions, disclose reduced large-screen resolution, and
+  keep editor controls on two rows at the minimum supported window size.
+- Public download remains 2.8.2 until release verification is complete.
+
 ## 2.8.2 / build 48 — released 2026-09-19
 
 - Cancel stale history-search actions before local storage work and clear temporary

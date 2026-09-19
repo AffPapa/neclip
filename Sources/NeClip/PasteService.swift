@@ -5,6 +5,7 @@ enum PasteFailure: Equatable {
     case clipboardSnapshot
     case clipboardWrite
     case eventCreation
+    case clipboardChanged
 }
 
 enum PasteResult: Equatable {
@@ -12,6 +13,7 @@ enum PasteResult: Equatable {
     case copiedOnlyNoAccessibility
     case copiedOnlyTargetChanged
     case pasted
+    case pasteUnconfirmed
     case failed(PasteFailure)
 }
 
@@ -84,7 +86,7 @@ enum PasteService {
             finish(.failed(.clipboardWrite), completion: completion)
             return
         }
-        completePaste(copyOnly: copyOnly, targetPID: targetPID, completion: completion)
+        completePaste(copyOnly: copyOnly, targetPID: targetPID, expectedGeneration: writeResult.generation, completion: completion)
     }
 
     static func paste(
@@ -106,7 +108,7 @@ enum PasteService {
             finish(.failed(.clipboardWrite), completion: completion)
             return
         }
-        completePaste(copyOnly: copyOnly, targetPID: targetPID, completion: completion)
+        completePaste(copyOnly: copyOnly, targetPID: targetPID, expectedGeneration: writeResult.generation, completion: completion)
     }
 
     /// Replaces an already selected range for an explicit user command, then
@@ -167,21 +169,24 @@ enum PasteService {
     }
 
     @MainActor
-    private static func confirmSelectionPaste(
+    static func confirmSelectionPaste(
         attemptsRemaining: Int,
         verifyReplacement: @escaping () -> Bool,
         savedItems: [NSPasteboardItem],
         replacementGeneration: Int,
+        pasteboard: NSPasteboard = .general,
         completion: Completion?
     ) {
         if verifyReplacement() {
-            restorePasteboard(savedItems, ifGenerationIs: replacementGeneration)
+            restorePasteboard(savedItems, ifGenerationIs: replacementGeneration, pasteboard: pasteboard)
             finish(.pasted, completion: completion)
             return
         }
         guard attemptsRemaining > 1 else {
-            restorePasteboard(savedItems, ifGenerationIs: replacementGeneration)
-            finish(.copiedOnlyTargetChanged, completion: completion)
+            // An unacknowledged event may still be queued in the recipient.
+            // Restoring here could paste unrelated, sensitive previous data.
+            // Keep the replacement until a future explicit clipboard write.
+            finish(.pasteUnconfirmed, completion: completion)
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(25)) {
@@ -191,22 +196,33 @@ enum PasteService {
                     verifyReplacement: verifyReplacement,
                     savedItems: savedItems,
                     replacementGeneration: replacementGeneration,
+                    pasteboard: pasteboard,
                     completion: completion
                 )
             }
         }
     }
 
-    private static func completePaste(copyOnly: Bool, targetPID: pid_t?, completion: Completion?) {
+    static func completePaste(
+        copyOnly: Bool, targetPID: pid_t?, expectedGeneration: Int,
+        pasteboard: NSPasteboard = .general,
+        currentPID: @escaping @MainActor () -> pid_t? = { NSWorkspace.shared.frontmostApplication?.processIdentifier },
+        trusted: @escaping @MainActor () -> Bool = { isAccessibilityTrusted },
+        postPaste: @escaping @MainActor (pid_t) -> Bool = { sendCmdV(to: $0) },
+        completion: Completion?
+    ) {
         // One main-run-loop turn lets the menu/panel finish closing. The target
         // is checked after that turn, immediately before events are posted.
         DispatchQueue.main.async {
-            let currentPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+            guard pasteboard.changeCount == expectedGeneration else {
+                finish(.failed(.clipboardChanged), completion: completion)
+                return
+            }
             let decision = decision(
                 copyOnly: copyOnly,
-                accessibilityTrusted: isAccessibilityTrusted,
+                accessibilityTrusted: trusted(),
                 targetPID: targetPID,
-                currentPID: currentPID
+                currentPID: currentPID()
             )
 
             switch decision {
@@ -217,7 +233,7 @@ enum PasteService {
             case .copyOnlyTargetChanged:
                 finish(.copiedOnlyTargetChanged, completion: completion)
             case .paste(let pid):
-                guard sendCmdV(to: pid) else {
+                guard postPaste(pid) else {
                     finish(.failed(.eventCreation), completion: completion)
                     return
                 }
@@ -301,8 +317,8 @@ enum PasteService {
         return snapshot
     }
 
-    private static func restorePasteboard(_ items: [NSPasteboardItem], ifGenerationIs expected: Int) {
-        let pasteboard = NSPasteboard.general
+    private static func restorePasteboard(_ items: [NSPasteboardItem], ifGenerationIs expected: Int,
+                                          pasteboard: NSPasteboard = .general) {
         guard pasteboard.changeCount == expected else { return }
         pasteboard.clearContents()
         if !items.isEmpty { _ = pasteboard.writeObjects(items) }

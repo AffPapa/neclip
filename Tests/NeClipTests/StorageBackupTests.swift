@@ -4,6 +4,102 @@ import XCTest
 @testable import NeClip
 
 final class StorageBackupTests: XCTestCase {
+    func testRestoreRejectsIncompatibleSchemaAndNeverCopiesExecutableObjects() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-schema-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let liveURL = root.appendingPathComponent("live.sqlite")
+        let live = try Storage(path: liveURL.path, installStarterContent: false)
+        let id = try XCTUnwrap(live.insert(ClipItem(kind: .text, title: "Keep", text: "SYNTHETIC_BODY", createdAt: Date())))
+        let malformed = root.appendingPathComponent("malformed.sqlite")
+        let bad = try DatabaseQueue(path: malformed.path)
+        try bad.write { db in
+            for name in ["clip", "snippet", "snippetFolder", "appMetadata"] {
+                try db.execute(sql: "CREATE TABLE \(name)(id INTEGER)")
+            }
+        }
+        XCTAssertThrowsError(try live.restoreDatabaseBackup(from: malformed))
+        XCTAssertEqual(try live.fetchClip(id: id)?.text, "SYNTHETIC_BODY")
+
+        let backup = root.appendingPathComponent("backup.sqlite")
+        _ = try live.createDatabaseBackup(to: backup)
+        let source = try DatabaseQueue(path: backup.path)
+        try source.write { db in
+            try db.execute(sql: """
+                CREATE TABLE retained_secret(value TEXT);
+                CREATE TRIGGER retain_deleted AFTER DELETE ON clip
+                BEGIN INSERT INTO retained_secret VALUES (old.text); END;
+                UPDATE clip SET contentBytes = -1, contentHash = 'forged';
+                """)
+        }
+        _ = try live.restoreDatabaseBackup(from: backup)
+        XCTAssertGreaterThan(try XCTUnwrap(live.fetchClip(id: id)?.contentBytes), 0)
+        XCTAssertNotEqual(try live.fetchClip(id: id)?.contentHash, "forged")
+        let inspection = try DatabaseQueue(path: liveURL.path)
+        try inspection.read { db in
+            XCTAssertEqual(try Int.fetchOne(db, sql: "SELECT count(*) FROM sqlite_master WHERE name IN ('retained_secret','retain_deleted')"), 0)
+        }
+        try live.deleteAllUserData()
+        XCTAssertEqual(live.count, 0)
+    }
+
+    func testRestoreRejectsUnknownMigrationsGeneratedColumnsAndExtremeOrdering() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-restore-validation-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let live = try Storage(inMemory: true, installStarterContent: false)
+        _ = try live.insert(ClipItem(kind: .text, title: "Keep", text: "Keep", createdAt: Date()))
+        for (index, sql) in [
+            "INSERT INTO grdb_migrations VALUES ('future-unknown')",
+            "ALTER TABLE clip ADD COLUMN surprise TEXT GENERATED ALWAYS AS (title) VIRTUAL",
+            "INSERT INTO snippetFolder(id,title,sortIndex) VALUES (1,'Test',-9223372036854775808)"
+        ].enumerated() {
+            let url = root.appendingPathComponent("invalid-\(index).sqlite")
+            _ = try live.createDatabaseBackup(to: url)
+            let db = try DatabaseQueue(path: url.path)
+            try db.write { try $0.execute(sql: sql) }
+            XCTAssertThrowsError(try live.restoreDatabaseBackup(from: url))
+            XCTAssertEqual(live.count, 1)
+        }
+    }
+
+    func testRestoreSupportsKnownLegacyPrefixAndInvalidatesOldUndo() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-legacy-backup-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let live = try Storage(inMemory: true, installStarterContent: false)
+        let id = try XCTUnwrap(live.insert(ClipItem(kind: .text, title: "Keep", text: "Keep", createdAt: Date())))
+        let backup = root.appendingPathComponent("legacy.sqlite")
+        _ = try live.createDatabaseBackup(to: backup)
+        let removed = try XCTUnwrap(live.removeClip(id: id))
+        let source = try DatabaseQueue(path: backup.path)
+        try source.write { db in
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier IN ('v7-retire-search','v8-retire-pins')")
+            try db.execute(sql: "UPDATE clip SET isPinned = 1")
+        }
+        _ = try live.restoreDatabaseBackup(from: backup)
+        XCTAssertFalse(live.isUndoCurrent(removed.undoGeneration))
+        XCTAssertEqual(try live.fetchClip(id: id)?.isPinned, false)
+    }
+
+    func testBackupPreservesExistingFolderModeAndFailedPublicationPreservesOldFile() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-backup-publish-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path)
+        let liveURL = root.appendingPathComponent("live.sqlite")
+        let live = try Storage(path: liveURL.path, installStarterContent: false)
+        let destination = root.appendingPathComponent("export.sqlite")
+        _ = try live.createDatabaseBackup(to: destination)
+        let bytes = try Data(contentsOf: destination)
+        XCTAssertThrowsError(try Storage.publishBackup(root.appendingPathComponent("missing.sqlite"), to: destination))
+        XCTAssertEqual(try Data(contentsOf: destination), bytes)
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: root.path)[.posixPermissions] as? NSNumber)?.intValue, 0o755)
+        XCTAssertThrowsError(try live.createDatabaseBackup(to: liveURL))
+        _ = try live.createDatabaseBackup(to: destination)
+        XCTAssertEqual(try Data(contentsOf: destination), bytes)
+    }
+
     func testDeleteAllUserDataRemovesManagedRestoreSnapshotsButPreservesUserExport() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-erase-backups-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
