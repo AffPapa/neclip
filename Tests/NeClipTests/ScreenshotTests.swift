@@ -4,6 +4,125 @@ import XCTest
 @testable import NeClip
 
 final class ScreenshotTests: XCTestCase {
+    @MainActor
+    private func key(_ code: UInt16, modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
+        try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+            timestamp: 0, windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "",
+            isARepeat: false, keyCode: code))
+    }
+
+    @MainActor
+    func testKeyboardCaptureCreatesMovesResizesAndConfirmsRegion() throws {
+        _ = NSApplication.shared
+        let view = ScreenshotSelectionView(frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                                           image: try fixture(secret: 0.2))
+        var selections: [CGRect] = []
+        view.onSelect = { selections.append($0) }
+        view.keyDown(with: try key(36))
+        XCTAssertTrue(selections.isEmpty, "First Return prepares a visible region; it must not capture unexpectedly")
+        view.keyDown(with: try key(36))
+        let first = try XCTUnwrap(selections.first)
+        view.keyDown(with: try key(124, modifiers: [.option]))
+        view.keyDown(with: try key(124, modifiers: [.shift]))
+        view.keyDown(with: try key(126, modifiers: [.shift]))
+        view.keyDown(with: try key(36))
+        XCTAssertEqual(selections.last, CGRect(x: first.minX + 10, y: first.minY,
+                                              width: first.width + 1, height: first.height + 1))
+        XCTAssertTrue(view.isAccessibilityElement())
+        XCTAssertTrue((view.accessibilityValue() as? String)?.contains("ширина") == true)
+        for _ in 0..<20 { view.keyDown(with: try key(123, modifiers: [.option])) }
+        view.keyDown(with: try key(36))
+        XCTAssertEqual(selections.last?.minX, 0)
+    }
+
+    @MainActor
+    func testKeyboardAndAccessibilityCannotCaptureBeforeImageArrives() throws {
+        _ = NSApplication.shared
+        let view = ScreenshotSelectionView(frame: CGRect(x: 0, y: 0, width: 100, height: 100), image: nil)
+        view.onSelect = { _ in XCTFail("Capture is not ready") }
+        view.keyDown(with: try key(124))
+        view.keyDown(with: try key(36))
+        XCTAssertFalse(view.accessibilityPerformPress())
+        for action in view.accessibilityCustomActions() ?? [] { XCTAssertEqual(action.handler?(), false) }
+        var cancelled = false
+        view.onCancel = { cancelled = true }
+        view.keyDown(with: try key(53))
+        XCTAssertTrue(cancelled)
+    }
+
+    @MainActor
+    func testAccessibilityMarkupCanRedactWithoutMouseAndUndoExactly() throws {
+        _ = NSApplication.shared
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.2))
+        let actions = try XCTUnwrap(canvas.accessibilityCustomActions())
+        func perform(_ name: String, times: Int = 1) throws {
+            let action = try XCTUnwrap(actions.first { $0.name == name })
+            for _ in 0..<times { XCTAssertEqual(action.handler?(), true) }
+        }
+        try perform("Создать область или добавить пометку")
+        XCTAssertTrue(canvas.edits.annotations.isEmpty)
+        try perform("Влево на 10", times: 4)
+        try perform("Вверх на 10", times: 4)
+        try perform("Увеличить ширину на 10", times: 4)
+        try perform("Увеличить высоту на 10", times: 4)
+        try perform("Создать область или добавить пометку")
+        let mark = try XCTUnwrap(canvas.edits.annotations.first)
+        XCTAssertEqual(mark.tool, .redact)
+        XCTAssertEqual(mark.rect, canvas.bounds)
+        let first = try ScreenshotRenderer.encode(canvas.image, annotations: canvas.edits.annotations, format: .png)
+        let other = try ScreenshotRenderer.encode(fixture(secret: 0.9), annotations: canvas.edits.annotations, format: .png)
+        XCTAssertEqual(first, other, "Keyboard redaction must actually remove the source pixels from export")
+        canvas.undo(nil)
+        XCTAssertTrue(canvas.edits.annotations.isEmpty)
+        canvas.redo(nil)
+        XCTAssertEqual(canvas.edits.annotations, [mark])
+        canvas.isEditingEnabled = false
+        XCTAssertFalse(canvas.accessibilityPerformPress())
+        XCTAssertEqual(actions.first { $0.name == "Вправо на 10" }?.handler?(), false)
+        XCTAssertEqual(canvas.edits.annotations, [mark])
+    }
+
+    @MainActor
+    func testAccessibilityAnnotationCommitsLiveTextBeforeStartingNextMark() throws {
+        _ = NSApplication.shared
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.2))
+        canvas.onTextCommitted = { [weak canvas] point, text, color in
+            canvas?.edits.append(ScreenshotAnnotation(tool: .text, points: [point], text: text, color: color))
+        }
+        canvas.tool = .text
+        XCTAssertTrue(canvas.accessibilityPerformPress(), "The first action creates a keyboard region")
+        XCTAssertTrue(canvas.accessibilityPerformPress(), "The second action opens the text draft")
+        let field = try XCTUnwrap(canvas.subviews.compactMap { $0 as? NSTextField }.first)
+        field.stringValue = "Не терять текст"
+
+        canvas.tool = .rectangle
+        XCTAssertTrue(canvas.accessibilityPerformPress())
+        XCTAssertEqual(canvas.edits.annotations.map(\.tool), [.text, .rectangle])
+        XCTAssertEqual(canvas.edits.annotations.first?.text, "Не терять текст")
+        XCTAssertTrue(canvas.subviews.isEmpty)
+    }
+
+    @MainActor
+    func testKeyboardMarkupMatchesCaptureMovementAndPreservesColor() throws {
+        _ = NSApplication.shared
+        let canvas = ScreenshotCanvas(image: try fixture(secret: 0.3))
+        canvas.annotationColor = .blue
+        canvas.tool = .rectangle
+        canvas.keyDown(with: try key(36))
+        canvas.keyDown(with: try key(36))
+        let first = try XCTUnwrap(canvas.edits.annotations.first)
+        canvas.keyDown(with: try key(124))
+        canvas.keyDown(with: try key(125))
+        canvas.keyDown(with: try key(124, modifiers: [.shift]))
+        canvas.keyDown(with: try key(126, modifiers: [.shift]))
+        canvas.keyDown(with: try key(36))
+        let last = try XCTUnwrap(canvas.edits.annotations.last)
+        XCTAssertEqual(last.rect, CGRect(x: first.rect.minX + 1, y: first.rect.minY + 1,
+                                        width: first.rect.width + 1, height: first.rect.height + 1))
+        XCTAssertEqual(last.color, .blue)
+        XCTAssertEqual(canvas.edits.annotations.count, 2)
+    }
+
     func testCapturePixelSizeKeepsNativeRetinaSizeWhenItFits() {
         XCTAssertEqual(
             ScreenshotRenderer.capturePixelSize(

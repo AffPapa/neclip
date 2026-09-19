@@ -72,12 +72,12 @@ final class LayoutAccessibility {
         ))
     }
 
-    func selectedTextOrPreviousToken(in context: FocusedContext) -> (range: CFRange, text: String)? {
+    func selectedTextOrPreviousToken(in context: FocusedContext) -> ManualLayoutTarget? {
         if context.selectedRange.length > 0 {
             guard let text = string(in: context.selectedRange, element: context.element), !text.isEmpty else {
                 return nil
             }
-            return (context.selectedRange, text)
+            return .selection(range: context.selectedRange, text: text)
         }
 
         let cursor = context.selectedRange.location
@@ -87,18 +87,7 @@ final class LayoutAccessibility {
         guard let prefix = string(in: prefixRange, element: context.element), !prefix.isEmpty else {
             return nil
         }
-        let nsPrefix = prefix as NSString
-        let separator = nsPrefix.rangeOfCharacter(
-            from: .whitespacesAndNewlines,
-            options: .backwards,
-            range: NSRange(location: 0, length: nsPrefix.length)
-        )
-        let localStart = separator.location == NSNotFound ? 0 : NSMaxRange(separator)
-        let length = nsPrefix.length - localStart
-        guard length > 0 else { return nil }
-        let range = CFRange(location: windowStart + localStart, length: length)
-        guard let token = string(in: range, element: context.element), !token.isEmpty else { return nil }
-        return (range, token)
+        return ManualLayoutTarget.previousToken(in: prefix, windowStart: windowStart)
     }
 
     func select(_ range: CFRange, in context: FocusedContext, scope: Scope = .manual) -> Bool {
@@ -458,9 +447,10 @@ final class ManualLayoutCorrectionService {
         }
 
         guard let target = accessibility.selectedTextOrPreviousToken(in: context),
-              let conversion = layouts.convert(target.text) else {
+              let conversion = layouts.convert(target.conversionText) else {
             finish(.nothingToCorrect); return
         }
+        let replacement = target.replacement(with: conversion.converted)
         let originalSourceID = layouts.currentSelectableSourceID() ?? conversion.sourceID
         // If the user already selected the target, keep the editor's native
         // selection intact. Some AX clients expose the selected text as
@@ -478,9 +468,9 @@ final class ManualLayoutCorrectionService {
             guard let self else { return }
             self.undoRecord = UndoRecord(
                 context: context,
-                range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
+                range: CFRange(location: target.range.location, length: (replacement as NSString).length),
                 original: target.text,
-                converted: conversion.converted,
+                converted: replacement,
                 originalSourceID: originalSourceID,
                 switchedSource: switched,
                 createdAt: Date()
@@ -492,7 +482,7 @@ final class ManualLayoutCorrectionService {
         switch accessibility.replaceSelectedTextDirectly(
             expectedRange: target.range,
             expected: target.text,
-            replacement: conversion.converted,
+            replacement: replacement,
             in: context
         ) {
         case .replaced:
@@ -506,7 +496,7 @@ final class ManualLayoutCorrectionService {
         }
 
         PasteService.replaceSelection(
-            with: conversion.converted,
+            with: replacement,
             targetPID: context.pid,
             validateTarget: { [weak self] in
                 guard let self,
@@ -522,13 +512,13 @@ final class ManualLayoutCorrectionService {
                 }
                 let replacementRange = CFRange(
                     location: target.range.location,
-                    length: (conversion.converted as NSString).length
+                    length: (replacement as NSString).length
                 )
                 return LayoutReplacementVerificationPolicy.accepts(
                     selectedRange: current.selectedRange,
                     replacementRange: replacementRange,
                     textMatches: self.accessibility.string(in: replacementRange, element: current.element)
-                        == conversion.converted
+                        == replacement
                 )
             }
         ) { [weak self] result in
@@ -548,9 +538,9 @@ final class ManualLayoutCorrectionService {
                 let switched = self.layouts.selectSource(id: conversion.targetID)
                 self.undoRecord = UndoRecord(
                     context: context,
-                    range: CFRange(location: target.range.location, length: (conversion.converted as NSString).length),
+                    range: CFRange(location: target.range.location, length: (replacement as NSString).length),
                     original: target.text,
-                    converted: conversion.converted,
+                    converted: replacement,
                     originalSourceID: originalSourceID,
                     switchedSource: switched,
                     createdAt: Date()

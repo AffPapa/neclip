@@ -312,6 +312,9 @@ final class Storage: @unchecked Sendable {
     let startupError: Error?
     private let dbQueue: DatabaseQueue
     private let databasePath: String?
+    // Covers backup publication as well as DB work. Take this before dbQueue,
+    // never from inside it, so restore cannot publish an old snapshot after erase.
+    private let restoreAndEraseLock = NSLock()
     private let installStarterContent: Bool
     // Tests can measure read scaling without making a user's history exceed
     // its configured retention limit. Production construction keeps this on.
@@ -976,9 +979,11 @@ final class Storage: @unchecked Sendable {
         return removed
     }
 
-    /// Erases every user-created record in one transaction. Keeping this
-    /// atomic avoids partially cleared state and one transaction per snippet.
+    /// Commits record erasure atomically, then removes app-owned restore copies.
+    /// File cleanup failure is explicitly partial: the DB and undo are already cleared.
     func deleteAllUserData() throws {
+        restoreAndEraseLock.lock()
+        defer { restoreAndEraseLock.unlock() }
         try dbQueue.writeWithoutTransaction { db in
             try db.inTransaction {
                 try ClipItem.deleteAll(db)
@@ -990,7 +995,11 @@ final class Storage: @unchecked Sendable {
             // a queued restore cannot slip between erasure and invalidation.
             undoGeneration = UUID()
         }
-        notifyChange(.all)
+        // Views must drop cached content even when filesystem cleanup fails.
+        defer { notifyChange(.all) }
+        if let databasePath {
+            try ManagedRestoreSnapshots.removeAll(beside: URL(fileURLWithPath: databasePath))
+        }
     }
 
     /// Also guards late menu completions; failure to read means fail closed.
@@ -1056,6 +1065,8 @@ final class Storage: @unchecked Sendable {
     /// restores through SQLite's online backup API. Invalid input never
     /// touches the live database.
     func restoreDatabaseBackup(from sourceURL: URL) throws -> DatabaseBackupManifest {
+        restoreAndEraseLock.lock()
+        defer { restoreAndEraseLock.unlock() }
         try Self.validateRestoreInput(sourceURL)
         let source = try DatabaseQueue(path: sourceURL.path)
         let manifest = try source.read { db -> DatabaseBackupManifest in
