@@ -1,9 +1,21 @@
 {
   "versions": [
     {
+      "version": "2.8.3",
+      "build": 49,
+      "status": "released",
+      "changes": [
+        "Cancel deferred paste when the clipboard changes and avoid restoring unrelated data before an unacknowledged paste",
+        "Restore validated records into an app-created schema and publish private backups atomically without changing existing folder permissions",
+        "Align screenshot crop, remembered PNG/JPEG format and text anchors with the visible editor",
+        "Add optional light/dark backgrounds with bounded padding, exact pixel dimensions and a two-row toolbar",
+        "347 XCTest and 3 Swift Testing checks; ASan 54, TSan 60, required CodeQL, signing, notarization, stapling, Gatekeeper and independent public-download verification"
+      ]
+    },
+    {
       "version": "2.8.2",
       "build": 48,
-      "status": "released",
+      "status": "superseded",
       "changes": [
         "Cancel stale history-search actions before storage work and clear temporary result state after close or full erase",
         "Make standalone Option correction preserve punctuation and correct the preceding word after whitespace",
@@ -109,17 +121,6 @@
         "Remove automatic Apple Vision OCR from clipboard image capture",
         "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",
         "276 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
-      ]
-    },
-    {
-      "version": "2.8.3",
-      "build": 49,
-      "status": "candidate",
-      "changes": [
-        "Cancel deferred paste if the clipboard changed; do not restore unrelated data before an unacknowledged paste",
-        "Restore validated records into an app-created schema and publish backups atomically without changing existing folder permissions",
-        "Match screenshot crops to the visible preview, remember PNG/JPEG consistently and keep text anchors visible",
-        "Add optional light/dark screenshot backgrounds with bounded padding, exact pixel dimensions and a two-row editor toolbar"
       ]
     }
   ]

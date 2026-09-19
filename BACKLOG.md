@@ -4,12 +4,12 @@ NeClip remains a small local macOS utility: clipboard history, snippet folders
 and safe EN/RU layout correction. Accounts, cloud sync, subscriptions,
 telemetry, advertising and AI processing are not planned.
 
-## Current public release — 2.8.2 / build 48
+## Current public release — 2.8.3 / build 49
 
 Released 19 September 2026 after the normal Developer ID, notarization,
 stapling, Gatekeeper, mounted-DMG, independent public-download and required-CI
-gates. [Download NeClip 2.8.2](https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg)
-and read the [release evidence](docs/RELEASE-2.8.2-STATUS.md).
+gates. [Download NeClip 2.8.3](https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg)
+and read the [release evidence](docs/RELEASE-2.8.3-STATUS.md).
 
 - Save any text history item as a raw-text snippet with folder selection and duplicate checks.
 - Search local history with bounded text, type, application and date filters.
@@ -24,6 +24,10 @@ and read the [release evidence](docs/RELEASE-2.8.2-STATUS.md).
   verified multiline range replacement and bounded editor-readiness retries.
 - Keep search cancellation, restore cleanup and screenshot editing predictable under
   delayed menu, database and accessibility events.
+- Recheck deferred paste generations, import only validated backup records and
+  atomically publish private backup files without changing existing folder permissions.
+- Keep screenshot crop/format/text consistent and add optional light/dark
+  backgrounds with unchanged source pixels and a compact two-row toolbar.
 
 ## Current verification priorities
 
@@ -31,6 +35,8 @@ and read the [release evidence](docs/RELEASE-2.8.2-STATUS.md).
   editors; targeted synthetic UI input does not establish global-key behavior.
 - Verify permissions and screen capture across additional supported macOS versions
   and physical display configurations.
+- Complete physical Save-dialog click-through and multi-monitor/Spaces checks;
+  native AppKit integration tests do not establish these hardware/user scenarios.
 - Measure menu latency before changing storage or browse limits.
 
 These are verification priorities, not promises of new features.

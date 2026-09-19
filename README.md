@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.8.2 (build 48)**,
+Current supported release: **2.8.3 (build 49)**,
 released on 19 September 2026.
 
-[Download NeClip 2.8.2](https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg)
-(2,124,738 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.8.3](https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg)
+(2,134,466 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `84b16e5396ca5dbc3093fe1dbdd2b3e9173e9f77e2600e7e23f63dfd694e916a`.
-Artifact source: `1524627efb4de62274d433915651945a1c8e2b3e`.
+SHA-256: `89fd4661aebe93f75a3ed353a371192a53462633abaf98dbc289b94af7b9a523`.
+Artifact source: `d210af5f6624a274909eb00de25f28ce1f9ca7b6`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.8.2-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.8.3-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -27,7 +27,7 @@ The app and DMG are Developer ID signed, notarized and stapled.
 Copy something, open history, select a record and press Return. With Accessibility
 permission NeClip posts a paste to the original application; without it, the item
 is copied for manual paste. Command-Return copies without pasting and Shift-Return
-uses plain text. A changed target prevents automatic paste.
+uses plain text. A changed target or clipboard generation prevents deferred automatic paste.
 
 | Default shortcut | Action |
 |---|---|
@@ -68,7 +68,9 @@ pause. Screenshots capture the display under the pointer only after your command
 Escape cancels area selection. The editor offers opaque redaction, pen, arrow,
 rectangle and text, five colours, undo/redo, copy and PNG/JPEG save. Exports contain
 flattened pixels, without editable layers or original image metadata. Oversized
-displays are proportionally downscaled to a 32 MP working-image limit.
+displays are proportionally downscaled to a 32 MP working-image limit, with a visible warning.
+Optional light/dark backgrounds add bounded padding and a shadow without resizing
+the source pixels. The editor shows actual export dimensions and centers small images.
 
 ## Privacy and recovery
 
@@ -86,7 +88,9 @@ image bytes and legacy metadata remain intact; normal retention rules still appl
   Input Monitoring and Accessibility only when enabled, analyzes after each
   eligible key, and rejects secure fields, terminals, IDEs, remote clients and
   uncertain focus. Typed tokens remain in bounded memory. Manual correction
-  preserves the previous clipboard only while its generation is unchanged.
+  restores the previous clipboard only after replacement is verified and its
+  generation is unchanged. An unacknowledged paste does not restore unrelated data;
+  the application shows a separate status.
 - Standalone Option (Alt) correction is separately opt-in because macOS does not
   represent a modifier-only press as a normal configurable global hotkey. It
   observes only Option flags and cancellation input, never suppresses or mutates
@@ -97,6 +101,10 @@ image bytes and legacy metadata remain intact; normal retention rules still appl
   retires legacy pins, so they follow ordinary retention. Export important snippets
   and keep a database backup before upgrading; do not reopen migrated data in an
   older build. Failed database startup falls back to visibly temporary storage.
+- Backup exports are private files, but are not encrypted. Keep them in a trusted
+  location. Restore imports validated records into an app-created schema, never
+  arbitrary source triggers/tables. Active SQLite sidecars and unknown schemas
+  are rejected; use the app's self-contained backup export.
 - Screen Recording is requested only for screenshots. Saving asks for a destination;
   cancelling capture does not publish an image. Update checks fetch only the exact
   GitHub Pages manifest, reject redirects and oversized/non-JSON replies, and allow

@@ -1,8 +1,8 @@
 # NeClip project map
 
-Current public release: **2.8.2 / build 48**. The exact signed artifact,
+Current public release: **2.8.3 / build 49**. The exact signed artifact,
 source commit and release checks are recorded in
-[RELEASE-2.8.2-STATUS.md](RELEASE-2.8.2-STATUS.md).
+[RELEASE-2.8.3-STATUS.md](RELEASE-2.8.3-STATUS.md).
 
 ## Runtime ownership
 
@@ -17,9 +17,11 @@ source commit and release checks are recorded in
 - `ScreenshotCoordinator`, `ScreenshotSelectionView` and
   `ScreenshotEditorWindow` own one-shot area/full-screen capture, annotation
   and export.
+- `ScreenshotRenderer` and `ScreenshotPresentation` share the bounded pixel
+  composition used by preview, copy and file export.
 
 ## Release boundary
 
-Only `v2.8.2` is supported publicly. Its download URL, SHA-256 and build number
+Only `v2.8.3` is supported publicly. Its download URL, SHA-256 and build number
 are in `docs/version.json`; GitHub Pages, the repository and GitHub Release must
 all agree before publication.
