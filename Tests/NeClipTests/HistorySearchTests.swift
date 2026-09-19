@@ -1,8 +1,40 @@
+import Carbon
 import Foundation
 import XCTest
 @testable import NeClip
 
 final class HistorySearchTests: XCTestCase {
+    func testKeyboardModelMatchesHistoryPasteConventions() {
+        XCTAssertEqual(
+            HistorySearchKeyboardAction.resolve(keyCode: UInt16(kVK_Return), modifiers: []),
+            .pasteOriginal
+        )
+        XCTAssertEqual(
+            HistorySearchKeyboardAction.resolve(keyCode: UInt16(kVK_Return), modifiers: [.shift]),
+            .pastePlain
+        )
+        XCTAssertEqual(
+            HistorySearchKeyboardAction.resolve(keyCode: UInt16(kVK_Return), modifiers: [.command]),
+            .copyOnly
+        )
+        XCTAssertEqual(
+            HistorySearchKeyboardAction.resolve(keyCode: UInt16(kVK_UpArrow), modifiers: []),
+            .moveSelection(-1)
+        )
+        XCTAssertEqual(
+            HistorySearchKeyboardAction.resolve(keyCode: UInt16(kVK_Escape), modifiers: []),
+            .dismiss
+        )
+    }
+
+    func testRequestGateRejectsQueuedStaleSearchesBeforeDatabaseRead() {
+        let gate = HistorySearchRequestGate()
+        let first = gate.begin()
+        let latest = gate.begin()
+        XCTAssertFalse(gate.isCurrent(first))
+        XCTAssertTrue(gate.isCurrent(latest))
+    }
+
     func testSearchMatchesTitleAndFullTextWithoutOCR() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let older = Date(timeIntervalSinceNow: -8 * 86_400)

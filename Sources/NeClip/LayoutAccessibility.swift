@@ -49,14 +49,20 @@ final class LayoutAccessibility {
 
         let application = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(application, scope == .automatic ? 0.03 : 0.2)
-        guard let element: AXUIElement = attribute(application, kAXFocusedUIElementAttribute),
+        guard let element: AXUIElement = attribute(application, kAXFocusedUIElementAttribute) else {
+            return .failure(.unsupported)
+        }
+        // The timeout is specific to an AX object. Configure the focused
+        // element before reading its role, secure state, or selection, so a
+        // slow editor cannot hold the automatic-correction event transaction.
+        AXUIElementSetMessagingTimeout(element, scope == .automatic ? 0.03 : 0.2)
+        guard
               let role: String = attribute(element, kAXRoleAttribute),
               isTextRole(role),
               !isSecureElement(element),
               let selectedRange = selectedRange(element) else {
             return .failure(.unsupported)
         }
-        AXUIElementSetMessagingTimeout(element, scope == .automatic ? 0.03 : 0.2)
         return .success(FocusedContext(
             pid: app.processIdentifier,
             bundleID: bundleID,
@@ -168,6 +174,27 @@ final class LayoutAccessibility {
 
     func sameRange(_ lhs: CFRange, _ rhs: CFRange) -> Bool {
         lhs.location == rhs.location && lhs.length == rhs.length
+    }
+
+    /// A manual correction selects the previous token only when the user had
+    /// a caret. If the clipboard fallback fails before editing it, restore the
+    /// caret only while the focused element, selection, and token are still
+    /// exactly the ones that NeClip selected.
+    func restoreTemporaryCaret(
+        _ caret: CFRange,
+        temporarySelection: CFRange,
+        expectedText: String,
+        in original: FocusedContext
+    ) {
+        guard let current = refreshedContext(matching: original, scope: .manual),
+              LayoutSelectionRestorationPolicy.shouldRestore(
+                caret: caret,
+                temporarySelection: temporarySelection,
+                currentSelection: current.selectedRange,
+                currentText: string(in: temporarySelection, element: current.element),
+                expectedText: expectedText
+              ) else { return }
+        _ = select(caret, in: current)
     }
 
     func string(in range: CFRange, element: AXUIElement) -> String? {
@@ -440,7 +467,9 @@ final class ManualLayoutCorrectionService {
         // writable but reject an otherwise harmless re-selection of the same
         // range. A range under the caret still needs to be selected before the
         // clipboard fallback can replace it.
-        if context.selectedRange.length == 0,
+        let originalCaret = context.selectedRange
+        let selectedTemporaryToken = context.selectedRange.length == 0
+        if selectedTemporaryToken,
            !accessibility.select(target.range, in: context) {
             finish(.unsupported); return
         }
@@ -506,6 +535,14 @@ final class ManualLayoutCorrectionService {
             Task { @MainActor in
                 guard let self else { return }
                 guard result == .pasted else {
+                    if selectedTemporaryToken {
+                        self.accessibility.restoreTemporaryCaret(
+                            originalCaret,
+                            temporarySelection: target.range,
+                            expectedText: target.text,
+                            in: context
+                        )
+                    }
                     finish(.failed); return
                 }
                 let switched = self.layouts.selectSource(id: conversion.targetID)

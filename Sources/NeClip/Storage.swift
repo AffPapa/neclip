@@ -288,6 +288,10 @@ enum StorageChangeDomain: String, Sendable {
 
 final class Storage: @unchecked Sendable {
     static let maximumStorageBytes: Int64 = 250 * 1024 * 1024
+    /// Restore input has a deliberately separate, early cap. The live storage
+    /// limit is 250 MiB; a snapshot may carry SQLite overhead, but a chosen
+    /// file must never be opened by SQLite or mapped into memory beyond 500 MiB.
+    static let maximumBackupBytes: Int64 = maximumStorageBytes * 2
     static let maximumSnippetImportBytes = 16 * 1024 * 1024
     static let maximumSnippetTitleCharacters = 200
     static let snippetPreviewCharacterLimit = 280
@@ -1052,6 +1056,7 @@ final class Storage: @unchecked Sendable {
     /// restores through SQLite's online backup API. Invalid input never
     /// touches the live database.
     func restoreDatabaseBackup(from sourceURL: URL) throws -> DatabaseBackupManifest {
+        try Self.validateRestoreInput(sourceURL)
         let source = try DatabaseQueue(path: sourceURL.path)
         let manifest = try source.read { db -> DatabaseBackupManifest in
             let integrity = try String.fetchOne(db, sql: "PRAGMA integrity_check") ?? ""
@@ -1064,7 +1069,7 @@ final class Storage: @unchecked Sendable {
                 }
             }
             let bytes = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
-            guard Int64(bytes.count) <= Self.maximumStorageBytes * 2 else { throw DatabaseBackupError.backupTooLarge }
+            guard Int64(bytes.count) <= Self.maximumBackupBytes else { throw DatabaseBackupError.backupTooLarge }
             return DatabaseBackupManifest(
                 version: DatabaseBackupManifest.currentVersion,
                 schemaVersion: try Int.fetchOne(db, sql: "PRAGMA user_version") ?? 0,
@@ -1081,6 +1086,24 @@ final class Storage: @unchecked Sendable {
         try source.backup(to: dbQueue)
         notifyChange(.all)
         return manifest
+    }
+
+    /// Validate user-selected restore input before SQLite opens it. A symlink
+    /// could point outside the chosen location, and a large sparse/ordinary
+    /// file can otherwise force avoidable SQLite work before rejection.
+    static func validateRestoreInput(_ sourceURL: URL) throws {
+        let values = try sourceURL.resourceValues(forKeys: [
+            .isRegularFileKey,
+            .isSymbolicLinkKey,
+            .fileSizeKey
+        ])
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw DatabaseBackupError.invalidDatabase
+        }
+        guard let size = values.fileSize, size > 0,
+              Int64(size) <= maximumBackupBytes else {
+            throw DatabaseBackupError.backupTooLarge
+        }
     }
 
     func trimToLimits() throws {

@@ -52,4 +52,33 @@ final class StorageBackupTests: XCTestCase {
         XCTAssertEqual(live.count, 1)
         XCTAssertEqual(try live.summaries(limit: 1).first?.title, "Keep")
     }
+
+    func testRestoreRejectsSymbolicLinkBeforeOpeningSQLite() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-symlink-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let target = root.appendingPathComponent("target.sqlite")
+        try Data("not sqlite".utf8).write(to: target)
+        let link = root.appendingPathComponent("selected.sqlite")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        XCTAssertThrowsError(try Storage.validateRestoreInput(link)) { error in
+            XCTAssertEqual(error as? DatabaseBackupError, .invalidDatabase)
+        }
+    }
+
+    func testRestoreRejectsOversizedFileBeforeOpeningSQLite() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-oversize-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let oversized = root.appendingPathComponent("oversized.sqlite")
+        FileManager.default.createFile(atPath: oversized.path, contents: Data())
+        let handle = try FileHandle(forWritingTo: oversized)
+        try handle.truncate(atOffset: UInt64(Storage.maximumBackupBytes) + 1)
+        try handle.close()
+
+        XCTAssertThrowsError(try Storage.validateRestoreInput(oversized)) { error in
+            XCTAssertEqual(error as? DatabaseBackupError, .backupTooLarge)
+        }
+    }
 }
