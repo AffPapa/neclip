@@ -1031,7 +1031,7 @@ final class Storage: @unchecked Sendable {
                                          attributes: [.posixPermissions: 0o700])
         let temporary = destination.deletingLastPathComponent()
             .appendingPathComponent(".neclip-backup-\(UUID().uuidString).sqlite")
-        try? fileManager.removeItem(at: temporary)
+        try Self.createPrivateBackupFile(at: temporary)
         do {
             let backup = try DatabaseQueue(path: temporary.path)
             try dbQueue.backup(to: backup)
@@ -1078,6 +1078,32 @@ final class Storage: @unchecked Sendable {
             destination.withUnsafeFileSystemRepresentation { target in Darwin.rename(source!, target!) }
         }
         guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+    }
+
+    static func createPrivateBackupFile(at url: URL) throws {
+        // SQLite otherwise inherits the caller's umask, which may expose the
+        // snapshot before the final chmod. Never follow or replace a collision.
+        let descriptor = url.withUnsafeFileSystemRepresentation {
+            Darwin.open($0!, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
+        }
+        guard descriptor >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        guard Darwin.close(descriptor) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+    }
+
+    struct BackupImportBudget {
+        private(set) var totalBytes: Int64 = 0
+        private(set) var clipBytes: Int64 = 0
+        mutating func include(bytes: Int64, clipPayload: Int64 = 0) throws {
+            // History retention does not include snippets or titles. Their
+            // combined import uses the same upper bound as exported backups.
+            guard bytes >= 0, clipPayload >= 0, clipPayload <= bytes,
+                  bytes <= maximumBackupBytes - totalBytes,
+                  clipPayload <= maximumStorageBytes - clipBytes else {
+                throw DatabaseBackupError.backupTooLarge
+            }
+            totalBytes += bytes
+            clipBytes += clipPayload
+        }
     }
 
     /// Validates a backup in isolation, creates a rollback snapshot, then
@@ -1152,29 +1178,22 @@ final class Storage: @unchecked Sendable {
         let migrations = try String.fetchAll(source, sql: "SELECT identifier FROM grdb_migrations")
         guard migrations.count >= 3, migrations.count <= known.count,
               Set(migrations) == Set(known.prefix(migrations.count)) else { throw DatabaseBackupError.invalidDatabase }
-        var records = 0
-        var bytes: Int64 = 0
-        func account(_ count: Int64) throws {
-            records += 1
-            guard count >= 0, count <= maximumStorageBytes - bytes, records <= 100_000 else {
-                throw DatabaseBackupError.backupTooLarge
-            }
-            bytes += count
-        }
+        var budget = BackupImportBudget()
         func validID(_ id: Int64?) -> Bool { id.map { $0 > 0 && $0 < Int64.max - 1_000_000 } ?? false }
         try stage.write { destination in
             let folders = try SnippetFolder.fetchCursor(source, sql: "SELECT \(projections["snippetFolder"]!) FROM snippetFolder")
             while var folder = try folders.next() {
                 guard validID(folder.id), folder.sortIndex > Int.min / 2,
                       folder.sortIndex < Int.max / 2 else { throw DatabaseBackupError.invalidDatabase }
-                try account(Int64(folder.title.utf8.count))
+                try budget.include(bytes: Int64(folder.title.utf8.count))
                 try folder.insert(destination)
             }
             let clips = try ClipItem.fetchCursor(source, sql: "SELECT \(projections["clip"]!) FROM clip")
             while var clip = try clips.next() {
                 guard validID(clip.id), clip.createdAt.timeIntervalSince1970.isFinite else { throw DatabaseBackupError.invalidDatabase }
                 clip.contentBytes = payloadBytes(clip)
-                try account(clip.contentBytes + Int64(clip.title.utf8.count))
+                try budget.include(bytes: clip.contentBytes + Int64(clip.title.utf8.count + (clip.appBundleID?.utf8.count ?? 0)),
+                                   clipPayload: clip.contentBytes)
                 clip.contentHash = hash(for: clip)
                 clip.isPinned = false
                 clip.pinnedAt = nil
@@ -1186,7 +1205,7 @@ final class Storage: @unchecked Sendable {
                 guard validID(snippet.id), snippet.useCount >= 0, snippet.useCount < Int.max / 2,
                       snippet.sortIndex > Int.min / 2, snippet.sortIndex < Int.max / 2 else { throw DatabaseBackupError.invalidDatabase }
                 let keyword: String? = row["keyword"]
-                try account(Int64(snippet.title.utf8.count + snippet.content.utf8.count + (keyword?.utf8.count ?? 0)))
+                try budget.include(bytes: Int64(snippet.title.utf8.count + snippet.content.utf8.count + (keyword?.utf8.count ?? 0)))
                 snippet.isPinned = false
                 try snippet.insert(destination)
                 try destination.execute(sql: "UPDATE snippet SET keyword = ? WHERE id = ?", arguments: [keyword, snippet.id])

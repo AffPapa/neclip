@@ -4,6 +4,36 @@ import XCTest
 @testable import NeClip
 
 final class StorageBackupTests: XCTestCase {
+    func testTemporaryBackupIsPrivateBeforeSQLiteAndDoesNotReplaceCollisions() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-private-backup-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let target = root.appendingPathComponent("snapshot.sqlite")
+        try Storage.createPrivateBackupFile(at: target)
+        let mode = try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? NSNumber
+        XCTAssertEqual(mode?.intValue, 0o600)
+        try Data("EXISTING_SENTINEL".utf8).write(to: target)
+        XCTAssertThrowsError(try Storage.createPrivateBackupFile(at: target))
+        XCTAssertEqual(try String(contentsOf: target, encoding: .utf8), "EXISTING_SENTINEL")
+        let link = root.appendingPathComponent("link.sqlite")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        XCTAssertThrowsError(try Storage.createPrivateBackupFile(at: link))
+    }
+
+    func testBackupBudgetSeparatesSnippetsFromHistoryAndBoundsTotalWithoutOverflow() throws {
+        var budget = Storage.BackupImportBudget()
+        let mib: Int64 = 1024 * 1024
+        try budget.include(bytes: 249 * mib, clipPayload: 249 * mib)
+        try budget.include(bytes: 2 * mib)
+        XCTAssertEqual(budget.totalBytes, 251 * mib)
+        XCTAssertEqual(budget.clipBytes, 249 * mib)
+        XCTAssertThrowsError(try budget.include(bytes: 2 * mib, clipPayload: 2 * mib))
+        XCTAssertThrowsError(try budget.include(bytes: Int64.max))
+        try budget.include(bytes: 249 * mib)
+        XCTAssertEqual(budget.totalBytes, Storage.maximumBackupBytes)
+        XCTAssertThrowsError(try budget.include(bytes: 1))
+    }
+
     func testRestoreRejectsIncompatibleSchemaAndNeverCopiesExecutableObjects() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-schema-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
