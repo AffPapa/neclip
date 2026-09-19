@@ -126,8 +126,10 @@ final class StorageBackupTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: destination), bytes)
         XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: root.path)[.posixPermissions] as? NSNumber)?.intValue, 0o755)
         XCTAssertThrowsError(try live.createDatabaseBackup(to: liveURL))
-        _ = try live.createDatabaseBackup(to: destination)
-        XCTAssertEqual(try Data(contentsOf: destination), bytes)
+        let replacement = try live.createDatabaseBackup(to: destination)
+        // SQLite may update page-header counters between valid snapshots.
+        // Byte identity matters on failed publication, not a successful export.
+        XCTAssertEqual(replacement.sha256, ContentDigest.sha256(try Data(contentsOf: destination)))
     }
 
     func testDeleteAllUserDataRemovesManagedRestoreSnapshotsButPreservesUserExport() throws {
