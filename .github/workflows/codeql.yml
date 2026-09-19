@@ -43,9 +43,7 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
       - name: Build Swift explicitly for CodeQL
         if: matrix.language == 'swift'
-        run: |
-          swift package resolve
-          swift build -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+        run: swift build --disable-sandbox --jobs 1 -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
         with:
