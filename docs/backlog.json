@@ -1,9 +1,9 @@
 {
   "currentRelease": {
-    "version": "2.8.2",
-    "build": 48,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.2-STATUS.md"
+    "version": "2.8.3",
+    "build": 49,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.3-STATUS.md"
   },
   "done": [
     "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore",
@@ -15,11 +15,13 @@
     "2.7.3: use the active EN/RU layout for arbitrary manual text and special-symbol correction",
     "2.8.0: analyze automatic correction after each key, correct the last word by Option, and separate layout/access/data settings",
     "2.8.1: verified multiline range replacement, bounded editor retries, first-stroke recovery and race-safe live correction",
-    "2.8.2: race-safe local history search, whitespace-safe Option correction, guarded restore cleanup and keyboard/VoiceOver screenshot editing"
+    "2.8.2: race-safe local history search, whitespace-safe Option correction, guarded restore cleanup and keyboard/VoiceOver screenshot editing",
+    "2.8.3: clipboard-generation guards, validated record-only restore, private atomic backups and precise screenshot editing with optional backgrounds"
   ],
   "inDevelopment": [],
   "next": [
-    "Verify permissions and screen capture across additional supported macOS versions and physical display configurations"
+    "Verify permissions and screen capture across additional supported macOS versions and physical display configurations",
+    "Complete physical Save-dialog click-through and multi-monitor/Spaces verification beyond native AppKit tests"
   ],
   "notPlanned": [
     "Accounts",

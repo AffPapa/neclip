@@ -21,16 +21,16 @@
       <div class="navlinks"><a href="#features">Возможности</a><a href="#release">Выпуск</a><a href="#backlog">Планы</a><a href="https://github.com/AffPapa/neclip">Исходники</a></div>
     </nav>
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>2.8.2 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>2.8.3 · выпущена</span>
       <h1>Скопировал.<br>Выбрал. Вставил.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg">Скачать NeClip 2.8.2</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg">Скачать NeClip 2.8.3</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.2-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.3-STATUS.md">Проверки выпуска</a>.</p>
     </div>
   </header>
 
@@ -42,7 +42,7 @@
         <article class="card"><h3>История</h3><p>Недавние тексты, изображения и файлы. Выберите запись в меню. С доступом Accessibility NeClip вставит её; без него скопирует для ручной вставки.</p></article>
         <article class="card"><h3>Сниппеты</h3><p>Готовые тексты по папкам. Выбор одной клавишей, понятный редактор и локальные подстановки даты, времени и текущего буфера.</p></article>
         <article class="card"><h3>Раскладка</h3><p>Надёжное ручное исправление EN/RU по Option (Alt), переназначаемые клавиши и осторожный авто-режим с сохранением пунктуации.</p></article>
-        <article class="card"><h3>Скриншоты</h3><p>Снимок области или всего экрана по команде. Непрозрачная заливка, перо, стрелки, рамки и текст; копирование или сохранение PNG/JPEG.</p></article>
+        <article class="card"><h3>Скриншоты</h3><p>Снимок области или всего экрана. Непрозрачное скрытие, перо, стрелки, рамки и текст. Необязательный светлый или тёмный фон с отступом; копирование и сохранение PNG/JPEG.</p></article>
       </div>
     </section>
 
@@ -71,10 +71,10 @@
 
     <section class="wrap" id="release">
       <h2>Единственный поддерживаемый выпуск</h2>
-      <p class="section-lead">NeClip 2.8.2 / build 48 — текущая подписанная и нотарифицированная версия.</p>
-      <div class="timeline"><article class="card release"><div><strong>2.8.2</strong><br><span class="status">выпущена · 19 сентября 2026</span></div><div><b>История, исправление раскладки и скриншоты стали устойчивее.</b><ul><li>Поиск истории не показывает устаревшие результаты и не выполняет старые действия</li><li>Option исправляет последнее слово после пробелов и сохраняет пунктуацию</li><li>Очистка восстановления ограничена данными NeClip; очистка и восстановление не пересекаются</li><li>Редактор скриншотов управляется с клавиатуры и VoiceOver</li></ul><p>333 XCTest (5 ожидаемых пропусков), strict Swift 6, notarization, stapling, Gatekeeper и mounted-DMG проверка.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.2-STATUS.md">Результаты проверки</a></div></article></div>
-      <p class="fine">DMG: 2,124,738 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.8.2/NeClip-2.8.2.dmg.sha256">SHA-256</a>: <code>84b16e5396ca5dbc3093fe1dbdd2b3e9173e9f77e2600e7e23f63dfd694e916a</code></p>
-      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/1524627efb4de62274d433915651945a1c8e2b3e"><code>1524627efb4de62274d433915651945a1c8e2b3e</code></a></p>
+      <p class="section-lead">NeClip 2.8.3 / build 49 — текущая подписанная и нотарифицированная версия.</p>
+      <div class="timeline"><article class="card release"><div><strong>2.8.3</strong><br><span class="status">выпущена · 19 сентября 2026</span></div><div><b>Защищённая вставка, проверенное восстановление и оформление скриншотов.</b><ul><li>Отложенная вставка отменяется при изменении буфера</li><li>Восстановление проверяет записи и не переносит чужие таблицы и триггеры</li><li>Backup создаётся с закрытыми правами и заменяется атомарно</li><li>Скриншоты получают точное выделение, согласованный PNG/JPEG и необязательные фон и отступы</li></ul><p>347 XCTest (5 специальных пропусков), 3 Swift Testing, ASan 54, TSan 60, strict Swift 6, notarization, stapling, Gatekeeper и проверка публичного скачивания.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.3-STATUS.md">Результаты и границы проверки</a></div></article></div>
+      <p class="fine">DMG: 2,134,466 bytes · <a href="https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg.sha256">SHA-256</a>: <code>89fd4661aebe93f75a3ed353a371192a53462633abaf98dbc289b94af7b9a523</code></p>
+      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/d210af5f6624a274909eb00de25f28ce1f9ca7b6"><code>d210af5f6624a274909eb00de25f28ce1f9ca7b6</code></a></p>
     </section>
 
     <section class="wrap" id="backlog">

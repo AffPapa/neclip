@@ -10,12 +10,19 @@ only when the user explicitly chooses “Check for Updates”.
 
 Release binaries are accepted only after Developer ID signing, Apple
 notarization, stapling, Gatekeeper assessment and published SHA-256 verification.
-The only supported public release is `v2.8.2`, with immutable assets and tag.
+The only supported public release is `v2.8.3`, with immutable assets and tag.
 Older releases remain superseded and are retained for rollback. GitHub also checks Swift
 and workflow source with CodeQL, allows only GitHub-owned Actions referenced by
 full SHA and monitors the exact SwiftPM dependency for vulnerabilities. Branch
 and repository rules are verified through an authenticated GitHub release gate;
 this document does not infer their current state from an unauthenticated API.
+
+Backup files contain plaintext history and snippets. Owner-only permissions are
+established before SQLite writes, and completed snapshots are published by atomic
+replacement. These permissions are not encryption: keep backups in trusted
+locations and never attach them to public issues. Restore validates and copies
+records into an app-created schema rather than importing foreign tables/triggers.
+See the [2.8.3 audit coverage and limitations](docs/RELEASE-2.8.3-STATUS.md).
 
 Every push, pull request and weekly scheduled run also executes a fully
 redacted Gitleaks scan over both the publishable working tree and every fetched

@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.8.3 / build 49 — candidate
+## 2.8.3 / build 49 — released 2026-09-19
 
 - Recheck clipboard generation before deferred paste; never restore unrelated
   clipboard data after an unacknowledged layout-correction paste.
@@ -12,9 +12,16 @@
 - Add optional light/dark backgrounds with bounded padding and unchanged source
   pixels. Show export dimensions, disclose reduced large-screen resolution, and
   keep editor controls on two rows at the minimum supported window size.
-- Public download remains 2.8.2 until release verification is complete.
+- 347 XCTest (five normal opt-in skips), three Swift Testing checks, ASan 54
+  and TSan 60 passed. Signed/notarized/stapled app and DMG passed Gatekeeper,
+  mounted-DMG validation and independent public-download verification.
 
-## 2.8.2 / build 48 — released 2026-09-19
+Exact public artifact: [NeClip-2.8.3.dmg](https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg)
+(2,134,466 bytes), SHA-256
+`89fd4661aebe93f75a3ed353a371192a53462633abaf98dbc289b94af7b9a523`.
+See [release evidence and verification limits](docs/RELEASE-2.8.3-STATUS.md).
+
+## 2.8.2 / build 48 — superseded 2026-09-19
 
 - Cancel stale history-search actions before local storage work and clear temporary
   result rows after a changed query, close or full history erase.
