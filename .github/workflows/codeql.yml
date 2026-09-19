@@ -18,7 +18,9 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    # Swift extraction on the Apple Silicon runner legitimately takes longer
+    # than a normal build; retain the full security-query phase after it.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
