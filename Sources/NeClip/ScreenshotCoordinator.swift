@@ -28,6 +28,7 @@ final class ScreenshotCoordinator {
     private var screenObserver: NSObjectProtocol?
     private let monitor: ClipboardMonitor
     private var capturedImage: CGImage?
+    private var captureWasReduced = false
     // ScreenCaptureKit's contentRect can differ from NSScreen.frame in
     // scaled/multi-display configurations. Keep the exact source geometry so
     // the user's selection is mapped proportionally into the captured raster.
@@ -159,12 +160,15 @@ final class ScreenshotCoordinator {
                     ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == resolvedDisplayID
                         && $0.frame == frame
                 }) else { throw ScreenshotFailure.displayChanged }
+                let reduced = Double(pixelSize.width) < Double(filter.contentRect.width) * Double(filter.pointPixelScale) - 1
+                    || Double(pixelSize.height) < Double(filter.contentRect.height) * Double(filter.pointPixelScale) - 1
                 if mode == .fullScreen {
-                    showEditor(image: image, sourceBundleID: sourceBundleID, sourceScreen: screen)
+                    showEditor(image: image, sourceBundleID: sourceBundleID, sourceScreen: screen, resolutionReduced: reduced)
                     return
                 }
                 guard selection != nil else { return }
                 capturedImage = image
+                captureWasReduced = reduced
                 capturedSourceRect = filter.contentRect
                 selection?.contentView.flatMap { $0 as? ScreenshotSelectionView }?.setImage(image)
                 ScreenshotMetrics.mark("selection-ready")
@@ -209,6 +213,7 @@ final class ScreenshotCoordinator {
         view.onSelect = { [weak self] rect in
             guard let self, let image = capturedImage else { return }
             let sourceRect = self.capturedSourceRect
+            let reduced = self.captureWasReduced
             // Mouse events are local to the overlay. Convert them back to the
             // global display coordinate space used by NSScreen and
             // ScreenCaptureKit before calculating the pixel crop.
@@ -231,7 +236,7 @@ final class ScreenshotCoordinator {
                         try ScreenshotRenderer.crop(image, to: pixels)
                     }.value
                     guard let self, !Task.isCancelled, self.captureGeneration == generation else { return }
-                self.showEditor(image: cropped, sourceBundleID: sourceBundleID, sourceScreen: sourceScreen)
+                    self.showEditor(image: cropped, sourceBundleID: sourceBundleID, sourceScreen: sourceScreen, resolutionReduced: reduced)
                 } catch {
                     guard !Task.isCancelled else { return }
                     self?.showError("Не удалось выделить область. Попробуйте снова.")
@@ -254,16 +259,17 @@ final class ScreenshotCoordinator {
         selection?.close()
         selection = nil
         capturedImage = nil
+        captureWasReduced = false
         capturedSourceRect = .zero
     }
 
-    func showEditor(image: CGImage, sourceBundleID: String?, sourceScreen: NSScreen? = nil) {
+    func showEditor(image: CGImage, sourceBundleID: String?, sourceScreen: NSScreen? = nil, resolutionReduced: Bool = false) {
         guard editor == nil else { return }
         // Synthetic QA must never overwrite the user's working clipboard.
         let pasteboard = RuntimeIdentity.isScreenshotQA
             ? NSPasteboard(name: .init("org.affpapa.neclip.screenshot-qa")) : .general
         let controller = ScreenshotEditorWindowController(
-            image: image, pasteboard: pasteboard, preferredScreen: sourceScreen
+            image: image, pasteboard: pasteboard, preferredScreen: sourceScreen, resolutionReduced: resolutionReduced
         )
         controller.onCopy = { [weak self] data in
             guard let self else { return }
@@ -306,10 +312,12 @@ final class ScreenshotSelectionView: NSView {
     private var moveOrigin = CGPoint.zero
     private var selectionAtMoveStart = CGRect.zero
     private var trackingArea: NSTrackingArea?
+    private var rasterSize = CGSize.zero
     override var acceptsFirstResponder: Bool { true }
 
     init(frame: CGRect, image: CGImage?) {
         self.image = image.map { NSImage(cgImage: $0, size: frame.size) }
+        rasterSize = image.map { CGSize(width: $0.width, height: $0.height) } ?? .zero
         super.init(frame: frame)
         ScreenshotRegionAccessibility.configure(self, label: "Область снимка экрана",
                                                 confirmName: "Создать или подтвердить область",
@@ -321,6 +329,7 @@ final class ScreenshotSelectionView: NSView {
     required init?(coder: NSCoder) { nil }
     func setImage(_ image: CGImage) {
         self.image = NSImage(cgImage: image, size: bounds.size)
+        rasterSize = CGSize(width: image.width, height: image.height)
         start = nil
         selection = .zero
         hasDragged = false
@@ -502,7 +511,9 @@ final class ScreenshotSelectionView: NSView {
     }
 
     private func drawSelectionSize() {
-        let text = "\(Int(selection.width.rounded())) × \(Int(selection.height.rounded()))"
+        let pixels = ScreenshotRenderer.pixelRect(selection: selection, screen: bounds,
+                                                  width: Int(rasterSize.width), height: Int(rasterSize.height)) ?? .zero
+        let text = "\(Int(pixels.width)) × \(Int(pixels.height)) пикс."
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
             .foregroundColor: NSColor.white

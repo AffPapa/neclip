@@ -5,6 +5,8 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     var onCopy: ((Data) -> Void)?
     var onClose: (() -> Void)?
     private let canvas: ScreenshotCanvas
+    private let composition: ScreenshotCompositionView
+    private let resolutionReduced: Bool
     private let pasteboard: NSPasteboard
     private let copyButton = NSButton(title: "Копировать", target: nil, action: nil)
     private let saveButton = NSButton(title: "Сохранить…", target: nil, action: nil)
@@ -18,9 +20,12 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     private let scroll = NSScrollView()
     private let scale = NSPopUpButton()
     private let color = NSPopUpButton()
+    private let background = NSPopUpButton()
 
-    init(image: CGImage, pasteboard: NSPasteboard = .general, preferredScreen: NSScreen? = nil) {
+    init(image: CGImage, pasteboard: NSPasteboard = .general, preferredScreen: NSScreen? = nil, resolutionReduced: Bool = false) {
+        self.resolutionReduced = resolutionReduced
         canvas = ScreenshotCanvas(image: image)
+        composition = ScreenshotCompositionView(canvas: canvas)
         self.pasteboard = pasteboard
         let aspect = CGFloat(image.width) / CGFloat(max(image.height, 1))
         let visibleFrame = (preferredScreen ?? NSScreen.main)?.visibleFrame.insetBy(dx: 80, dy: 80)
@@ -87,9 +92,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         scroll.allowsMagnification = true
         scroll.minMagnification = 0.05
         scroll.maxMagnification = 4
-        scroll.documentView = canvas
+        scroll.contentView = ScreenshotClipView()
+        scroll.documentView = composition
         scroll.borderType = .noBorder
-        scroll.drawsBackground = false
+        scroll.drawsBackground = true
+        scroll.backgroundColor = .underPageBackgroundColor
         let actions = NSStackView(views: [undoButton, redoButton, NSView(), saveButton, copyButton])
         actions.spacing = 8
         let actionSymbols: [(NSButton, String, String)] = [
@@ -125,6 +132,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         status.textColor = .secondaryLabelColor
         status.maximumNumberOfLines = 3
         status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        background.addItems(withTitles: ScreenshotPresentation.allCases.map(\.rawValue))
+        background.setAccessibilityLabel("Оформление снимка")
+        background.toolTip = "Фон и отступ без изменения исходных пикселей"
+        background.target = self
+        background.action = #selector(changeBackground(_:))
         let root = NSVisualEffectView()
         root.material = .windowBackground
         root.blendingMode = .behindWindow
@@ -144,24 +156,28 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         toolbar.addSubview(tools)
         toolbar.addSubview(actions)
         toolbar.addSubview(status)
-        for view in [tools, actions, status] { view.translatesAutoresizingMaskIntoConstraints = false }
+        toolbar.addSubview(background)
+        for view in [tools, actions, status, background] { view.translatesAutoresizingMaskIntoConstraints = false }
         NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+            scroll.topAnchor.constraint(equalTo: root.topAnchor, constant: 32),
             scroll.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             scroll.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
             scroll.bottomAnchor.constraint(equalTo: toolbar.topAnchor, constant: -10),
             toolbar.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
             toolbar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
             toolbar.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -12),
-            toolbar.heightAnchor.constraint(equalToConstant: 48),
+            toolbar.heightAnchor.constraint(equalToConstant: 84),
             tools.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 8),
-            tools.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+            tools.topAnchor.constraint(equalTo: toolbar.topAnchor, constant: 8),
             actions.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -8),
-            actions.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
-            status.centerXAnchor.constraint(equalTo: toolbar.centerXAnchor),
-            status.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
-            status.leadingAnchor.constraint(greaterThanOrEqualTo: tools.trailingAnchor, constant: 12),
-            status.trailingAnchor.constraint(lessThanOrEqualTo: actions.leadingAnchor, constant: -12)
+            actions.topAnchor.constraint(equalTo: toolbar.topAnchor, constant: 8),
+            tools.trailingAnchor.constraint(lessThanOrEqualTo: actions.leadingAnchor, constant: -8),
+            status.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 8),
+            status.centerYAnchor.constraint(equalTo: background.centerYAnchor),
+            status.trailingAnchor.constraint(lessThanOrEqualTo: background.leadingAnchor, constant: -12),
+            background.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -8),
+            background.bottomAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: -8),
+            background.widthAnchor.constraint(equalToConstant: 155)
         ])
         canvas.onChange = { [weak self] in self?.refresh() }
         canvas.onLimit = { [weak self] in
@@ -174,7 +190,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
             self?.refresh()
         }
         canvas.onToolRequested = { [weak self] index in self?.selectTool(at: index) }
-        window.center()
+        if visibleFrame == nil { window.center() }
         root.layoutSubtreeIfNeeded()
         // The canvas owns the current color. Re-apply it after AppKit has
         // finished constructing the popup so the visible choice cannot drift
@@ -200,6 +216,14 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         canvas.annotationColor = ScreenshotMarkupColor.allCases[sender.indexOfSelectedItem]
         window?.makeFirstResponder(canvas)
     }
+    @objc private func changeBackground(_ sender: NSPopUpButton) {
+        guard !exporting, ScreenshotPresentation.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
+        canvas.commitPendingText()
+        composition.presentation = ScreenshotPresentation.allCases[sender.indexOfSelectedItem]
+        changeScale(scale)
+        refresh()
+        window?.makeFirstResponder(canvas)
+    }
     @objc private func undoEdit() { canvas.edits.undo(); refresh() }
     @objc private func redoEdit() { canvas.edits.redo(); refresh() }
 
@@ -207,7 +231,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         guard scroll.documentView != nil else { return }
         let fit = ScreenshotRenderer.fittingMagnification(
             contentSize: scroll.contentSize,
-            imageSize: CGSize(width: canvas.image.width, height: canvas.image.height),
+            imageSize: composition.frame.size,
             backingScale: window?.backingScaleFactor ?? 1,
             maximum: scroll.maxMagnification
         )
@@ -231,6 +255,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         redoButton.isEnabled = !exporting && !canvas.edits.undone.isEmpty
         copyButton.isEnabled = !exporting
         saveButton.isEnabled = !exporting
+        background.isEnabled = !exporting
+        color.isEnabled = !exporting
+        let size = composition.frame.size
+        status.stringValue = "\(Int(size.width)) × \(Int(size.height)) пикс."
+            + (resolutionReduced ? " · Уменьшено до лимита 32 Мп" : "")
         for button in toolButtons { button.isEnabled = !exporting }
     }
 
@@ -245,35 +274,42 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
 
     @objc private func saveImage() {
         guard !exporting, let window else { return }
-        let panel = NSSavePanel()
-        savePanel = panel
-        panel.title = "Сохранить скриншот"
-        panel.nameFieldStringValue = "Скриншот-\(Date().formatted(.iso8601).replacingOccurrences(of: ":", with: "-"))-\(UUID().uuidString.prefix(4)).png"
-        panel.allowedContentTypes = [.png]
-        panel.canCreateDirectories = true
+        let panel = makeSavePanel(format: Settings.screenshotFormat)
         let folder = ScreenshotFolder.url
         let folderAccess = folder?.startAccessingSecurityScopedResource() == true
         panel.directoryURL = folder
-        let format = NSPopUpButton(frame: CGRect(x: 0, y: 0, width: 200, height: 26))
-        format.addItems(withTitles: ScreenshotFormat.allCases.map(\.rawValue))
-        format.selectItem(at: ScreenshotFormat.allCases.firstIndex(of: Settings.screenshotFormat) ?? 0)
-        format.setAccessibilityLabel("Формат сохранения снимка")
-        format.target = self
-        format.action = #selector(changeSaveFormat(_:))
-        panel.accessoryView = format
         panel.beginSheetModal(for: window) { [weak self] response in
             defer {
                 if folderAccess { folder?.stopAccessingSecurityScopedResource() }
                 self?.savePanel = nil
             }
-            guard response == .OK, let url = panel.url else { return }
-            let selected = ScreenshotFormat.allCases[format.indexOfSelectedItem]
-            self?.export(format: selected, fileURL: url)
+            guard response == .OK, let url = panel.url,
+                  let popup = panel.accessoryView as? NSPopUpButton,
+                  ScreenshotFormat.allCases.indices.contains(popup.indexOfSelectedItem) else { return }
+            self?.export(format: ScreenshotFormat.allCases[popup.indexOfSelectedItem], fileURL: url)
         }
     }
 
+    func makeSavePanel(format selected: ScreenshotFormat) -> NSSavePanel {
+        let panel = NSSavePanel()
+        savePanel = panel
+        panel.title = "Сохранить скриншот"
+        panel.nameFieldStringValue = "Скриншот-\(Date().formatted(.iso8601).replacingOccurrences(of: ":", with: "-"))-\(UUID().uuidString.prefix(4)).\(selected.suffix)"
+        panel.allowedContentTypes = [selected.type]
+        panel.canCreateDirectories = true
+        let format = NSPopUpButton(frame: CGRect(x: 0, y: 0, width: 200, height: 26))
+        format.addItems(withTitles: ScreenshotFormat.allCases.map(\.rawValue))
+        format.selectItem(at: ScreenshotFormat.allCases.firstIndex(of: selected) ?? 0)
+        format.setAccessibilityLabel("Формат сохранения снимка")
+        format.target = self
+        format.action = #selector(changeSaveFormat(_:))
+        panel.accessoryView = format
+        return panel
+    }
+
     @objc private func changeSaveFormat(_ sender: NSPopUpButton) {
-        guard let panel = savePanel else { return }
+        guard let panel = savePanel,
+              ScreenshotFormat.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
         let format = ScreenshotFormat.allCases[sender.indexOfSelectedItem]
         panel.allowedContentTypes = [format.type]
         panel.nameFieldStringValue = (panel.nameFieldStringValue as NSString).deletingPathExtension + "." + format.suffix
@@ -290,10 +326,11 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         refresh()
         status.stringValue = "Подготовка…"
         let image = canvas.image, annotations = canvas.edits.annotations
+        let presentation = composition.presentation
         Task { [weak self] in
             do {
                 let data = try await Task.detached(priority: .userInitiated) {
-                    try ScreenshotRenderer.encode(image, annotations: annotations, format: format)
+                    try ScreenshotRenderer.encode(image, annotations: annotations, format: format, presentation: presentation)
                 }.value
                 guard let self, let window = self.window, window.isVisible else { return }
                 if let fileURL {
@@ -320,7 +357,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !exporting else { return false }
         canvas.commitPendingText()
-        guard !completed, !canvas.edits.annotations.isEmpty else { return true }
+        guard !completed, !canvas.edits.annotations.isEmpty || composition.presentation != .original else { return true }
         let alert = NSAlert()
         alert.messageText = "Закрыть без сохранения?"
         alert.informativeText = "Снимок и пометки будут удалены из памяти."
@@ -329,6 +366,49 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         return alert.runModal() == .alertSecondButtonReturn
     }
     func windowWillClose(_ notification: Notification) { onClose?() }
+}
+
+@MainActor
+final class ScreenshotClipView: NSClipView {
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
+        var result = super.constrainBoundsRect(proposedBounds)
+        guard let documentView else { return result }
+        if result.width > documentView.frame.width {
+            result.origin.x = (documentView.frame.width - result.width) / 2
+        }
+        if result.height > documentView.frame.height {
+            result.origin.y = (documentView.frame.height - result.height) / 2
+        }
+        return result
+    }
+}
+
+@MainActor
+final class ScreenshotCompositionView: NSView {
+    let canvas: ScreenshotCanvas
+    var presentation: ScreenshotPresentation = .original { didSet { updateGeometry() } }
+    override var isFlipped: Bool { true }
+    init(canvas: ScreenshotCanvas) {
+        self.canvas = canvas
+        super.init(frame: canvas.frame)
+        addSubview(canvas)
+        updateGeometry()
+    }
+    required init?(coder: NSCoder) { nil }
+    private func updateGeometry() {
+        let inset = CGFloat(presentation.padding(width: canvas.image.width, height: canvas.image.height))
+        canvas.setFrameOrigin(CGPoint(x: inset, y: inset))
+        setFrameSize(presentation.size(width: canvas.image.width, height: canvas.image.height))
+        needsDisplay = true
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+        context.translateBy(x: 0, y: bounds.height)
+        context.scaleBy(x: 1, y: -1)
+        presentation.drawBackground(in: context, width: canvas.image.width, height: canvas.image.height)
+        context.restoreGState()
+    }
 }
 
 @MainActor
@@ -545,16 +625,15 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
         textEntry?.cancel()
         textEntry?.removeFromSuperview()
         let markupColor = annotationColor
-        let field = ScreenshotInlineTextField(frame: CGRect(x: min(max(8, point.x), max(8, bounds.width - 248)),
-                                                             y: min(max(8, point.y - 18), max(8, bounds.height - 42)),
-                                                             width: min(240, max(120, bounds.width - 16)), height: 34))
+        let frame = ScreenshotTextLayout.entryFrame(at: point, in: bounds)
+        let field = ScreenshotInlineTextField(frame: frame)
         field.placeholderString = "Введите текст"
-        field.font = NSFont.systemFont(ofSize: 20, weight: .medium)
-        field.textColor = .labelColor
+        field.font = NSFont(name: ScreenshotTextLayout.fontName, size: ScreenshotTextLayout.fontSize)
+        field.textColor = NSColor(cgColor: markupColor.cgColor)
         field.backgroundColor = .windowBackgroundColor
         field.drawsBackground = true
-        field.isBordered = true
-        field.bezelStyle = .roundedBezel
+        field.isBordered = false
+        field.lineBreakMode = .byTruncatingTail
         field.focusRingType = .default
         field.setAccessibilityLabel("Текст пометки")
         field.onCommit = { [weak self, weak field] value in
@@ -562,7 +641,7 @@ final class ScreenshotCanvas: NSView, NSUserInterfaceValidations {
             let text = String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
             field.removeFromSuperview()
             self.textEntry = nil
-            if !text.isEmpty { self.onTextCommitted?(point, text, markupColor) }
+            if !text.isEmpty { self.onTextCommitted?(frame.origin, text, markupColor) }
             self.window?.makeFirstResponder(self)
         }
         field.onCancel = { [weak self, weak field] in

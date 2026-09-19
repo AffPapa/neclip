@@ -389,6 +389,7 @@ final class ManualLayoutCorrectionService {
         case undone
         case nothingToCorrect
         case correctedLayoutUnchanged
+        case pasteUnconfirmed
         case permissionRequired
         case protectedContext
         case unsupported
@@ -525,6 +526,9 @@ final class ManualLayoutCorrectionService {
             Task { @MainActor in
                 guard let self else { return }
                 guard result == .pasted else {
+                    // The recipient may still be processing the posted event.
+                    // Changing its selection now could paste at the wrong caret.
+                    if result == .pasteUnconfirmed { finish(.pasteUnconfirmed); return }
                     if selectedTemporaryToken {
                         self.accessibility.restoreTemporaryCaret(
                             originalCaret,
@@ -613,7 +617,7 @@ final class ManualLayoutCorrectionService {
                     }
                     completion(.undone)
                 } else {
-                    completion(.failed)
+                    completion(result == .pasteUnconfirmed ? .pasteUnconfirmed : .failed)
                 }
             }
         }

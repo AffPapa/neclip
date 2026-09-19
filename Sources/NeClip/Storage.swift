@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import GRDB
 
 enum ClipKind: String, Codable, DatabaseValueConvertible, Sendable {
@@ -1020,12 +1021,17 @@ final class Storage: @unchecked Sendable {
     func createDatabaseBackup(to destination: URL) throws -> DatabaseBackupManifest {
         let fileManager = FileManager.default
         let directory = destination.deletingLastPathComponent()
+        if let databasePath {
+            let selected = destination.resolvingSymlinksInPath().path
+            guard !["", "-wal", "-shm", "-journal"].contains(where: {
+                selected == URL(fileURLWithPath: databasePath + $0).resolvingSymlinksInPath().path
+            }) else { throw DatabaseBackupError.invalidDatabase }
+        }
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true,
                                          attributes: [.posixPermissions: 0o700])
-        try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         let temporary = destination.deletingLastPathComponent()
             .appendingPathComponent(".neclip-backup-\(UUID().uuidString).sqlite")
-        try? fileManager.removeItem(at: temporary)
+        try Self.createPrivateBackupFile(at: temporary)
         do {
             let backup = try DatabaseQueue(path: temporary.path)
             try dbQueue.backup(to: backup)
@@ -1046,9 +1052,9 @@ final class Storage: @unchecked Sendable {
                     snippetCount: snippetCount, sha256: ContentDigest.sha256(bytes)
                 )
             }
-            if fileManager.fileExists(atPath: destination.path) { try fileManager.removeItem(at: destination) }
-            try fileManager.moveItem(at: temporary, to: destination)
-            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
+            try backup.close()
+            try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
+            try Self.publishBackup(temporary, to: destination)
             let manifestURL = destination.appendingPathExtension("json")
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -1061,6 +1067,45 @@ final class Storage: @unchecked Sendable {
         }
     }
 
+    /// Same-directory rename publishes a complete snapshot atomically. Failure
+    /// leaves the previous backup available; existing directory modes are kept.
+    static func publishBackup(_ temporary: URL, to destination: URL) throws {
+        guard temporary.deletingLastPathComponent().standardizedFileURL
+            == destination.deletingLastPathComponent().standardizedFileURL else {
+            throw DatabaseBackupError.invalidDatabase
+        }
+        let result = temporary.withUnsafeFileSystemRepresentation { source in
+            destination.withUnsafeFileSystemRepresentation { target in Darwin.rename(source!, target!) }
+        }
+        guard result == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+    }
+
+    static func createPrivateBackupFile(at url: URL) throws {
+        // SQLite otherwise inherits the caller's umask, which may expose the
+        // snapshot before the final chmod. Never follow or replace a collision.
+        let descriptor = url.withUnsafeFileSystemRepresentation {
+            Darwin.open($0!, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode_t(0o600))
+        }
+        guard descriptor >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        guard Darwin.close(descriptor) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+    }
+
+    struct BackupImportBudget {
+        private(set) var totalBytes: Int64 = 0
+        private(set) var clipBytes: Int64 = 0
+        mutating func include(bytes: Int64, clipPayload: Int64 = 0) throws {
+            // History retention does not include snippets or titles. Their
+            // combined import uses the same upper bound as exported backups.
+            guard bytes >= 0, clipPayload >= 0, clipPayload <= bytes,
+                  bytes <= maximumBackupBytes - totalBytes,
+                  clipPayload <= maximumStorageBytes - clipBytes else {
+                throw DatabaseBackupError.backupTooLarge
+            }
+            totalBytes += bytes
+            clipBytes += clipPayload
+        }
+    }
+
     /// Validates a backup in isolation, creates a rollback snapshot, then
     /// restores through SQLite's online backup API. Invalid input never
     /// touches the live database.
@@ -1068,17 +1113,22 @@ final class Storage: @unchecked Sendable {
         restoreAndEraseLock.lock()
         defer { restoreAndEraseLock.unlock() }
         try Self.validateRestoreInput(sourceURL)
-        let source = try DatabaseQueue(path: sourceURL.path)
+        var configuration = Configuration()
+        configuration.readonly = true
+        configuration.prepareDatabase { db in try db.execute(sql: "PRAGMA trusted_schema = OFF") }
+        let source = try DatabaseQueue(path: sourceURL.path, configuration: configuration)
+        let stageDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("neclip-restore-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: stageDirectory, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: stageDirectory) }
+        let staged = try Storage(path: stageDirectory.appendingPathComponent("validated.sqlite").path,
+                                 installStarterContent: false, enforceHistoryLimitOnWrite: false)
         let manifest = try source.read { db -> DatabaseBackupManifest in
             let integrity = try String.fetchOne(db, sql: "PRAGMA integrity_check") ?? ""
             guard integrity.caseInsensitiveCompare("ok") == .orderedSame else {
                 throw DatabaseBackupError.invalidDatabase
             }
-            for table in ["clip", "snippet", "snippetFolder", "appMetadata"] {
-                guard try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?)", arguments: [table]) == true else {
-                    throw DatabaseBackupError.missingRequiredTable(table)
-                }
-            }
+            try Self.importBackupRecords(from: db, into: staged.dbQueue)
             let bytes = try Data(contentsOf: sourceURL, options: .mappedIfSafe)
             guard Int64(bytes.count) <= Self.maximumBackupBytes else { throw DatabaseBackupError.backupTooLarge }
             return DatabaseBackupManifest(
@@ -1094,9 +1144,80 @@ final class Storage: @unchecked Sendable {
                 .deletingLastPathComponent().appendingPathComponent("neclip-before-restore-\(UUID().uuidString).sqlite")
             _ = try createDatabaseBackup(to: rollback)
         }
-        try source.backup(to: dbQueue)
+        try staged.dbQueue.backup(to: dbQueue) { progress in
+            // GRDB invokes this while it still owns the destination queue.
+            if progress.isCompleted { self.undoGeneration = UUID() }
+        }
         notifyChange(.all)
         return manifest
+    }
+
+    /// Copy values, never user-provided schema/triggers. Stream records into a
+    /// private current-schema DB; nothing touches live storage until this ends.
+    private static func importBackupRecords(from source: Database, into stage: DatabaseQueue) throws {
+        let projections = [
+            "clip": "id,kind,title,text,data,rtf,ocrText,appBundleID,createdAt,contentBytes,contentHash,isPinned,pinnedAt",
+            "snippetFolder": "id,title,sortIndex",
+            "snippet": "id,folderID,title,content,sortIndex,keyword,isPinned,useCount,lastUsedAt,createdAt,updatedAt",
+            "appMetadata": "key,value", "grdb_migrations": "identifier"
+        ]
+        let tableList = try Row.fetchAll(source, sql: "PRAGMA main.table_list")
+        for (table, projection) in projections {
+            guard tableList.contains(where: { ($0["name"] as String) == table && ($0["type"] as String) == "table" }) else {
+                throw DatabaseBackupError.missingRequiredTable(table)
+            }
+            let columns = try Row.fetchAll(source, sql: "PRAGMA main.table_xinfo(\"\(table)\")")
+            let names = Set(columns.map { $0["name"] as String })
+            guard columns.allSatisfy({ ($0["hidden"] as Int) == 0 }),
+                  projection.split(separator: ",").allSatisfy({ names.contains(String($0)) }) else {
+                throw DatabaseBackupError.invalidDatabase
+            }
+        }
+        let known = ["v1", "v2", "v3-fast-local-core", "v4-ocr-byte-accounting", "v5-remove-unused-thumbnails",
+                     "v6-guard-fts-update-triggers", "v7-retire-search", "v8-retire-pins"]
+        let migrations = try String.fetchAll(source, sql: "SELECT identifier FROM grdb_migrations")
+        guard migrations.count >= 3, migrations.count <= known.count,
+              Set(migrations) == Set(known.prefix(migrations.count)) else { throw DatabaseBackupError.invalidDatabase }
+        var budget = BackupImportBudget()
+        func validID(_ id: Int64?) -> Bool { id.map { $0 > 0 && $0 < Int64.max - 1_000_000 } ?? false }
+        try stage.write { destination in
+            let folders = try SnippetFolder.fetchCursor(source, sql: "SELECT \(projections["snippetFolder"]!) FROM snippetFolder")
+            while var folder = try folders.next() {
+                guard validID(folder.id), folder.sortIndex > Int.min / 2,
+                      folder.sortIndex < Int.max / 2 else { throw DatabaseBackupError.invalidDatabase }
+                try budget.include(bytes: Int64(folder.title.utf8.count))
+                try folder.insert(destination)
+            }
+            let clips = try ClipItem.fetchCursor(source, sql: "SELECT \(projections["clip"]!) FROM clip")
+            while var clip = try clips.next() {
+                guard validID(clip.id), clip.createdAt.timeIntervalSince1970.isFinite else { throw DatabaseBackupError.invalidDatabase }
+                clip.contentBytes = payloadBytes(clip)
+                try budget.include(bytes: clip.contentBytes + Int64(clip.title.utf8.count + (clip.appBundleID?.utf8.count ?? 0)),
+                                   clipPayload: clip.contentBytes)
+                clip.contentHash = hash(for: clip)
+                clip.isPinned = false
+                clip.pinnedAt = nil
+                try clip.insert(destination)
+            }
+            let snippets = try Row.fetchCursor(source, sql: "SELECT \(projections["snippet"]!) FROM snippet")
+            while let row = try snippets.next() {
+                var snippet = try Snippet(row: row)
+                guard validID(snippet.id), snippet.useCount >= 0, snippet.useCount < Int.max / 2,
+                      snippet.sortIndex > Int.min / 2, snippet.sortIndex < Int.max / 2 else { throw DatabaseBackupError.invalidDatabase }
+                let keyword: String? = row["keyword"]
+                try budget.include(bytes: Int64(snippet.title.utf8.count + snippet.content.utf8.count + (keyword?.utf8.count ?? 0)))
+                snippet.isPinned = false
+                try snippet.insert(destination)
+                try destination.execute(sql: "UPDATE snippet SET keyword = ? WHERE id = ?", arguments: [keyword, snippet.id])
+            }
+            let metadata = try Row.fetchCursor(source, sql: "SELECT key,value FROM appMetadata WHERE key IN ('starterSnippetsInstalled','starterSnippetsVersion')")
+            while let row = try metadata.next() {
+                let key: String = row["key"], value: String = row["value"]
+                guard value.utf8.count <= 32 else { throw DatabaseBackupError.invalidDatabase }
+                try destination.execute(sql: "INSERT INTO appMetadata(key,value) VALUES (?,?)", arguments: [key, value])
+            }
+            guard try Row.fetchOne(destination, sql: "PRAGMA foreign_key_check") == nil else { throw DatabaseBackupError.invalidDatabase }
+        }
     }
 
     /// Validate user-selected restore input before SQLite opens it. A symlink
@@ -1114,6 +1235,16 @@ final class Storage: @unchecked Sendable {
         guard let size = values.fileSize, size > 0,
               Int64(size) <= maximumBackupBytes else {
             throw DatabaseBackupError.backupTooLarge
+        }
+        // Exported backups are self-contained. An active WAL can contain data
+        // absent from the selected file's checksum/size and must not be imported.
+        for suffix in ["-wal", "-shm", "-journal"] {
+            let sidecar = URL(fileURLWithPath: sourceURL.path + suffix)
+            if FileManager.default.fileExists(atPath: sidecar.path) {
+                let metadata = try sidecar.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+                guard metadata.isRegularFile == true, metadata.isSymbolicLink != true,
+                      metadata.fileSize == 0 else { throw DatabaseBackupError.invalidDatabase }
+            }
         }
     }
 

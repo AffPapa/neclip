@@ -98,6 +98,18 @@ enum ScreenshotFormat: String, CaseIterable, Sendable {
     var suffix: String { self == .png ? "png" : "jpg" }
 }
 
+enum ScreenshotTextLayout {
+    static let fontName = "Helvetica"
+    static let fontSize: CGFloat = 24
+    static func entryFrame(at point: CGPoint, in bounds: CGRect) -> CGRect {
+        let width = min(240, bounds.width), height = min(34, bounds.height)
+        let x = min(max(0, point.x), max(0, bounds.width - width))
+        return CGRect(x: x,
+                      y: min(max(0, point.y), max(0, bounds.height - height)),
+                      width: bounds.width - x, height: height)
+    }
+}
+
 enum ScreenshotFileExport {
     /// Called only after NSSavePanel confirms a destination/replacement.
     /// The input is the flattened export, never the source screenshot.
@@ -154,6 +166,7 @@ enum ScreenshotRenderer {
         let nativeWidth = Double(contentRect.width) * Double(pointPixelScale)
         let nativeHeight = Double(contentRect.height) * Double(pointPixelScale)
         guard nativeWidth.isFinite, nativeHeight.isFinite,
+              nativeWidth < Double(Int.max), nativeHeight < Double(Int.max),
               nativeWidth >= 1, nativeHeight >= 1 else { return nil }
         return boundedPixelSize(width: Int(max(1, nativeWidth.rounded())), height: Int(max(1, nativeHeight.rounded())))
     }
@@ -173,9 +186,9 @@ enum ScreenshotRenderer {
         pixelRect(selection: selection, screen: screen, sourceRect: screen, width: width, height: height)
     }
 
-    /// Maps a selection in global screen coordinates into the source geometry
-    /// reported by ScreenCaptureKit. Both rectangles use the display's global
-    /// coordinate space; only their sizes/scales may differ.
+    /// Inverts the preview transform: the overlay draws the complete raster
+    /// into the screen bounds, even when ScreenCaptureKit reports a different
+    /// source size. Using sourceRect for scaling would crop different pixels.
     static func pixelRect(selection: CGRect, screen: CGRect, sourceRect: CGRect,
                          width: Int, height: Int) -> CGRect? {
         guard screen.width > 0, screen.height > 0, width > 0, height > 0,
@@ -185,17 +198,15 @@ enum ScreenshotRenderer {
               sourceRect.width > 0, sourceRect.height > 0 else { return nil }
         let region = selection.intersection(screen)
         guard !region.isNull, region.width > 0, region.height > 0 else { return nil }
-        let sourceRegion = region.intersection(sourceRect)
-        guard !sourceRegion.isNull, sourceRegion.width > 0, sourceRegion.height > 0 else { return nil }
-        let sx = CGFloat(width) / sourceRect.width, sy = CGFloat(height) / sourceRect.height
-        let left = floor((sourceRegion.minX - sourceRect.minX) * sx)
+        let sx = CGFloat(width) / screen.width, sy = CGFloat(height) / screen.height
+        let left = floor((region.minX - screen.minX) * sx)
         // ScreenCaptureKit CGImages and the selection overlay both expose
         // their visual top edge as the smaller Y value for this pipeline.
         // Do not invert Y here: doing so shifts a selection to content below
         // it (for example selecting 1.9.0 produced 1.8.0/1.4.0).
-        let top = floor((sourceRegion.minY - sourceRect.minY) * sy)
-        let right = ceil((sourceRegion.maxX - sourceRect.minX) * sx)
-        let bottom = ceil((sourceRegion.maxY - sourceRect.minY) * sy)
+        let top = floor((region.minY - screen.minY) * sy)
+        let right = ceil((region.maxX - screen.minX) * sx)
+        let bottom = ceil((region.maxY - screen.minY) * sy)
         return CGRect(x: left, y: top, width: right - left, height: bottom - top)
             .intersection(CGRect(x: 0, y: 0, width: width, height: height))
     }
@@ -227,8 +238,13 @@ enum ScreenshotRenderer {
         return result
     }
 
-    static func render(_ image: CGImage, annotations: [ScreenshotAnnotation]) throws -> CGImage {
-        let context = try context(width: image.width, height: image.height)
+    static func render(_ image: CGImage, annotations: [ScreenshotAnnotation],
+                       presentation: ScreenshotPresentation = .original) throws -> CGImage {
+        let size = presentation.size(width: image.width, height: image.height)
+        let context = try context(width: Int(size.width), height: Int(size.height))
+        presentation.drawBackground(in: context, width: image.width, height: image.height)
+        let inset = presentation.padding(width: image.width, height: image.height)
+        context.translateBy(x: CGFloat(inset), y: CGFloat(inset))
         draw(image, annotations: annotations, in: context)
         guard let result = context.makeImage() else { throw ScreenshotFailure.invalidImage }
         return result
@@ -276,12 +292,15 @@ enum ScreenshotRenderer {
                 context.translateBy(x: start.x, y: start.y)
                 context.scaleBy(x: 1, y: -1)
                 context.textMatrix = .identity
-                context.textPosition = CGPoint(x: 0, y: -24)
+                context.textPosition = CGPoint(x: 2, y: -ScreenshotTextLayout.fontSize)
                 let text = NSAttributedString(string: String(annotation.text.prefix(1000)), attributes: [
-                    NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 24, nil),
+                    NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName(ScreenshotTextLayout.fontName as CFString, ScreenshotTextLayout.fontSize, nil),
                     NSAttributedString.Key(kCTForegroundColorAttributeName as String): annotation.color.cgColor
                 ])
-                CTLineDraw(CTLineCreateWithAttributedString(text), context)
+                let line = CTLineCreateWithAttributedString(text)
+                let available = max(0, CGFloat(image.width) - start.x - 2)
+                let visible = CTLineCreateTruncatedLine(line, Double(available), .end, nil) ?? line
+                CTLineDraw(visible, context)
                 context.restoreGState()
             case .redact: break
             }
@@ -295,8 +314,9 @@ enum ScreenshotRenderer {
         context.restoreGState()
     }
 
-    static func encode(_ image: CGImage, annotations: [ScreenshotAnnotation], format: ScreenshotFormat) throws -> Data {
-        let flattened = try render(image, annotations: annotations)
+    static func encode(_ image: CGImage, annotations: [ScreenshotAnnotation], format: ScreenshotFormat,
+                       presentation: ScreenshotPresentation = .original) throws -> Data {
+        let flattened = try render(image, annotations: annotations, presentation: presentation)
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, format.type.identifier as CFString, 1, nil) else {
             throw ScreenshotFailure.exportFailed

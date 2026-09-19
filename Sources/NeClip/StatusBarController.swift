@@ -1217,6 +1217,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             showFeedback("Скопировано — вставьте ⌘V")
         case .copiedOnlyTargetChanged:
             showFeedback("Окно изменилось — только скопировано")
+        case .failed(.clipboardChanged):
+            showFeedback("Буфер изменился — вставка отменена")
+        case .pasteUnconfirmed:
+            showFeedback("Вставка не подтверждена — текст оставлен в буфере")
         case .failed:
             showFeedback("Не удалось скопировать")
         }

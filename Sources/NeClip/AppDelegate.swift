@@ -361,6 +361,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 message = "Защищённые поля не исправляются"
             case .unsupported:
                 message = "Это поле не поддерживает безопасную замену"
+            case .pasteUnconfirmed:
+                message = "Вставка не подтверждена — исправленный текст оставлен в буфере"
             case .failed:
                 message = "Не удалось исправить раскладку"
             }
