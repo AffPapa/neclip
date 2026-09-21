@@ -1,4 +1,4 @@
-# NeClip
+# NeClip — local clipboard history and snippets for Mac
 
 A local macOS menu-bar utility for clipboard history, snippet folders, EN/RU
 layout correction and screenshots with markup. macOS 14+ on Apple Silicon.
@@ -21,6 +21,22 @@ The app and DMG are Developer ID signed, notarized and stapled.
 [Release evidence](docs/RELEASE-2.8.3-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
+
+## Guides and alternatives
+
+The [20-app comparison](https://affpapa.github.io/neclip/compare.html) groups
+Maccy, Paste, Alfred, Raycast and other related Mac tools by clipboard history,
+text expansion, automation and screenshots. It is an official-source editorial
+selection maintained by the NeClip project, not an independent ranking or a
+performance/security benchmark. Sources were checked on 21 September 2026.
+
+- [Find copied text, choose a paste mode and save snippets](https://affpapa.github.io/neclip/guides/clipboard-history.html).
+- [Correct an EN/RU typing-layout mistake](https://affpapa.github.io/neclip/guides/keyboard-layout.html).
+- [Cover data on screenshots and verify the exported PNG/JPEG](https://affpapa.github.io/neclip/guides/screenshot-redaction.html).
+
+These Russian-language guides use synthetic examples, explain permissions and
+limits, and link to the official descriptions of alternatives. Their source HTML,
+navigation, metadata and structured data are versioned in this repository.
 
 ## Everyday use
 
@@ -105,6 +121,9 @@ image bytes and legacy metadata remain intact; normal retention rules still appl
   location. Restore imports validated records into an app-created schema, never
   arbitrary source triggers/tables. Active SQLite sidecars and unknown schemas
   are rejected; use the app's self-contained backup export.
+- Portable snippet JSON is merge-only: same-name folders are combined, exact
+  duplicates skipped and empty folders omitted. Use a full database backup when
+  the complete original library structure must be preserved.
 - Screen Recording is requested only for screenshots. Saving asks for a destination;
   cancelling capture does not publish an image. Update checks fetch only the exact
   GitHub Pages manifest, reject redirects and oversized/non-JSON replies, and allow

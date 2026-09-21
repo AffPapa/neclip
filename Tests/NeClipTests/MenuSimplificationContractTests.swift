@@ -43,7 +43,7 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(paste.contains("modifiers.contains(.command)"))
         XCTAssertTrue(paste.contains("forcedModifiers: NSEvent.ModifierFlags?"))
         XCTAssertTrue(source.contains("NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags"))
-        XCTAssertTrue(source.contains("forcedModifiers: actionModifiers.subtracting(.command)"))
+        XCTAssertTrue(source.contains("forcedModifiers: quickActionModifiers(for: sender)"))
         XCTAssertTrue(source.contains("pasteSnippet(sender, copyOnly: actionModifiers.contains(.command))"))
     }
 

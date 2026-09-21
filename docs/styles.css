@@ -51,4 +51,28 @@ kbd { min-width:112px; text-align:center; padding:6px 10px; border:1px solid var
 .backlog { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
 .backlog h3 { margin-top:0; }
 footer { margin-top:50px; padding:30px 0 48px; border-top:1px solid var(--line); color:var(--muted); font-size:14px; }
-@media (max-width:760px) { .navlinks{display:none}.hero{padding-top:56px}.grid,.backlog{grid-template-columns:1fr}.release{grid-template-columns:1fr;gap:4px} }
+.skip-link { position:absolute; left:12px; top:-100px; z-index:10; padding:12px; background:var(--bg); }
+.skip-link:focus { top:8px; }
+:focus-visible { outline:3px solid var(--accent); outline-offset:4px; }
+.article-header { padding:36px 0 24px; }
+.article-header h1 { max-width:950px; font-size:clamp(32px,5.4vw,60px); line-height:1.08; letter-spacing:-.035em; overflow-wrap:anywhere; }
+.breadcrumbs { padding:0; display:block; color:var(--muted); font-size:14px; }
+.article { max-width:860px; padding-top:0; }
+.article section { padding:24px 0; }
+.article h2 { font-size:clamp(25px,4vw,36px); line-height:1.2; }
+.article h3 { font-size:21px; }
+.article p, .article li { max-width:78ch; }
+.article li + li { margin-top:8px; }
+.article code { overflow-wrap:anywhere; }
+.article pre { padding:18px; background:var(--card); border:1px solid var(--line); border-radius:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.toc { padding:18px 22px; border:1px solid var(--line); border-radius:14px; background:var(--card); }
+.toc a { display:inline-block; margin:4px 16px 4px 0; }
+.table-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:14px; }
+table { border-collapse:collapse; width:100%; font-size:15px; }
+caption { text-align:left; padding:14px; font-weight:650; }
+th, td { padding:14px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }
+th { background:var(--card); }
+.comparison td:first-child { min-width:130px; }
+.comparison td:last-child { min-width:260px; }
+.note { border-left:4px solid var(--accent); padding:12px 18px; background:var(--card); }
+@media (max-width:760px) { nav{align-items:flex-start;flex-wrap:wrap;gap:14px}.navlinks{display:flex;flex-wrap:wrap;gap:10px 16px}.hero{padding-top:40px}.grid,.backlog{grid-template-columns:1fr}.release{grid-template-columns:1fr;gap:4px}.shortcut{align-items:flex-start;gap:8px}.article-header{padding-top:22px} }

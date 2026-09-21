@@ -93,22 +93,29 @@ enum PasteService {
         snippet: Snippet,
         targetPID: pid_t?,
         copyOnly: Bool = false,
+        pasteboard: NSPasteboard = .general,
+        protectedContent: Bool = false,
+        onCopied: (@MainActor (String) -> Void)? = nil,
         completion: Completion? = nil
     ) {
-        let pasteboard = NSPasteboard.general
         let originalGeneration = pasteboard.changeCount
         guard let savedItems = snapshotPasteboard(pasteboard),
               pasteboard.changeCount == originalGeneration else {
             finish(.failed(.clipboardSnapshot), completion: completion)
             return
         }
-        let writeResult = writeString(snippet.content)
+        let writeResult = writeString(snippet.content, pasteboard: pasteboard, protectedContent: protectedContent)
         guard writeResult.succeeded else {
-            restorePasteboard(savedItems, ifGenerationIs: writeResult.generation)
+            restorePasteboard(savedItems, ifGenerationIs: writeResult.generation, pasteboard: pasteboard)
             finish(.failed(.clipboardWrite), completion: completion)
             return
         }
-        completePaste(copyOnly: copyOnly, targetPID: targetPID, expectedGeneration: writeResult.generation, completion: completion)
+        // Own-write suppression prevents the timer from duplicating this copy.
+        // Explicit ingestion receives the exact rendered value only after a
+        // successful write, including copy-only / missing-Accessibility paths.
+        onCopied?(snippet.content)
+        completePaste(copyOnly: copyOnly, targetPID: targetPID, expectedGeneration: writeResult.generation,
+                      pasteboard: pasteboard, completion: completion)
     }
 
     /// Replaces an already selected range for an explicit user command, then
@@ -271,10 +278,13 @@ enum PasteService {
         return WriteResult(succeeded: success, generation: pb.changeCount)
     }
 
-    private static func writeString(_ string: String) -> WriteResult {
-        let pb = NSPasteboard.general
+    private static func writeString(_ string: String, pasteboard pb: NSPasteboard = .general,
+                                    protectedContent: Bool = false) -> WriteResult {
         pb.clearContents()
-        let success = pb.setString(string, forType: .string)
+        // Carry privacy provenance through repeated {clipboard} expansion.
+        // Write the marker first; never expose a protected string unmarked.
+        let marked = !protectedContent || pb.setData(Data(), forType: .init("org.nspasteboard.ConcealedType"))
+        let success = marked && pb.setString(string, forType: .string)
         ClipboardWriteGuard.shared.markOwnWrite(changeCount: pb.changeCount)
         return WriteResult(succeeded: success, generation: pb.changeCount)
     }

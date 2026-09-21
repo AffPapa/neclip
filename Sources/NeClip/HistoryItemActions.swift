@@ -18,12 +18,10 @@ enum HistoryItemActionResolver {
         case .text:
             return item.text.flatMap(webURL)
         case .file:
-            guard let firstPath = item.text?
-                .split(separator: "\n", omittingEmptySubsequences: true)
-                .map(String.init)
-                .first,
-                fileExists(firstPath) else { return nil }
-            return URL(fileURLWithPath: firstPath)
+            guard let value = item.text,
+                  let first = FileClipboardCodec.decode(value).first,
+                  fileExists(first.path) else { return nil }
+            return first
         case .image:
             return nil
         }

@@ -7,6 +7,25 @@ enum SnippetRenderer {
         (bytes: Array(("{" + $0.rawValue + "}").utf8), token: $0, escaped: true)
     } + Token.allCases.map { (bytes: Array($0.rawValue.utf8), token: $0, escaped: false) }
 
+    /// Uses the same escaped-token precedence as rendering. A literal
+    /// {{clipboard}} must not inherit the privacy state of unrelated contents.
+    static func usesClipboard(_ content: String) -> Bool {
+        guard content.utf8.contains(123) else { return false }
+        let input = Array(content.utf8)
+        var cursor = 0
+        while let opening = input[cursor...].firstIndex(of: 123) {
+            cursor = opening + 1
+            for pattern in patterns where pattern.bytes.count <= input.count - opening {
+                let end = opening + pattern.bytes.count
+                guard input[opening..<end].elementsEqual(pattern.bytes) else { continue }
+                if !pattern.escaped && pattern.token == .clipboard { return true }
+                cursor = end
+                break
+            }
+        }
+        return false
+    }
+
     static func render(
         _ content: String,
         clipboard: String? = nil,

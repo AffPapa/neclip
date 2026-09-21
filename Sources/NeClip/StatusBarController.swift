@@ -86,6 +86,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private var activeMenuAnchoredToStatusItem = false
     private var snapshotRefreshWorkItem: DispatchWorkItem?
     private var hotKeyWarnings: [String] = []
+    var onSnippetCopied: (@MainActor (String, String?, SnippetClipboardContext?) -> Void)?
+    var isClipboardGenerationExcluded: (@MainActor (Int) -> Bool)?
 
     override init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -678,16 +680,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func populateClipActionsMenu(_ menu: NSMenu, for clip: ClipSummary) {
         menu.removeAllItems()
-        menu.addItem(item(
-            "Вставить",
-            #selector(pasteClipOriginal(_:)),
-            symbol: "arrow.down.doc",
-            // NSMenu uses CR for the physical Return key. The visible glyph
-            // “↩” is presentation text and is not a reliable key equivalent.
-            keyEquivalent: "\r",
-            modifiers: []
-        ))
-        menu.items.last?.representedObject = NSNumber(value: clip.id)
+        menu.addItem(Self.makeOriginalPasteItem(clipID: clip.id, target: self))
         menu.addItem(item(
             "Вставить как обычный текст",
             #selector(pasteClipPlain(_:)),
@@ -727,6 +720,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             save.submenu = folders
             menu.addItem(save)
         }
+    }
+
+    static func makeOriginalPasteItem(clipID: Int64, target: AnyObject) -> NSMenuItem {
+        // Return is native selection activation, NOT a global key equivalent.
+        // An equivalent in even a closed history submenu can steal Return from
+        // the highlighted snippet or another command anywhere in the root.
+        let entry = NSMenuItem(title: "Вставить", action: #selector(pasteClipOriginal(_:)), keyEquivalent: "")
+        entry.target = target
+        entry.keyEquivalentModifierMask = []
+        entry.representedObject = NSNumber(value: clipID)
+        entry.image = NSImage(systemSymbolName: "arrow.down.doc", accessibilityDescription: nil)
+        return entry
     }
 
     private func layoutMenuItem() -> NSMenuItem {
@@ -1059,7 +1064,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func quickPasteClip(_ sender: NSMenuItem) {
-        pasteClip(sender, forcedModifiers: actionModifiers.subtracting(.command), destinationPID: targetPID)
+        pasteClip(sender, forcedModifiers: quickActionModifiers(for: sender), destinationPID: targetPID)
+    }
+
+    private func quickActionModifiers(for sender: NSMenuItem) -> NSEvent.ModifierFlags {
+        let event = NSApp.currentEvent
+        let isKeyDown = event?.type == .keyDown
+        return MenuActivationPolicy.modifiers(
+            keyEquivalent: sender.keyEquivalent,
+            characters: isKeyDown ? event?.charactersIgnoringModifiers : nil,
+            isKeyDown: isKeyDown,
+            modifiers: actionModifiers
+        )
     }
 
     /// Capture the activating event, not the key state after menu tracking ends.
@@ -1174,25 +1190,42 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func quickPasteSnippet(_ sender: NSMenuItem) {
-        pasteSnippet(sender, copyOnly: false)
+        pasteSnippet(sender, copyOnly: quickActionModifiers(for: sender).contains(.command))
     }
 
     private func pasteSnippet(_ sender: NSMenuItem, copyOnly: Bool) {
         guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = targetPID
-        let clipboard = NSPasteboard.general.string(forType: .string)
+        let capturedTargetBundleID = targetBundleID
+        let board = NSPasteboard.general
+        let clipboardGeneration = board.changeCount
+        let sourceIsProtected = !Set(board.types ?? []).isDisjoint(with: ClipboardMonitor.concealedTypes)
+        let clipboard = board.string(forType: .string)
+        let clipboardContext = SnippetClipboardContext(generation: clipboardGeneration,
+            isProtected: sourceIsProtected || board.changeCount != clipboardGeneration
+                || (isClipboardGenerationExcluded?(clipboardGeneration) ?? true))
         dataQueue.async { [weak self] in
             do {
                 guard var snippet = try Storage.shared.fetchSnippet(id: id) else {
                     DispatchQueue.main.async { self?.showFeedback("Сниппет уже удалён") }
                     return
                 }
+                let usesClipboard = SnippetRenderer.usesClipboard(snippet.content)
                 snippet.content = try SnippetRenderer.render(snippet.content, clipboard: clipboard)
                 DispatchQueue.main.async {
+                    let protectedContent = usesClipboard && (clipboardContext.isProtected
+                        || (self?.isClipboardGenerationExcluded?(clipboardGeneration) ?? true)
+                        || (capturedTargetBundleID.map { ClipboardCapturePolicy.isExcludedApplication(bundleID: $0,
+                            excludedApps: Set(Settings.excludedApps)) } ?? true))
+                    let resolvedContext = SnippetClipboardContext(generation: clipboardGeneration, isProtected: protectedContent)
                     PasteService.paste(
                         snippet: snippet,
                         targetPID: capturedTargetPID,
-                        copyOnly: copyOnly
+                        copyOnly: copyOnly,
+                        protectedContent: protectedContent,
+                        onCopied: { [weak self] text in
+                            self?.onSnippetCopied?(text, capturedTargetBundleID, usesClipboard ? resolvedContext : nil)
+                        }
                     ) { [weak self] result in
                         self?.handlePasteResult(result)
                     }

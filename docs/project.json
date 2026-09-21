@@ -18,12 +18,11 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.8.3",
-    "build": 49,
-    "status": "released",
+    "version": "2.8.4",
+    "build": 50,
+    "status": "candidate",
     "publicVersion": "2.8.3",
-    "sourceCommit": "d210af5f6624a274909eb00de25f28ce1f9ca7b6",
-    "scope": "generation-checked paste, validated record-only database restore, atomic backup publication, pixel-aligned screenshot crop, consistent export formats and optional screenshot backgrounds"
+    "scope": "native menu Return routing, explicit privacy-aware snippet history, protected clipboard provenance, file open decoding, exclusion rechecks, draft merge safety, bounded search reads and useful comparison/guides"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

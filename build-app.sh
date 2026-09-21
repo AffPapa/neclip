@@ -107,9 +107,9 @@ DMG="$WORK_DIR/NeClip-${VERSION}.dmg"
 ZIP="$WORK_DIR/NeClip-${VERSION}.zip"
 
 echo "== Swift 6 tests and strict build =="
-swift test --disable-sandbox
-swift build --disable-sandbox -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
-BIN_DIR=$(swift build --disable-sandbox -c release --show-bin-path)
+swift test --disable-sandbox --jobs 4
+swift build --disable-sandbox --jobs 4 -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+BIN_DIR=$(swift build --disable-sandbox --jobs 4 -c release --show-bin-path)
 [[ "$(lipo -archs "$BIN_DIR/NeClip")" == "arm64" ]] || {
   echo "Release binary must contain exactly arm64." >&2
   exit 1

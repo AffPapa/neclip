@@ -822,28 +822,33 @@ final class Storage: @unchecked Sendable {
                 sql += " LIMIT ?"
                 arguments += [limit]
             }
-            let rows = try Row.fetchAll(db, sql: sql, arguments: arguments)
-            let summaries = rows.compactMap { row -> ClipSummary? in
+            // Stream text one record at a time and stop at the result limit.
+            // Unicode matching still sees older rows, without retaining the
+            // complete history (potentially hundreds of MB) in memory.
+            let rows = try Row.fetchCursor(db, sql: sql, arguments: arguments)
+            var summaries: [ClipSummary] = []
+            summaries.reserveCapacity(limit)
+            while summaries.count < limit, let row = try rows.next() {
                 guard let kindValue: String = row["kind"],
                       let kind = ClipKind(rawValue: kindValue),
                       let id: Int64 = row["id"],
                       let title: String = row["title"],
                       let createdAt: Date = row["createdAt"],
-                      let isPinned: Bool = row["isPinned"] else { return nil }
+                      let isPinned: Bool = row["isPinned"] else { continue }
                 let text: String? = row["text"]
                 let displayText = kind == .file ? text.map(FileClipboardCodec.displayText) : text
                 if !normalizedQuery.isEmpty {
                     let normalizedTitle = title.localizedLowercase
-                    let normalizedText = (text ?? "").localizedLowercase
-                    guard normalizedTitle.contains(normalizedQuery) || normalizedText.contains(normalizedQuery) else { return nil }
+                    let normalizedText = (displayText ?? "").localizedLowercase
+                    guard normalizedTitle.contains(normalizedQuery) || normalizedText.contains(normalizedQuery) else { continue }
                 }
-                return ClipSummary(
+                summaries.append(ClipSummary(
                     id: id, kind: kind, title: title,
                     text: displayText.map { String($0.prefix(280)) },
                     appBundleID: row["appBundleID"], createdAt: createdAt, isPinned: isPinned
-                )
+                ))
             }
-            return Array(summaries.prefix(limit))
+            return summaries
         }
     }
 
@@ -1434,7 +1439,7 @@ final class Storage: @unchecked Sendable {
     }
 
     @discardableResult
-    func update(_ snippet: Snippet) throws -> Snippet {
+    func update(_ snippet: Snippet, basedOn baseline: Snippet? = nil) throws -> Snippet {
         var snippet = snippet
         let fields = try Self.validatedSnippetFields(
             title: snippet.title,
@@ -1447,6 +1452,16 @@ final class Storage: @unchecked Sendable {
             guard let id = snippet.id,
                   let stored = try Snippet.fetchOne(db, key: id) else {
                 throw SnippetStorageError.snippetNotFound
+            }
+            // Merge only fields actually edited in this draft. Background
+            // folder moves, reordering and legacy metadata must not be undone
+            // by saving unrelated text. Read and update share one transaction.
+            if let baseline, baseline.id == id {
+                if snippet.title == baseline.title { snippet.title = stored.title }
+                if snippet.content == baseline.content { snippet.content = stored.content }
+                if snippet.folderID == baseline.folderID { snippet.folderID = stored.folderID }
+                snippet.isPinned = stored.isPinned
+                snippet.sortIndex = stored.sortIndex
             }
             if let folderID = snippet.folderID,
                try SnippetFolder.fetchOne(db, key: folderID) == nil {
