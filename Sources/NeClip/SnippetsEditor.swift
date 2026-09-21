@@ -61,6 +61,7 @@ final class SnippetsEditorModel: ObservableObject {
 
     private struct Draft {
         var snippet: Snippet
+        let baseline: Snippet
     }
 
     @Published var folders: [SnippetFolder] = []
@@ -355,7 +356,8 @@ final class SnippetsEditorModel: ObservableObject {
     }
 
     func editorChanged() {
-        guard !isLoadingEditor, var snippet = editingSnippet else { return }
+        guard !isLoadingEditor, let baseline = editingSnippet else { return }
+        var snippet = baseline
         snippet.title = editorTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         snippet.content = editorContent
         snippet.folderID = editorFolderID
@@ -370,7 +372,7 @@ final class SnippetsEditorModel: ObservableObject {
             return
         }
         message = nil
-        pendingDraft = Draft(snippet: snippet)
+        pendingDraft = Draft(snippet: snippet, baseline: baseline)
         saveState = .changed
         saveTask?.cancel()
         saveTask = Task { [weak self] in
@@ -466,14 +468,21 @@ final class SnippetsEditorModel: ObservableObject {
         saveTask = nil
         saveState = .saving
         do {
-            let saved = try storage.update(draft.snippet)
+            let saved = try storage.update(draft.snippet, basedOn: draft.baseline)
             if let index = snippets.firstIndex(where: { $0.id == saved.id }) {
                 snippets[index] = SnippetSummary(snippet: saved)
                 rebuildSnippetIndex()
             }
             if editingSnippet?.id == saved.id {
-                editingSnippet = saved
+                // Preserve the live field (and caret), including a trailing
+                // space between words. Apply only externally merged changes.
+                isLoadingEditor = true
+                if saved.title != draft.snippet.title { editorTitle = saved.title }
+                if saved.content != draft.snippet.content { editorContent = saved.content }
+                editorFolderID = saved.folderID
                 activeFolderID = saved.folderID
+                editingSnippet = saved
+                isLoadingEditor = false
             }
             pendingDraft = nil
             saveState = .saved

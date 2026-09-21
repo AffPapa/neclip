@@ -1,0 +1,6 @@
+# Project-path copy. Crawlers apply robots rules from the origin /robots.txt,
+# not from /neclip/robots.txt. This file does not override origin-wide rules.
+User-agent: *
+Allow: /neclip/
+
+Sitemap: https://affpapa.github.io/neclip/sitemap.xml

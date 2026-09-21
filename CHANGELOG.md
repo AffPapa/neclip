@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.8.4 / build 50 — candidate, not yet published
+
+- Return no longer acts as a global shortcut to the first history submenu; native selection determines the activated snippet or history item.
+- Successful snippet copies explicitly enter history, with rendered text, normal recency/deduplication and privacy/size gates. Snippet library order remains unchanged.
+- Cmd-Return and Cmd-click remain copy-only even on rows that also have a Cmd-number shortcut.
+- Protected clipboard provenance survives timer consumption and repeated `{clipboard}` expansion; newly excluded sources are checked again before storage.
+- Opening file history decodes the stored JSON paths, including filenames containing newlines.
+- Saving a snippet draft preserves external folder/pin changes and spaces still being typed in the title.
+- Non-empty history search streams candidate rows and stops at the requested result limit instead of materializing all payloads.
+- Added a sourced comparison of 20 adjacent Mac apps and three practical guides, mobile navigation, canonical metadata, sitemap and regression checks.
+
+Public download metadata remains on the last verified release until signing, notarization and public artifact verification complete.
+
 ## 2.8.3 / build 49 — released 2026-09-19
 
 - Recheck clipboard generation before deferred paste; never restore unrelated

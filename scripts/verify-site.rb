@@ -67,7 +67,9 @@ abort 'wrong OpenGraph URL' unless html.include?('<meta property="og:url" conten
 abort 'unexpected noindex' if html.match?(/<meta[^>]+noindex/i)
 html.scan(/href="([^"#]+)"/).flatten.each do |href|
   next if href.start_with?('https://', 'http://')
-  abort "missing local link: #{href}" unless File.file?(File.join(docs, href))
+  target = File.join(docs, href.split('#').first)
+  target = File.join(target, 'index.html') if File.directory?(target)
+  abort "missing local link: #{href}" unless File.file?(target)
 end
 Dir.glob(File.join(root, '**', '*.md')).reject { |path| path.include?('/.build') || path.include?('/dist/') }.each do |path|
   File.read(path).scan(/\[[^\]]*\]\(([^)]+)\)/).flatten.each do |href|

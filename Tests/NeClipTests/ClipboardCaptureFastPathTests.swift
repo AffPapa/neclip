@@ -12,7 +12,7 @@ final class ClipboardCaptureFastPathTests: XCTestCase {
         let body = String(source[start.lowerBound..<end.lowerBound])
         let preflight = try XCTUnwrap(body.range(of: "ClipboardCapturePolicy.textRejectionReason("))
         let consume = try XCTUnwrap(body.range(of: "Settings.consumeAppendNextCopy()"))
-        let append = try XCTUnwrap(body.range(of: "Storage.shared.appendToLatestUnpinnedText("))
+        let append = try XCTUnwrap(body.range(of: "storage.appendToLatestUnpinnedText("))
         let success = try XCTUnwrap(body.range(of: "case .appended:"))
         let fallback = try XCTUnwrap(body.range(of: "case .noEligibleItem, .combinedValueTooLarge:"))
         let payload = try XCTUnwrap(body.range(of: "let textData = Data(text.utf8)"))

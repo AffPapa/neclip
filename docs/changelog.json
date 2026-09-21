@@ -13,6 +13,16 @@
       ]
     },
     {
+      "version": "2.8.4",
+      "build": 50,
+      "status": "candidate",
+      "changes": [
+        "Fix native Return routing and privacy-aware snippet recency in history",
+        "Preserve protected clipboard provenance, snippet drafts and excluded-source policy",
+        "Decode file history correctly, stream search results and publish sourced guides"
+      ]
+    },
+    {
       "version": "2.8.2",
       "build": 48,
       "status": "superseded",

@@ -1,0 +1,17 @@
+# NeClip
+
+> Local native macOS menu-bar utility: clipboard history, selectable snippet folders, EN/RU correction and screenshot markup. macOS 14+ on Apple Silicon. No accounts, cloud synchronization, telemetry or AI processing of clipboard contents. Automatic correction is experimental and off by default.
+
+## Product truth
+- [Homepage](https://affpapa.github.io/neclip/): requirements, features and verified public download.
+- [Release manifest](https://affpapa.github.io/neclip/version.json): public version, exact source commit, download size and SHA-256. Source candidate metadata must not replace this release manifest.
+- [Repository](https://github.com/AffPapa/neclip): source, README, release evidence and security policy.
+
+## Selection and practical guides
+- [20 related Mac applications](https://affpapa.github.io/neclip/compare.html): official-source editorial comparison by task, not an independent ranking; checked 2026-09-21.
+- [Clipboard history and snippets](https://affpapa.github.io/neclip/guides/clipboard-history.html): search, paste modes, templates and missing captures.
+- [EN/RU correction](https://affpapa.github.io/neclip/guides/keyboard-layout.html): manual command, optional Option gesture, permissions and limitations.
+- [Screenshot redaction](https://affpapa.github.io/neclip/guides/screenshot-redaction.html): opaque covering, annotations and verifying the exported PNG/JPEG.
+
+## Limits
+No OCR or video recording. Backups contain plaintext data. Local storage is not a claim of encryption. Physical keyboard, Save dialogs and multi-monitor behavior are only verified where a release evidence report explicitly says so. Competitor descriptions are not installed-product benchmarks or security audits.

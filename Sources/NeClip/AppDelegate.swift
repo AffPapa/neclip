@@ -20,6 +20,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HistoryCleanupCoordinator.shared.attach(monitor)
         configureApplicationMenu()
         statusBar = StatusBarController()
+        statusBar.isClipboardGenerationExcluded = { [weak self] generation in
+            self?.monitor.isClipboardGenerationExcluded(generation) ?? true
+        }
+        statusBar.onSnippetCopied = { [weak self] text, sourceBundleID, clipboardContext in
+            self?.monitor.recordSnippet(text, sourceBundleID: sourceBundleID, clipboardContext: clipboardContext)
+        }
         DispatchQueue.global(qos: .utility).async {
             try? Storage.shared.installStarterSnippetsIfNeeded(force: false)
         }

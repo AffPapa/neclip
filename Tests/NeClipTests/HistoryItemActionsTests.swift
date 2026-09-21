@@ -4,6 +4,15 @@ import Testing
 
 @Suite(.serialized)
 struct HistoryItemActionsTests {
+    @Test func opensJSONEncodedFilesIncludingNewlinesAndRejectsMissingFiles() throws {
+        for path in ["/tmp/neclip-qa.txt", "/tmp/NeClip\nfixture.txt", "/tmp/Новый файл.txt"] {
+            let encoded = try #require(FileClipboardCodec.encode([URL(fileURLWithPath: path), URL(fileURLWithPath: "/tmp/second")]))
+            let item = ClipItem(kind: .file, title: "Fixture", text: encoded, createdAt: Date())
+            #expect(HistoryItemActionResolver.openTarget(for: item, fileExists: { $0 == path })?.path == path)
+            #expect(HistoryItemActionResolver.openTarget(for: item, fileExists: { _ in false }) == nil)
+        }
+    }
+
     @Test func resolvesOnlyExplicitSafeOpenTargets() {
         let web = textItem("https://affpapa.org/neclip")
         #expect(HistoryItemActionResolver.openTarget(for: web)?.scheme == "https")

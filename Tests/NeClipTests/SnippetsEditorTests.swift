@@ -3,6 +3,44 @@ import XCTest
 
 final class SnippetsEditorTests: XCTestCase {
     @MainActor
+    func testAutosavePreservesSpaceWhileTypingTitle() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let id = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Original", content: "fixture")?.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload(selecting: id)
+        model.editorTitle = "Hello "
+        model.editorChanged()
+        XCTAssertTrue(model.flushPendingSave())
+        XCTAssertEqual(model.editorTitle, "Hello ")
+        model.editorTitle += "world"
+        model.editorChanged()
+        XCTAssertTrue(model.flushPendingSave())
+        XCTAssertEqual(try storage.fetchSnippet(id: id)?.title, "Hello world")
+    }
+
+    @MainActor
+    func testDirtyContentSavePreservesExternalFolderMoveAndPinMetadata() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let first = try XCTUnwrap(storage.addFolder(title: "A"))
+        let second = try XCTUnwrap(storage.addFolder(title: "B"))
+        let id = try XCTUnwrap(storage.addSnippet(folderID: first.id, title: "Template", content: "Original")?.id)
+        let model = SnippetsEditorModel(storage: storage)
+        model.reload(selecting: id)
+        model.editorContent = "Local draft"
+        model.editorChanged()
+        try storage.moveSnippet(id: id, toFolderID: second.id)
+        try storage.setSnippetPinned(id: id, pinned: true)
+        model.reload(reloadEditor: true)
+        XCTAssertTrue(model.flushPendingSave())
+        let saved = try XCTUnwrap(storage.fetchSnippet(id: id))
+        XCTAssertEqual(saved.content, "Local draft")
+        XCTAssertEqual(saved.folderID, second.id)
+        XCTAssertTrue(saved.isPinned)
+        XCTAssertEqual(model.editorFolderID, second.id)
+        XCTAssertEqual(model.activeFolderID, second.id)
+    }
+
+    @MainActor
     func testFailedSaveKeepsRetryStateAndDraftUntilSuccessfulRetry() throws {
         let storage = try Storage(inMemory: true, installStarterContent: false)
         let edited = try XCTUnwrap(storage.addSnippet(folderID: nil, title: "Edited", content: "Original")?.id)
