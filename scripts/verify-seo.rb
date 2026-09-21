@@ -57,7 +57,12 @@ urls.each do |url|
     abort "schema/content mismatch: #{relative}" unless entity && entity['url'] == url && entity['inLanguage'] == 'ru'
     if entity['@type'] == 'Article'
       abort "article headline mismatch: #{relative}" unless entity['headline'] == heading
-      words = html.gsub(/<script.*?<\/script>/m, '').gsub(/<[^>]+>/, ' ').split.length
+      # Inspect the known static article, not a sanitized/re-emitted HTML
+      # document. Head metadata, scripts and site navigation are not content.
+      article = html[/<main\b[^>]*>(.*?)<\/main>/im, 1]
+      abort "missing static article: #{relative}" unless article && !article.match?(/<script\b/i)
+      text_nodes = article.scan(/>([^<>]+)</m).flatten
+      words = CGI.unescapeHTML(text_nodes.join(' ')).split.length
       abort "thin article: #{relative}" unless words >= 300
     end
   end

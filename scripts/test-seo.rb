@@ -30,6 +30,22 @@ class SEOReleaseTest < Minitest::Test
     out, err, status = verify
     assert status.success?, "#{out}\n#{err}"
   end
+  def test_article_rejects_inline_script
+    change('guides/clipboard-history.html') { |s| s.sub('</main>', '<script>"not article content"</script></main>') }
+    rejection('missing static article')
+  end
+  def test_article_rejects_uppercase_script
+    change('guides/clipboard-history.html') { |s| s.sub('</main>', '<SCRIPT>"not article content"</SCRIPT></main>') }
+    rejection('missing static article')
+  end
+  def test_footer_cannot_pad_a_thin_article
+    change('guides/clipboard-history.html') do |s|
+      heading = s[/<h1>.*?<\/h1>/m]
+      replacement = '<main id="main">' + heading + '<nav aria-label="Хлебные крошки">NeClip</nav><p>Коротко.</p></main>'
+      s.sub(/<main\b[^>]*>.*?<\/main>/m, replacement).sub('</footer>', '<p>' + ('footer ' * 500) + '</p></footer>')
+    end
+    rejection('thin article')
+  end
   def test_duplicate_competitor_is_rejected
     change('compare.html') { |s| s.sub('data-product="maccy"', 'data-product="paste"') }
     rejection('twenty unique products')
