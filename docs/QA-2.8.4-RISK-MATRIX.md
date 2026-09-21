@@ -5,7 +5,7 @@ This is a risk inventory, not 100 discovered bugs or 100 completed physical test
 
 The independent review classified68 rows as code-review-only and32 as unverified. Those original labels are retained below rather than converting a passing unit suite into unsupported end-to-end coverage. Release verification is reported separately.
 
-Follow-up fixes cover native Return routing (R001), explicit snippet history (R027), file JSON decoding (R043), draft metadata (R035), queued exclusions (R054), and streamed search (R096). Additional regression tests cover Cmd-Return, title spacing, and protected clipboard provenance across repeated expansions, transition windows and monitor restart. JSON transfer (R039) remains a merge format, not a structural backup; documentation now states that distinction. ScreenCaptureKit cancellation under a non-cooperative system request (R083) remains an unverified follow-up; no universal physical capture guarantee is claimed.
+Follow-up fixes cover native Return routing (R001), explicit snippet history (R027), file JSON decoding (R043), draft metadata (R035), queued exclusions (R054), and streamed search (R096). Additional regression tests cover Cmd-Return, title spacing, and protected clipboard provenance across repeated expansions, transition windows and monitor restart. JSON transfer (R039) remains a merge format, not a structural backup; documentation now states that distinction. R083 now has a synthetic asynchronous cancellation/restart regression test: late cancelled work cannot clear the replacement or show stale errors. Physical ScreenCaptureKit, multi-display and Spaces behavior remains unverified; no universal capture guarantee is claimed.
 
 ## Матрица — ровно 100 строк
 
@@ -148,5 +148,4 @@ Follow-up fixes cover native Return routing (R001), explicit snippet history (R0
 | R098 | Успешный append всё равно строит лишние Data/title/hash нового отдельного элемента | testAppendBranchesPrecedeStandalonePayloadConstruction; Sources/NeClip/ClipboardMonitor.swift:417 | code-review-only | P3 |
 | R099 | Заведомо oversized text проходит дорогую Unicode-нормализацию до size gate | testOversizeRejectionPrecedesUnicodeNormalization; ClipboardCapturePolicy.textRejectionReason | code-review-only | P2 |
 | R100 | Большой литерал и текст с десятками тысяч неизвестных скобок вызывают чрезмерный рост работы renderer | testLargeLiteralTemplateAndBraceHeavyTextRemainUnchanged — проверяет результат, не latency; количественная performance-проверка отсутствует | code-review-only | P2 |
-
 

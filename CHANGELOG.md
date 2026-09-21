@@ -9,6 +9,7 @@
 - Opening and searching file history decode the stored JSON paths, including filenames containing newlines.
 - Saving a snippet draft preserves external folder/pin changes and spaces still being typed in the title.
 - Non-empty history search streams candidate rows and stops at the requested result limit instead of materializing all payloads.
+- Cancelling a pending screenshot releases the next capture immediately; a delayed cancelled request cannot clear the replacement task or show stale failure UI.
 - Added a sourced comparison of 20 adjacent Mac apps and three practical guides, mobile navigation, canonical metadata, sitemap and regression checks.
 
 Public download metadata remains on the last verified release until signing, notarization and public artifact verification complete.

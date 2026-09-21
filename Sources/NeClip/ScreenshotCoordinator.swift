@@ -38,6 +38,26 @@ final class ScreenshotCoordinator {
 
     init(monitor: ClipboardMonitor) { self.monitor = monitor }
 
+    var isCapturing: Bool { captureTask != nil }
+
+    /// A cancelled system request may complete late. It must not clear the
+    /// replacement task's ownership or deliver stale UI/errors.
+    func performCaptureOperation(_ operation: @escaping @MainActor (UInt) async -> Void) {
+        guard captureTask == nil else { return }
+        let generation = captureGeneration
+        captureTask = Task { [weak self] in
+            defer {
+                if self?.captureGeneration == generation { self?.captureTask = nil }
+            }
+            guard !Task.isCancelled else { return }
+            await operation(generation)
+        }
+    }
+
+    func isCurrentCapture(_ generation: UInt) -> Bool {
+        generation == captureGeneration && !Task.isCancelled
+    }
+
     func start() { start(mode: .area) }
 
     func startFullScreen() { start(mode: .fullScreen) }
@@ -55,7 +75,6 @@ final class ScreenshotCoordinator {
         let frame = screen.frame
         let displayID = CGDirectDisplayID(number.uint32Value)
         captureGeneration &+= 1
-        let generation = captureGeneration
         if mode == .area {
             // Put the lightweight selection shell on screen before the
             // asynchronous shareable-content query. The user gets immediate
@@ -77,14 +96,15 @@ final class ScreenshotCoordinator {
             }
             return
         }
-        captureTask = Task { [weak self] in
+        performCaptureOperation { [weak self] generation in
             guard let self else { return }
-            defer { captureTask = nil }
             do {
                 let content: SCShareableContent
                 do {
                     content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
                 } catch {
+                    try Task.checkCancellation()
+                    guard isCurrentCapture(generation) else { return }
                     // WindowServer can briefly return no on-screen content while
                     // Spaces or a full-screen app is switching. A single broad
                     // retry avoids turning that transient state into a failure.
@@ -175,6 +195,7 @@ final class ScreenshotCoordinator {
             } catch is CancellationError {
                 // Cancellation neither writes files nor changes the clipboard.
             } catch {
+                guard isCurrentCapture(generation) else { return }
                 closeSelection()
                 let message: String
                 if !CGPreflightScreenCaptureAccess() {
@@ -191,6 +212,7 @@ final class ScreenshotCoordinator {
     func cancel() {
         captureGeneration &+= 1
         captureTask?.cancel()
+        captureTask = nil
         cropTask?.cancel()
         cropTask = nil
         closeSelection()
