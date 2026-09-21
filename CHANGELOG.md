@@ -6,7 +6,7 @@
 - Successful snippet copies explicitly enter history, with rendered text, normal recency/deduplication and privacy/size gates. Snippet library order remains unchanged.
 - Cmd-Return and Cmd-click remain copy-only even on rows that also have a Cmd-number shortcut.
 - Protected clipboard provenance survives timer consumption and repeated `{clipboard}` expansion; newly excluded sources are checked again before storage.
-- Opening file history decodes the stored JSON paths, including filenames containing newlines.
+- Opening and searching file history decode the stored JSON paths, including filenames containing newlines.
 - Saving a snippet draft preserves external folder/pin changes and spaces still being typed in the title.
 - Non-empty history search streams candidate rows and stops at the requested result limit instead of materializing all payloads.
 - Added a sourced comparison of 20 adjacent Mac apps and three practical guides, mobile navigation, canonical metadata, sitemap and regression checks.

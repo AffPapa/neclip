@@ -839,7 +839,7 @@ final class Storage: @unchecked Sendable {
                 let displayText = kind == .file ? text.map(FileClipboardCodec.displayText) : text
                 if !normalizedQuery.isEmpty {
                     let normalizedTitle = title.localizedLowercase
-                    let normalizedText = (text ?? "").localizedLowercase
+                    let normalizedText = (displayText ?? "").localizedLowercase
                     guard normalizedTitle.contains(normalizedQuery) || normalizedText.contains(normalizedQuery) else { continue }
                 }
                 summaries.append(ClipSummary(

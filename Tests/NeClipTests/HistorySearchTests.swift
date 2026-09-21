@@ -5,6 +5,16 @@ import XCTest
 @testable import NeClip
 
 final class HistorySearchTests: XCTestCase {
+    func testFileSearchMatchesDisplayedPathNotJSONEscaping() throws {
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        let path = "/tmp/synthetic folder/name\nline.txt"
+        let encoded = try XCTUnwrap(FileClipboardCodec.encode([URL(fileURLWithPath: path)]))
+        try storage.insert(ClipItem(kind: .file, title: "Fixture file", text: encoded, createdAt: Date()))
+        for query in ["/tmp/synthetic folder/", "name\nline", path] {
+            XCTAssertEqual(try storage.searchClipSummaries(query: query, kind: .file).count, 1, query)
+        }
+    }
+
     @MainActor
     private func settle(_ queue: DispatchQueue) async {
         await withCheckedContinuation { continuation in
