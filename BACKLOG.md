@@ -4,12 +4,12 @@ NeClip remains a small local macOS utility: clipboard history, snippet folders
 and safe EN/RU layout correction. Accounts, cloud sync, subscriptions,
 telemetry, advertising and AI processing are not planned.
 
-## Current public release — 2.8.3 / build 49
+## Current public release — 2.8.4 / build 50
 
-Released 19 September 2026 after the normal Developer ID, notarization,
+Released 21 September 2026 after the normal Developer ID, notarization,
 stapling, Gatekeeper, mounted-DMG, independent public-download and required-CI
-gates. [Download NeClip 2.8.3](https://github.com/AffPapa/neclip/releases/download/v2.8.3/NeClip-2.8.3.dmg)
-and read the [release evidence](docs/RELEASE-2.8.3-STATUS.md).
+gates. [Download NeClip 2.8.4](https://github.com/AffPapa/neclip/releases/download/v2.8.4/NeClip-2.8.4.dmg)
+and read the [release evidence](docs/RELEASE-2.8.4-STATUS.md).
 
 - Save any text history item as a raw-text snippet with folder selection and duplicate checks.
 - Search local history with bounded text, type, application and date filters.
@@ -31,12 +31,19 @@ and read the [release evidence](docs/RELEASE-2.8.3-STATUS.md).
 
 ## Current verification priorities
 
+- Fixed native Return routing, explicit snippet history, protected clipboard
+  provenance, queued exclusions, file-path search and draft merge races in 2.8.4.
+- Verified the native Save dialog with synthetic PNG/JPEG, cancel/reopen,
+  undo/redo and successful-format persistence. This does not prove screen capture.
+
+Remaining:
+
 - Confirm physical-keyboard live correction and standalone Option across supported
   editors; targeted synthetic UI input does not establish global-key behavior.
 - Verify permissions and screen capture across additional supported macOS versions
   and physical display configurations.
-- Complete physical Save-dialog click-through and multi-monitor/Spaces checks;
-  native AppKit integration tests do not establish these hardware/user scenarios.
+- Complete multi-monitor/Spaces and real ScreenCaptureKit permission/cancellation
+  checks; synthetic images do not establish these hardware/user scenarios.
 - Measure menu latency before changing storage or browse limits.
 
 These are verification priorities, not promises of new features.

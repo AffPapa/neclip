@@ -20,8 +20,9 @@
   "sourceCandidate": {
     "version": "2.8.4",
     "build": 50,
-    "status": "candidate",
-    "publicVersion": "2.8.3",
+    "status": "released",
+    "publicVersion": "2.8.4",
+    "sourceCommit": "4bb2bc6e7b9b48b4e60d3adc8f375b1db0993ac6",
     "scope": "native menu Return routing, explicit privacy-aware snippet history, protected clipboard provenance, file open decoding, exclusion rechecks, draft merge safety, bounded search reads and useful comparison/guides"
   },
   "canonical": {
@@ -32,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.3-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.3-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.4-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.4-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -115,5 +116,5 @@
     "a permanent Dock icon",
     "tags or smart collections"
   ],
-  "featuresVersion": "2.8.3 released; public downloadable artifact is identified by version.json"
+  "featuresVersion": "2.8.4 released; public downloadable artifact is identified by version.json"
 }

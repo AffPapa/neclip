@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.8.4 / build 50 — candidate, not yet published
+## 2.8.4 / build 50 — released 2026-09-21
 
 - Return no longer acts as a global shortcut to the first history submenu; native selection determines the activated snippet or history item.
 - Successful snippet copies explicitly enter history, with rendered text, normal recency/deduplication and privacy/size gates. Snippet library order remains unchanged.
@@ -12,7 +12,13 @@
 - Cancelling a pending screenshot releases the next capture immediately; a delayed cancelled request cannot clear the replacement task or show stale failure UI.
 - Added a sourced comparison of 20 adjacent Mac apps and three practical guides, mobile navigation, canonical metadata, sitemap and regression checks.
 
-Public download metadata remains on the last verified release until signing, notarization and public artifact verification complete.
+363 XCTest (five explicit opt-in skips) and four Swift Testing checks passed in
+strict debug and optimized builds. ASan and TSan each passed 56 XCTest plus four
+Swift Testing checks. Exact public artifact:
+[NeClip-2.8.4.dmg](https://github.com/AffPapa/neclip/releases/download/v2.8.4/NeClip-2.8.4.dmg)
+(2,140,099 bytes), SHA-256
+`033b5d475e96a87d82f5dde6b4a698bcc9f9b618fe1b3d1e6880c1f37bfb29d1`.
+See [release evidence and verification limits](docs/RELEASE-2.8.4-STATUS.md).
 
 ## 2.8.3 / build 49 — released 2026-09-19
 
