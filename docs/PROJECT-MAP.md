@@ -1,8 +1,8 @@
 # NeClip project map
 
-Current public release: **2.8.3 / build 49**. The exact signed artifact,
+Current public release: **2.8.4 / build 50**. The exact signed artifact,
 source commit and release checks are recorded in
-[RELEASE-2.8.3-STATUS.md](RELEASE-2.8.3-STATUS.md).
+[RELEASE-2.8.4-STATUS.md](RELEASE-2.8.4-STATUS.md).
 
 ## Runtime ownership
 
@@ -22,6 +22,6 @@ source commit and release checks are recorded in
 
 ## Release boundary
 
-Only `v2.8.3` is supported publicly. Its download URL, SHA-256 and build number
+Only `v2.8.4` is supported publicly. Its download URL, SHA-256 and build number
 are in `docs/version.json`; GitHub Pages, the repository and GitHub Release must
 all agree before publication.

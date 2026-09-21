@@ -1,25 +1,27 @@
 {
   "versions": [
     {
+      "version": "2.8.4",
+      "build": 50,
+      "status": "released",
+      "changes": [
+        "Fix native Return routing and privacy-aware snippet recency in history; preserve Command-Return copy-only actions",
+        "Preserve protected clipboard provenance, snippet drafts and excluded-source policy",
+        "Decode and search file history correctly, stream search results and cancel stale screenshot tasks safely",
+        "Publish a sourced 20-app comparison and three practical guides",
+        "363 XCTest with 5 explicit opt-in skips and 4 Swift Testing checks; ASan and TSan each 56 XCTest plus 4 Swift Testing; signed and notarized public download verified"
+      ]
+    },
+    {
       "version": "2.8.3",
       "build": 49,
-      "status": "released",
+      "status": "superseded",
       "changes": [
         "Cancel deferred paste when the clipboard changes and avoid restoring unrelated data before an unacknowledged paste",
         "Restore validated records into an app-created schema and publish private backups atomically without changing existing folder permissions",
         "Align screenshot crop, remembered PNG/JPEG format and text anchors with the visible editor",
         "Add optional light/dark backgrounds with bounded padding, exact pixel dimensions and a two-row toolbar",
         "347 XCTest and 3 Swift Testing checks; ASan 54, TSan 60, required CodeQL, signing, notarization, stapling, Gatekeeper and independent public-download verification"
-      ]
-    },
-    {
-      "version": "2.8.4",
-      "build": 50,
-      "status": "candidate",
-      "changes": [
-        "Fix native Return routing and privacy-aware snippet recency in history",
-        "Preserve protected clipboard provenance, snippet drafts and excluded-source policy",
-        "Decode file history correctly, stream search results and publish sourced guides"
       ]
     },
     {
