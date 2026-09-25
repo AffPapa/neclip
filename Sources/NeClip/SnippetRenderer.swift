@@ -6,6 +6,26 @@ enum SnippetRenderer {
     private static let patterns = Token.allCases.map {
         (bytes: Array(("{" + $0.rawValue + "}").utf8), token: $0, escaped: true)
     } + Token.allCases.map { (bytes: Array($0.rawValue.utf8), token: $0, escaped: false) }
+    private static let patternsByFollowingByte = Dictionary(grouping: patterns) { $0.bytes[1] }
+
+    private static func nextOpeningBrace(in bytes: [UInt8], from cursor: Int) -> Int? {
+        guard cursor < bytes.count else { return nil }
+        for index in cursor..<bytes.count where bytes[index] == 123 { return index }
+        return nil
+    }
+
+    private static func matchingPattern(in bytes: [UInt8], at opening: Int)
+        -> (token: Token, escaped: Bool, end: Int)? {
+        let following = opening + 1
+        guard following < bytes.count,
+              let candidates = patternsByFollowingByte[bytes[following]] else { return nil }
+        for pattern in candidates where pattern.bytes.count <= bytes.count - opening {
+            let end = opening + pattern.bytes.count
+            guard bytes[opening..<end].elementsEqual(pattern.bytes) else { continue }
+            return (pattern.token, pattern.escaped, end)
+        }
+        return nil
+    }
 
     /// Uses the same escaped-token precedence as rendering. A literal
     /// {{clipboard}} must not inherit the privacy state of unrelated contents.
@@ -13,14 +33,11 @@ enum SnippetRenderer {
         guard content.utf8.contains(123) else { return false }
         let input = Array(content.utf8)
         var cursor = 0
-        while let opening = input[cursor...].firstIndex(of: 123) {
+        while let opening = nextOpeningBrace(in: input, from: cursor) {
             cursor = opening + 1
-            for pattern in patterns where pattern.bytes.count <= input.count - opening {
-                let end = opening + pattern.bytes.count
-                guard input[opening..<end].elementsEqual(pattern.bytes) else { continue }
-                if !pattern.escaped && pattern.token == .clipboard { return true }
-                cursor = end
-                break
+            if let match = matchingPattern(in: input, at: opening) {
+                if !match.escaped && match.token == .clipboard { return true }
+                cursor = match.end
             }
         }
         return false
@@ -79,19 +96,12 @@ enum SnippetRenderer {
         // as another token; double braces escape a known token literally.
         // ASCII token bytes can be matched without repeated UTF-16 index
         // conversion; this also preserves combining marks adjacent to braces.
-        while let opening = input[cursor...].firstIndex(of: 123) {
+        while let opening = nextOpeningBrace(in: input, from: cursor) {
             try append(input[cursor..<opening])
-            var matched = false
-            for pattern in patterns {
-                guard pattern.bytes.count <= input.count - opening else { continue }
-                let end = opening + pattern.bytes.count
-                guard input[opening..<end].elementsEqual(pattern.bytes) else { continue }
-                try append((pattern.escaped ? pattern.token.rawValue : value(for: pattern.token)).utf8)
-                cursor = end
-                matched = true
-                break
-            }
-            if !matched {
+            if let match = matchingPattern(in: input, at: opening) {
+                try append((match.escaped ? match.token.rawValue : value(for: match.token)).utf8)
+                cursor = match.end
+            } else {
                 try append(CollectionOfOne(UInt8(123)))
                 cursor = opening + 1
             }

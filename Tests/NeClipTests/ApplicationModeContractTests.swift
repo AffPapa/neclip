@@ -15,8 +15,12 @@ final class ApplicationModeContractTests: XCTestCase {
             PropertyListSerialization.propertyList(from: infoData, format: nil) as? [String: Any]
         )
         XCTAssertEqual(plist["LSUIElement"] as? Bool, true)
-        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, "2.8.4")
-        XCTAssertEqual(plist["CFBundleVersion"] as? String, "50")
+        let projectData = try Data(contentsOf: repositoryRoot.appendingPathComponent("docs/project.json"))
+        let project = try XCTUnwrap(JSONSerialization.jsonObject(with: projectData) as? [String: Any])
+        let candidate = try XCTUnwrap(project["sourceCandidate"] as? [String: Any])
+        let candidateBuild = try XCTUnwrap(candidate["build"] as? Int)
+        XCTAssertEqual(plist["CFBundleShortVersionString"] as? String, candidate["version"] as? String)
+        XCTAssertEqual(plist["CFBundleVersion"] as? String, String(candidateBuild))
 
         let main = try String(
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/main.swift"),

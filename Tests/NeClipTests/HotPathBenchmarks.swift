@@ -98,6 +98,21 @@ final class HotPathBenchmarks: XCTestCase {
         }
     }
 
+    func testSyntheticLargeSnippetRenderLatency() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in 100 KB literal and brace-heavy snippet render benchmark")
+        }
+        let fixtures = [
+            ("literal-100KB", String(repeating: "а", count: 100_000)),
+            ("brace-heavy-60KB", String(repeating: "{x}", count: 20_000))
+        ]
+        for (name, input) in fixtures {
+            try record("snippet-render-\(name)", iterations: 30) { _ in
+                XCTAssertEqual(try SnippetRenderer.render(input), input)
+            }
+        }
+    }
+
     private func record(
         _ label: String,
         iterations: Int,
