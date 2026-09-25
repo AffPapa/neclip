@@ -332,7 +332,10 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
                 let data = try await Task.detached(priority: .userInitiated) {
                     try ScreenshotRenderer.encode(image, annotations: annotations, format: format, presentation: presentation)
                 }.value
-                guard let self, let window = self.window, window.isVisible else { return }
+                // Hiding the app does not cancel an export the user already
+                // requested. The result must still reach its file or the
+                // configured pasteboard, and the editor must leave exporting.
+                guard let self, let window = self.window else { return }
                 if let fileURL {
                     try await Task.detached(priority: .userInitiated) {
                         try ScreenshotFileExport.write(data, to: fileURL)

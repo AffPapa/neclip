@@ -13,6 +13,16 @@
       ]
     },
     {
+      "version": "2.8.5",
+      "build": 51,
+      "status": "candidate",
+      "changes": [
+        "Complete an already-requested screenshot export even when the app becomes hidden",
+        "Reduce scanning work for large brace-heavy snippet templates",
+        "Public release artifact and install verification are pending"
+      ]
+    },
+    {
       "version": "2.8.3",
       "build": 49,
       "status": "superseded",

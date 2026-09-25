@@ -4,6 +4,52 @@ import XCTest
 @testable import NeClip
 
 final class ScreenshotTests: XCTestCase {
+    func testExportDeliveryDoesNotDependOnEditorVisibility() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: root.appendingPathComponent(
+            "Sources/NeClip/ScreenshotEditorWindow.swift"), encoding: .utf8)
+        let start = try XCTUnwrap(source.range(of: "private func export(format:"))
+        let end = try XCTUnwrap(source.range(of: "func windowShouldClose(", range: start.upperBound..<source.endIndex))
+        let export = String(source[start.lowerBound..<end.lowerBound])
+
+        XCTAssertFalse(export.contains("window.isVisible"),
+                       "A hidden app must not discard a screenshot export already in progress")
+        XCTAssertTrue(export.contains("try publish?(data)"), "Copy export must still publish its encoded image")
+        XCTAssertTrue(export.contains("ScreenshotFileExport.write(data, to: fileURL)"),
+                      "Save export must still write its encoded image")
+        XCTAssertTrue(export.contains("exporting = false"), "Finishing or failing export must restore editor state")
+    }
+
+    @MainActor
+    func testCopyCompletesWhenEditorIsHiddenDuringEncoding() async throws {
+        _ = NSApplication.shared
+        let pasteboard = NSPasteboard(name: .init("neclip.hidden-export.\(UUID())"))
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.clearContents()
+
+        let context = try ScreenshotRenderer.context(width: 2_048, height: 2_048)
+        for y in stride(from: 0, to: 2_048, by: 8) {
+            let shade = CGFloat(y % 256) / 255
+            context.setFillColor(CGColor(srgbRed: shade, green: 0.3, blue: 1 - shade, alpha: 1))
+            context.fill(CGRect(x: 0, y: y, width: 2_048, height: 8))
+        }
+        let controller = ScreenshotEditorWindowController(image: try XCTUnwrap(context.makeImage()), pasteboard: pasteboard)
+        let window = try XCTUnwrap(controller.window)
+        let copied = expectation(description: "PNG reaches the isolated pasteboard")
+        controller.onCopy = { _ in copied.fulfill() }
+
+        controller.showWindow(nil)
+        let copyAction = NSSelectorFromString("copyImage")
+        XCTAssertTrue(controller.responds(to: copyAction))
+        controller.perform(copyAction)
+        window.orderOut(nil)
+
+        await fulfillment(of: [copied], timeout: 10)
+        XCTAssertFalse(window.isVisible)
+        XCTAssertNotNil(pasteboard.data(forType: .png))
+    }
+
     @MainActor
     private func key(_ code: UInt16, modifiers: NSEvent.ModifierFlags = []) throws -> NSEvent {
         try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
