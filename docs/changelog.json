@@ -1,25 +1,26 @@
 {
   "versions": [
     {
+      "version": "2.8.5",
+      "build": 51,
+      "status": "released",
+      "changes": [
+        "Finish requested screenshot exports even when the editor is hidden",
+        "Reduce candidate scanning for large brace-heavy snippet templates",
+        "366 XCTest with 6 explicit opt-in skips and 4 Swift Testing checks; strict Swift 6 build, ASan, TSan, CodeQL, Developer ID signing, notarization, stapling and Gatekeeper passed",
+        "Public GitHub release independently downloaded and matched the published SHA-256"
+      ]
+    },
+    {
       "version": "2.8.4",
       "build": 50,
-      "status": "released",
+      "status": "superseded",
       "changes": [
         "Fix native Return routing and privacy-aware snippet recency in history; preserve Command-Return copy-only actions",
         "Preserve protected clipboard provenance, snippet drafts and excluded-source policy",
         "Decode and search file history correctly, stream search results and cancel stale screenshot tasks safely",
         "Publish a sourced 20-app comparison and three practical guides",
         "363 XCTest with 5 explicit opt-in skips and 4 Swift Testing checks; ASan and TSan each 56 XCTest plus 4 Swift Testing; signed and notarized public download verified"
-      ]
-    },
-    {
-      "version": "2.8.5",
-      "build": 51,
-      "status": "candidate",
-      "changes": [
-        "Complete an already-requested screenshot export even when the app becomes hidden",
-        "Reduce scanning work for large brace-heavy snippet templates",
-        "Public release artifact and install verification are pending"
       ]
     },
     {

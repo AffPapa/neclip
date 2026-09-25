@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.8.5 / build 51 — released 2026-09-25
+
+- Complete asynchronous screenshot Copy and Save after the editor window is hidden; do not leave the export state stuck.
+- Reduce candidate matching work for large brace-heavy snippet templates. A synthetic 60 KB input with 20,000 unknown groups measured 81.295 ms median on 2.8.4 and 13.256 ms on 2.8.5; this is a local microbenchmark, not a whole-app performance claim.
+- Add regression coverage for the hidden-editor copy path and source-backed product and risk-based QA records.
+
+366 XCTest (six explicit opt-in skips) and four Swift Testing checks passed. Strict optimized Swift 6 build passed. ASan and TSan each passed 41 screenshot and snippet-rendering XCTest checks. Required Swift CI, full-history secret scan and CodeQL passed. Developer ID signed, Apple notarized and stapled; Gatekeeper accepted the app and DMG, including the app mounted from the DMG.
+
+Exact public artifact: [NeClip-2.8.5.dmg](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg) (2,141,634 bytes), SHA-256 `b10cfee08397ab0ea063c25b97904a824c092452c4275eec099ae66da044c866`. Source commit: `867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc`. See [release evidence and verification limits](docs/RELEASE-2.8.5-STATUS.md).
+
 ## 2.8.4 / build 50 — released 2026-09-21
 
 - Return no longer acts as a global shortcut to the first history submenu; native selection determines the activated snippet or history item.

@@ -4,12 +4,9 @@ NeClip remains a small local macOS utility: clipboard history, snippet folders
 and safe EN/RU layout correction. Accounts, cloud sync, subscriptions,
 telemetry, advertising and AI processing are not planned.
 
-## Current public release — 2.8.4 / build 50
+## Current public release — 2.8.5 / build 51
 
-Released 21 September 2026 after the normal Developer ID, notarization,
-stapling, Gatekeeper, mounted-DMG, independent public-download and required-CI
-gates. [Download NeClip 2.8.4](https://github.com/AffPapa/neclip/releases/download/v2.8.4/NeClip-2.8.4.dmg)
-and read the [release evidence](docs/RELEASE-2.8.4-STATUS.md).
+Released 25 September 2026 after required CI, CodeQL and secret scan; Developer ID, notarization, stapling, Gatekeeper, mounted-DMG and independent public-download checks passed. [Download NeClip 2.8.5](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg) and read the [release evidence](docs/RELEASE-2.8.5-STATUS.md).
 
 - Save any text history item as a raw-text snippet with folder selection and duplicate checks.
 - Search local history with bounded text, type, application and date filters.
@@ -28,6 +25,9 @@ and read the [release evidence](docs/RELEASE-2.8.4-STATUS.md).
   atomically publish private backup files without changing existing folder permissions.
 - Keep screenshot crop/format/text consistent and add optional light/dark
   backgrounds with unchanged source pixels and a compact two-row toolbar.
+
+- Complete screenshot export even if the editor window hides during encoding.
+- Reduce candidate scanning for large brace-heavy snippets.
 
 ## Current verification priorities
 

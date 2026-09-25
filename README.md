@@ -7,18 +7,18 @@ Update checks run only when you explicitly request them.
 
 ## Download
 
-Current supported release: **2.8.4 (build 50)**,
-released on 21 September 2026.
+Current supported release: **2.8.5 (build 51)**,
+released on 25 September 2026.
 
-[Download NeClip 2.8.4](https://github.com/AffPapa/neclip/releases/download/v2.8.4/NeClip-2.8.4.dmg)
-(2,140,099 bytes). Open the DMG, drag NeClip to Applications and launch it there.
+[Download NeClip 2.8.5](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg)
+(2,141,634 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
-SHA-256: `033b5d475e96a87d82f5dde6b4a698bcc9f9b618fe1b3d1e6880c1f37bfb29d1`.
-Artifact source: `4bb2bc6e7b9b48b4e60d3adc8f375b1db0993ac6`.
+SHA-256: `b10cfee08397ab0ea063c25b97904a824c092452c4275eec099ae66da044c866`.
+Artifact source: `867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc`.
 
 The app and DMG are Developer ID signed, notarized and stapled.
-[Release evidence](docs/RELEASE-2.8.4-STATUS.md) records the verification boundary.
+[Release evidence](docs/RELEASE-2.8.5-STATUS.md) records the verification boundary.
 [Website](https://affpapa.github.io/neclip/) · [Changelog](CHANGELOG.md) ·
 [Verification priorities](BACKLOG.md) · [Security](SECURITY.md).
 
@@ -40,7 +40,7 @@ navigation, metadata and structured data are versioned in this repository.
 
 ## Everyday use
 
-Version 2.8.4 fixes Return activating the first history action instead of the
+Version 2.8.5 completes screenshot exports when the editor is hidden and speeds up brace-heavy snippet templates. Version 2.8.4 fixed Return activating the first history action instead of the
 selected snippet. Successfully copied snippets become recent history entries,
 subject to the same pause, exclusion, protected-content and size rules as other
 copies; their order in the snippet library does not change.

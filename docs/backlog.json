@@ -1,9 +1,9 @@
 {
   "currentRelease": {
-    "version": "2.8.4",
-    "build": 50,
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.4/NeClip-2.8.4.dmg",
-    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.4-STATUS.md"
+    "version": "2.8.5",
+    "build": 51,
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg",
+    "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.5-STATUS.md"
   },
   "done": [
     "2.6.0: history actions, local search, trust status, screenshot QA, token preview, starter snippets and database backup/restore",
@@ -17,7 +17,8 @@
     "2.8.1: verified multiline range replacement, bounded editor retries, first-stroke recovery and race-safe live correction",
     "2.8.2: race-safe local history search, whitespace-safe Option correction, guarded restore cleanup and keyboard/VoiceOver screenshot editing",
     "2.8.3: clipboard-generation guards, validated record-only restore, private atomic backups and precise screenshot editing with optional backgrounds",
-    "2.8.4: native menu Return routing, explicit privacy-aware snippet history, draft merge safety, file search decoding, streamed reads and cancellation-safe screenshot restart; synthetic-image Save dialog PNG/JPEG/cancel/reopen verified"
+    "2.8.4: native menu Return routing, explicit privacy-aware snippet history, draft merge safety, file search decoding, streamed reads and cancellation-safe screenshot restart; synthetic-image Save dialog PNG/JPEG/cancel/reopen verified",
+    "2.8.5: finish screenshot exports after the editor is hidden; reduce brace-heavy template scanning; independently verified signed and notarized public release"
   ],
   "inDevelopment": [],
   "next": [
