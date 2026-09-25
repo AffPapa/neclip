@@ -29,6 +29,8 @@
 ## Verification boundaries
 
 - The native regression test did not read user clipboard/history, invoke screen capture, or touch the general pasteboard.
-- Installation was not changed: NeClip 2.8.4 was left in `/Applications` because the host-side provenance metadata prevented a reliable post-copy signature check. The 2.8.4 release remains available for rollback. No live app smoke was performed against the user's history or clipboard. Physical VoiceOver, real display/Spaces/permission combinations, mixed keyboard and pointer operation in the running app, and third-party editor behavior remain unverified.
+- Installed `/Applications/NeClip.app` as 2.8.5 / build 51 from the mounted public DMG. In the install operation, the staged and installed app both passed `codesign`, stapled-ticket validation and Gatekeeper; the installed executable hash matched the release build. The previous app was preserved at `/Applications/NeClip-2.8.4.rollback.app`. The app was not launched, so user history and the general pasteboard were not accessed for a live smoke test.
+- After the install operation returned, the host attached `com.apple.provenance` metadata to the app bundle. A later standalone `codesign` invocation then reported an invalid signature. This environment-specific post-operation result could not be reconciled with the successful checks made during installation, so installed-bundle signature state after host metadata handling remains a limitation. The public DMG itself remains byte-identical to the notarized release artifact.
+- Physical VoiceOver, real display/Spaces/permission combinations, mixed keyboard and pointer operation in the running app, and third-party editor behavior remain unverified.
 - The product comparison uses official vendor documentation and source inspection; competing apps were not installed or hands-on benchmarked.
 - Local ASan/TSan coverage is scoped to screenshot and snippet-rendering tests, not the entire application.
