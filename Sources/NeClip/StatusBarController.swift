@@ -18,6 +18,17 @@ private final class ClipActionsMenuContext: NSObject {
     }
 }
 
+private final class HistoryOverflowMenuContext: NSObject {
+    let clips: [ClipSummary]
+    let firstIndex: Int
+    var isMaterialized = false
+
+    init(clips: [ClipSummary], firstIndex: Int) {
+        self.clips = clips
+        self.firstIndex = firstIndex
+    }
+}
+
 /// The default NeClip interface is a classic native menu: a configurable
 /// number of recent history entries is visible immediately, and older entries
 /// live in one flat "Ещё из истории" submenu.
@@ -72,6 +83,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// NSMenu has no representedObject. Weak keys keep deferred submenu
     /// contexts alive only for the menu object that owns them.
     private let clipActionMenuContexts = NSMapTable<NSMenu, ClipActionsMenuContext>(
+        keyOptions: .weakMemory,
+        valueOptions: .strongMemory
+    )
+    private let historyOverflowMenuContexts = NSMapTable<NSMenu, HistoryOverflowMenuContext>(
         keyOptions: .weakMemory,
         valueOptions: .strongMemory
     )
@@ -333,7 +348,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         // complete flat submenu. Slice only the configurable first list when
         // presenting it.
         let history = snapshot.clips
-        let firstPage = history.prefix(Settings.recentHistoryMenuLimit)
+        let visibleCount = MenuMaterializationPolicy.visibleHistoryCount(
+            clipCount: history.count,
+            requestedVisibleCount: Settings.recentHistoryMenuLimit
+        )
+        let firstPage = history.prefix(visibleCount)
         if firstPage.isEmpty {
             let emptyTitle = Settings.isCapturePaused
                 ? "История пуста — запись приостановлена"
@@ -355,13 +374,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 keyEquivalent: "f",
                 modifiers: [.command]
             ))
-            if history.count > firstPage.count {
-                moreMenu.addItem(.separator())
-                for index in firstPage.count..<history.count {
-                    moreMenu.addItem(clipMenuItem(
-                        history[index], absoluteIndex: index, quickKey: nil, showNumber: true
-                    ))
-                }
+            let overflow = MenuMaterializationPolicy.overflowRange(
+                clipCount: history.count,
+                requestedVisibleCount: Settings.recentHistoryMenuLimit
+            )
+            if !overflow.isEmpty {
+                moreMenu.delegate = self
+                historyOverflowMenuContexts.setObject(
+                    HistoryOverflowMenuContext(clips: history, firstIndex: overflow.lowerBound),
+                    forKey: moreMenu
+                )
             }
             moreItem.submenu = moreMenu
             menu.addItem(moreItem)
@@ -674,8 +696,21 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        guard let context = clipActionMenuContexts.object(forKey: menu) else { return }
-        populateClipActionsMenu(menu, for: context.clip)
+        if let context = clipActionMenuContexts.object(forKey: menu) {
+            populateClipActionsMenu(menu, for: context.clip)
+            return
+        }
+        guard let context = historyOverflowMenuContexts.object(forKey: menu),
+              !context.isMaterialized else { return }
+        context.isMaterialized = true
+        menu.addItem(.separator())
+        for (offset, clip) in context.clips.dropFirst(context.firstIndex).enumerated() {
+            let index = context.firstIndex + offset
+            menu.addItem(clipMenuItem(
+                clip, absoluteIndex: index, quickKey: nil, showNumber: true
+            ))
+        }
+        MenuAppearance.applyEffectiveAppearance(to: menu)
     }
 
     private func populateClipActionsMenu(_ menu: NSMenu, for clip: ClipSummary) {

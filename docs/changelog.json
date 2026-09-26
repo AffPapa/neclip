@@ -12,6 +12,15 @@
       ]
     },
     {
+      "version": "2.8.6",
+      "build": 52,
+      "status": "inDevelopment",
+      "changes": [
+        "Build the older history submenu only when it is opened, preserving all entries and their order",
+        "Add the project owner link to every public editorial page"
+      ]
+    },
+    {
       "version": "2.8.4",
       "build": 50,
       "status": "superseded",
