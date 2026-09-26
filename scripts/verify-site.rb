@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
-# Read-only coherence gate: a candidate must never replace a verified download.
+# Local coherence gate only. Remote assets must be independently fetched and
+# byte-checked before publishing a site update.
 require 'json'
 require 'date'
 require 'rexml/document'
@@ -31,6 +32,8 @@ abort 'README release evidence mismatch' unless readme.include?("docs/RELEASE-#{
 abort 'README download mismatch' unless readme.include?(expected)
 abort 'README size mismatch' unless readme.include?("(#{readme_size} bytes)")
 abort 'README checksum mismatch' unless readme.include?(version.fetch('sha256'))
+abort 'public manifest advertises unavailable ZIP' if version.key?('appArchive') || html.match?(%r{href="https://github\.com/AffPapa/neclip/releases/download/[^"]+\.zip"})
+abort 'README advertises unavailable ZIP' if readme.match?(%r{https://github\.com/AffPapa/neclip/releases/download/[^\s)]+\.zip})
 abort 'README source mismatch' unless readme.include?(source_commit)
 abort 'site checksum mismatch' unless html.include?(version.fetch('sha256'))
 abort 'site source mismatch' unless html.include?(source_commit)
@@ -78,4 +81,4 @@ Dir.glob(File.join(root, '**', '*.md')).reject { |path| path.include?('/.build')
     abort "missing Markdown link: #{href}" unless File.exist?(target)
   end
 end
-puts "PASS: public #{version['version']}, source #{project['sourceCandidate']['version']}, JSON, download, metadata and local links"
+puts "PASS: release #{version['version']} manifest, source #{project['sourceCandidate']['version']}, metadata and local links (remote asset availability not tested)"
