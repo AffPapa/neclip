@@ -20,10 +20,10 @@
   "sourceCandidate": {
     "version": "2.8.6",
     "build": 52,
-    "status": "inDevelopment",
-    "publicVersion": "2.8.5",
-    "scope": "defer older history menu rows until opened; add project attribution across public pages",
-    "sourceCommit": "14dc203"
+    "status": "released",
+    "publicVersion": "2.8.6",
+    "scope": "defer old history menu rows until the submenu opens; add project attribution across all public editorial pages",
+    "sourceCommit": "4e5b827e5f54b1e6b8d0710a74c33467ddc15b5a"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
@@ -33,8 +33,8 @@
     "releaseFeed": "https://github.com/AffPapa/neclip/releases.atom",
     "changelog": "https://github.com/AffPapa/neclip/blob/main/CHANGELOG.md",
     "backlog": "https://github.com/AffPapa/neclip/blob/main/BACKLOG.md",
-    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.5-STATUS.md",
-    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.5-STATUS.md",
+    "engineeringAudit": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.6-STATUS.md",
+    "releaseEvidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.6-STATUS.md",
     "projectMap": "https://github.com/AffPapa/neclip/blob/main/docs/PROJECT-MAP.md",
     "security": "https://github.com/AffPapa/neclip/blob/main/SECURITY.md",
     "license": "https://github.com/AffPapa/neclip/blob/main/LICENSE"
@@ -116,5 +116,5 @@
     "a permanent Dock icon",
     "tags or smart collections"
   ],
-  "featuresVersion": "2.8.5 released; public downloadable artifact is identified by version.json"
+  "featuresVersion": "2.8.6 released; public DMG and ZIP artifacts are identified by version.json"
 }

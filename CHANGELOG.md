@@ -1,10 +1,13 @@
 # Changelog
 
-## 2.8.6 / build 52 — candidate
+## 2.8.6 / build 52 — released 2026-09-26
 
 - Build older history menu rows only when the user opens “Ещё из истории”; preserve every entry, its order and absolute number.
 - Add the “Проект Иванова” link to all eight editorial pages and the repository README; SEO verification now enforces the footer link.
-- An opt-in synthetic AppKit benchmark compares eager and initial lazy menu construction. Its timings cover item creation only, not end-to-end menu latency.
+- An opt-in synthetic AppKit benchmark compares eager and initial lazy menu construction. At 1,000 rows, p50 was 0.839 ms eager and 0.012 ms lazy; these timings cover item creation only, not end-to-end menu latency.
+- The product binary differs by 16 bytes from the equivalent strict 2.8.5 release build. Required GitHub CI, secret scan, CodeQL, Developer ID signing, notarization, stapling, Gatekeeper and independent public-download checks passed.
+
+DMG: 2,142,659 bytes, SHA-256 `59e14e6a7ca8a534cfcb0e1cd273216460717fbd84b35795b1e0adc0226bc810`. ZIP: 2,109,029 bytes, SHA-256 `7d267fbd686ac45ecb7e18f5e5be865c385b44a545bfbf5e21a4e42706622de1`. Source: `4e5b827e5f54b1e6b8d0710a74c33467ddc15b5a`. See [release evidence](docs/RELEASE-2.8.6-STATUS.md).
 
 ## 2.8.5 / build 51 — released 2026-09-25
 
