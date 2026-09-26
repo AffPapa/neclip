@@ -574,6 +574,12 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     private func insert(_ item: ClipItem) {
+        // Explicit screenshots also arrive asynchronously. Honor a setting
+        // changed while their work was waiting in the capture queue.
+        guard item.kind != .image || Settings.captureImages else {
+            notifySkipped(.disabledContentType)
+            return
+        }
         guard !Settings.isCapturePaused else {
             notifySkipped(.paused)
             return

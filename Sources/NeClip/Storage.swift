@@ -838,9 +838,10 @@ final class Storage: @unchecked Sendable {
                 let text: String? = row["text"]
                 let displayText = kind == .file ? text.map(FileClipboardCodec.displayText) : text
                 if !normalizedQuery.isEmpty {
-                    let normalizedTitle = title.localizedLowercase
-                    let normalizedText = (displayText ?? "").localizedLowercase
-                    guard normalizedTitle.contains(normalizedQuery) || normalizedText.contains(normalizedQuery) else { continue }
+                    // A matching title is sufficient; do not normalize a
+                    // potentially multi-megabyte body only to discard it.
+                    guard title.localizedLowercase.contains(normalizedQuery)
+                            || (displayText ?? "").localizedLowercase.contains(normalizedQuery) else { continue }
                 }
                 summaries.append(ClipSummary(
                     id: id, kind: kind, title: title,

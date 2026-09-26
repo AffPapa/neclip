@@ -12,6 +12,17 @@
       ]
     },
     {
+      "version": "2.8.7",
+      "build": 53,
+      "status": "candidate",
+      "date": "2026-09-26",
+      "changes": [
+        "Preserve filter/button, VoiceOver and IME keyboard handling in history search.",
+        "Recheck image history opt-out before queued screenshot storage.",
+        "Skip full-body lowercase when the title already matches."
+      ]
+    },
+    {
       "version": "2.8.5",
       "build": 51,
       "status": "superseded",

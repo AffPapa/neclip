@@ -18,12 +18,11 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.8.6",
-    "build": 52,
-    "status": "released",
+    "version": "2.8.7",
+    "build": 53,
+    "status": "candidate",
     "publicVersion": "2.8.6",
-    "scope": "defer old history menu rows until the submenu opens; add project attribution across all public editorial pages",
-    "sourceCommit": "4e5b827e5f54b1e6b8d0710a74c33467ddc15b5a"
+    "scope": "respect native search focus and IME, reject queued images after opt-out, short-circuit title search"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

@@ -118,6 +118,22 @@ final class HotPathBenchmarks: XCTestCase {
         }
     }
 
+    func testSyntheticLargeBodyTitleSearchLatency() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in title search over 32 MiB of synthetic text")
+        }
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        for index in 0..<64 {
+            _ = try storage.insert(ClipItem(kind: .text, title: "NEEDLE \(index)",
+                text: String(repeating: "AbCdEfGh", count: 65_536) + " \(index)",
+                createdAt: Date(timeIntervalSince1970: TimeInterval(index))))
+        }
+        _ = try storage.searchClipSummaries(query: "needle")
+        try record("title-search-64x512KiB", iterations: 30) { _ in
+            XCTAssertEqual(try storage.searchClipSummaries(query: "needle").count, 64)
+        }
+    }
+
     func testSyntheticEmptyRuleLatency() throws {
         guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
             throw XCTSkip("Set NECLIP_RUN_HOT_PATH_BENCHMARKS=1 for synthetic latency measurements")

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.7 / build 53 — candidate
+
+- Restrict history search shortcuts to its search field and results; preserve native control focus, modified navigation and marked IME text.
+- Recheck image capture settings before storing queued screenshots.
+- Skip full-body lowercase when the history title already matches. Synthetic 64 × 512 KiB title search, 30 warmed release iterations: p50 164.965 → 3.741 ms; p95 229.571 → 4.187 ms. This measures local database search, not end-to-end UI latency.
+
 ## 2.8.6 / build 52 — released 2026-09-26
 
 - Build older history menu rows only when the user opens “Ещё из истории”; preserve every entry, its order and absolute number.

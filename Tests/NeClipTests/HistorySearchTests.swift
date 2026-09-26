@@ -178,6 +178,47 @@ final class HistorySearchTests: XCTestCase {
         )
     }
 
+    func testKeyboardPreservesVoiceOverAndModifiedNavigation() {
+        for key in [kVK_Return, kVK_ANSI_KeypadEnter, kVK_UpArrow, kVK_DownArrow, kVK_Escape] {
+            for flags: NSEvent.ModifierFlags in [[.control], [.option], [.control, .option]] {
+                XCTAssertEqual(HistorySearchKeyboardAction.resolve(keyCode: UInt16(key), modifiers: flags), .passThrough)
+            }
+        }
+        for flags: NSEvent.ModifierFlags in [[.command], [.shift], [.command, .shift]] {
+            XCTAssertEqual(HistorySearchKeyboardAction.resolve(keyCode: UInt16(kVK_DownArrow), modifiers: flags), .passThrough)
+        }
+    }
+
+    @MainActor
+    func testKeyboardRoutingRespectsFocusedControlsAndMarkedText() throws {
+        _ = NSApplication.shared
+        let controller = HistorySearchPanelController(storage: try Storage(inMemory: true, installStarterContent: false))
+        controller.prepare(targetPID: nil, paste: { _, _, _, _ in XCTFail("Unexpected paste") },
+                           save: { _ in }, open: { _ in })
+        let window = try XCTUnwrap(controller.window)
+        defer { window.close() }
+        let views = descendants(try XCTUnwrap(window.contentView))
+        let field = try XCTUnwrap(views.compactMap { $0 as? NSSearchField }.first)
+        let table = try XCTUnwrap(views.compactMap { $0 as? NSTableView }.first)
+        let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+            timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "\r",
+            charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: UInt16(kVK_Return)))
+        XCTAssertTrue(window.makeFirstResponder(table))
+        XCTAssertEqual(controller.keyboardAction(for: event), .pasteOriginal)
+        for control in views.compactMap({ $0 as? NSButton }).filter({ $0.isEnabled }) {
+            XCTAssertTrue(window.makeFirstResponder(control))
+            XCTAssertEqual(controller.keyboardAction(for: event), .passThrough)
+        }
+        XCTAssertTrue(window.makeFirstResponder(field))
+        XCTAssertEqual(controller.keyboardAction(for: event), .pasteOriginal)
+        let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
+        editor.setMarkedText("候", selectedRange: NSRange(location: 1, length: 0),
+                             replacementRange: NSRange(location: NSNotFound, length: 0))
+        XCTAssertTrue(editor.hasMarkedText())
+        XCTAssertEqual(controller.keyboardAction(for: event), .passThrough)
+        editor.unmarkText()
+    }
+
     func testRequestGateRejectsQueuedStaleSearchesBeforeDatabaseRead() {
         let gate = HistorySearchRequestGate()
         let first = gate.begin()
