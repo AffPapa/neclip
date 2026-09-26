@@ -8,7 +8,7 @@ NeClip — приложение для macOS, которое сохраняет 
 
 ## Скачать NeClip для Mac
 
-Актуальная версия: **NeClip 2.8.5 (сборка 51)**.
+Актуальная версия: **NeClip 2.8.5 (сборка 51)**. Дата выпуска — 25 сентября 2026 года.
 
 - [Скачать DMG для Mac](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg) — 2 141 634 байта.
 - [Скачать ZIP-архив приложения](https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip) — 2 108 558 байт.
@@ -22,6 +22,8 @@ NeClip — приложение для macOS, которое сохраняет 
 - ZIP: `ad697fe16c2165f1af0881e215da0ebbc6f379c179b920f01b1a09a9a041890a` ([файл контрольной суммы](https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip.sha256)).
 
 ZIP опубликован как отдельный дополнительный предварительный релиз: неизменяемый релиз `v2.8.5` уже содержит DMG. ZIP содержит то же нотариально заверенное приложение, извлечённое из DMG. Подробности проверок — в [отчёте о выпуске 2.8.5](docs/RELEASE-2.8.5-STATUS.md).
+
+Исходный коммит приложения: `867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc`.
 
 **Ссылки:** [сайт NeClip](https://affpapa.github.io/neclip/) · [все GitHub Releases](https://github.com/AffPapa/neclip/releases) · [изменения версий](CHANGELOG.md) · [безопасность](SECURITY.md) · [лицензия MIT](LICENSE).
 
