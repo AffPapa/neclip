@@ -13,17 +13,22 @@ enum HistorySearchKeyboardAction: Equatable {
     case dismiss
 
     static func resolve(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Self {
-        let flags = modifiers.intersection(.deviceIndependentFlagsMask)
+        let flags = modifiers.intersection([.command, .shift, .control, .option])
+        // Leave VoiceOver, text editing and input-method commands to AppKit.
+        guard flags.isDisjoint(with: [.control, .option]) else { return .passThrough }
         switch keyCode {
         case UInt16(kVK_Return), UInt16(kVK_ANSI_KeypadEnter):
             if flags.contains(.command) { return .copyOnly }
             if flags.contains(.shift) { return .pastePlain }
             return .pasteOriginal
         case UInt16(kVK_UpArrow):
+            guard flags.isEmpty else { return .passThrough }
             return .moveSelection(-1)
         case UInt16(kVK_DownArrow):
+            guard flags.isEmpty else { return .passThrough }
             return .moveSelection(1)
         case UInt16(kVK_Escape):
+            guard flags.isEmpty else { return .passThrough }
             return .dismiss
         default:
             return .passThrough
@@ -430,10 +435,23 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
 
     @objc private func retrySearch() { reloadResults() }
 
+    /// Resolve against the actual first responder, including the shared field
+    /// editor. Filters/buttons and an active IME composition keep native keys.
+    func keyboardAction(for event: NSEvent) -> HistorySearchKeyboardAction {
+        guard let window, event.window === window else { return .passThrough }
+        let responder = window.firstResponder
+        if let editor = responder as? NSTextView, editor.hasMarkedText() { return .passThrough }
+        guard responder === tableView || responder === searchField
+                || (searchField.currentEditor() != nil && responder === searchField.currentEditor()) else {
+            return .passThrough
+        }
+        return HistorySearchKeyboardAction.resolve(keyCode: event.keyCode, modifiers: event.modifierFlags)
+    }
+
     private func installKeyboardMonitor() {
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, event.window === self.window else { return event }
-            switch HistorySearchKeyboardAction.resolve(keyCode: event.keyCode, modifiers: event.modifierFlags) {
+            switch self.keyboardAction(for: event) {
             case .pasteOriginal:
                 self.pasteOriginal()
             case .pastePlain:

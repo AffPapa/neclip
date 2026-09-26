@@ -290,6 +290,32 @@ final class SnippetActivationTests: XCTestCase {
     }
 
     @MainActor
+    func testDisablingImageHistoryRejectsAlreadyQueuedScreenshot() async throws {
+        try await withCaptureSettings {
+            let board = NSPasteboard(name: .init("neclip-screenshot-setting-\(UUID().uuidString)"))
+            defer { board.releaseGlobally() }
+            let storage = try Storage(inMemory: true, installStarterContent: false)
+            let queue = DispatchQueue(label: "neclip.screenshot.setting.test")
+            let monitor = ClipboardMonitor(pasteboard: board, storage: storage, processingQueue: queue)
+            var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+            arguments["captureImages"] = true
+            UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+            monitor.start()
+            defer { monitor.stop() }
+            let context = try ScreenshotRenderer.context(width: 2, height: 2)
+            let png = try ScreenshotRenderer.encode(try XCTUnwrap(context.makeImage()), annotations: [], format: .png)
+            let release = DispatchSemaphore(value: 0)
+            queue.async { release.wait() }
+            XCTAssertTrue(monitor.recordScreenshot(png, width: 2, height: 2, sourceBundleID: "org.neclip.fixture"))
+            arguments["captureImages"] = false
+            UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+            release.signal()
+            await monitor.stopAndDrainAsync()
+            XCTAssertEqual(storage.count, 0)
+        }
+    }
+
+    @MainActor
     func testExplicitSnippetUsesNormalSensitiveEmptyAndSizeLimits() async throws {
         try await withCaptureSettings {
             let board = NSPasteboard(name: .init("neclip-snippet-limits-\(UUID().uuidString)"))
