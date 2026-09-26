@@ -1,22 +1,22 @@
 {
-  "version": "2.8.5",
-  "build": 51,
+  "version": "2.8.6",
+  "build": 52,
   "status": "released",
   "platform": "macOS 14+ on Apple Silicon",
-  "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg",
-  "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.8.5",
-  "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg.sha256",
-  "sha256": "b10cfee08397ab0ea063c25b97904a824c092452c4275eec099ae66da044c866",
-  "sizeBytes": 2141634,
-  "publishedAt": "2026-09-25T14:39:10Z",
+  "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.6/NeClip-2.8.6.dmg",
+  "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.8.6",
+  "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.8.6/NeClip-2.8.6.dmg.sha256",
+  "sha256": "59e14e6a7ca8a534cfcb0e1cd273216460717fbd84b35795b1e0adc0226bc810",
+  "sizeBytes": 2142659,
+  "publishedAt": "2026-09-26T12:28:09Z",
   "source": "https://github.com/AffPapa/neclip",
-  "sourceCommit": "867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc",
+  "sourceCommit": "4e5b827e5f54b1e6b8d0710a74c33467ddc15b5a",
   "appArchive": {
-    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip",
-    "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.8.5-zip",
-    "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip.sha256",
-    "sha256": "ad697fe16c2165f1af0881e215da0ebbc6f379c179b920f01b1a09a9a041890a",
-    "sizeBytes": 2108558,
-    "publishedAt": "2026-09-26T10:11:59Z"
+    "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.6/NeClip-2.8.6.zip",
+    "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v2.8.6",
+    "checksum": "https://github.com/AffPapa/neclip/releases/download/v2.8.6/NeClip-2.8.6.zip.sha256",
+    "sha256": "7d267fbd686ac45ecb7e18f5e5be865c385b44a545bfbf5e21a4e42706622de1",
+    "sizeBytes": 2109029,
+    "publishedAt": "2026-09-26T12:28:09Z"
   }
 }
