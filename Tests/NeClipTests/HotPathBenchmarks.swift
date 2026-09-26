@@ -1,10 +1,40 @@
 import Foundation
+import AppKit
 import XCTest
 @testable import NeClip
 
 /// Opt-in synthetic benchmark. Setup and full-payload verification are excluded
 /// from timings; this never opens the user's database or pasteboard.
 final class HotPathBenchmarks: XCTestCase {
+    @MainActor
+    func testSyntheticHistoryMenuMaterializationLatency() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in synthetic AppKit history menu materialization benchmark")
+        }
+        for size in [100, 500, 1_000] {
+            let visible = MenuMaterializationPolicy.visibleHistoryCount(
+                clipCount: size,
+                requestedVisibleCount: 10
+            )
+            record("history-menu-eager-\(size)", iterations: 40) { _ in
+                let menu = NSMenu()
+                for index in 0..<size { menu.addItem(NSMenuItem(title: "Synthetic \(index)", action: nil, keyEquivalent: "")) }
+                XCTAssertEqual(menu.numberOfItems, size)
+            }
+            record("history-menu-initial-\(size)", iterations: 40) { _ in
+                let menu = NSMenu()
+                for index in 0..<visible { menu.addItem(NSMenuItem(title: "Synthetic \(index)", action: nil, keyEquivalent: "")) }
+                let more = NSMenuItem(title: "Ещё из истории", action: nil, keyEquivalent: "")
+                let submenu = NSMenu(title: "Ещё из истории")
+                submenu.addItem(NSMenuItem(title: "Поиск истории…", action: nil, keyEquivalent: ""))
+                more.submenu = submenu
+                menu.addItem(more)
+                XCTAssertEqual(menu.numberOfItems, visible + 1)
+                XCTAssertEqual(submenu.numberOfItems, 1)
+            }
+        }
+    }
+
     func testSyntheticDigestHexadecimalLatency() throws {
         guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
             throw XCTSkip("Opt-in synthetic digest hexadecimal benchmark")

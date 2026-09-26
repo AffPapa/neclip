@@ -25,6 +25,8 @@ ZIP опубликован как отдельный дополнительны�
 
 Исходный коммит приложения: `867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc`.
 
+**Проект Иванова:** [affpapa.org](https://affpapa.org/).
+
 **Ссылки:** [сайт NeClip](https://affpapa.github.io/neclip/) · [все GitHub Releases](https://github.com/AffPapa/neclip/releases) · [изменения версий](CHANGELOG.md) · [безопасность](SECURITY.md) · [лицензия MIT](LICENSE).
 
 ## Сравнение приложений для буфера обмена Mac

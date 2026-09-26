@@ -30,6 +30,12 @@ class SEOReleaseTest < Minitest::Test
     out, err, status = verify
     assert status.success?, "#{out}\n#{err}"
   end
+  def test_every_editorial_footer_requires_project_credit
+    change('guides/clipboard-history.html') do |s|
+      s.sub('<a href="https://affpapa.org/">Проект Иванова</a>', '')
+    end
+    rejection('missing Ivanov project credit in footer')
+  end
   def test_article_rejects_inline_script
     change('guides/clipboard-history.html') { |s| s.sub('</main>', '<script>"not article content"</script></main>') }
     rejection('missing static article')

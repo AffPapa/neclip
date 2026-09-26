@@ -134,8 +134,9 @@ final class ApplicationModeContractTests: XCTestCase {
 
         XCTAssertTrue(statusBar.contains("MenuTitleFormatter.format(value, limit: Settings.menuTitleLength)"))
         XCTAssertTrue(statusBar.contains("let history = snapshot.clips"))
-        XCTAssertTrue(statusBar.contains("let firstPage = history.prefix(Settings.recentHistoryMenuLimit)"))
-        XCTAssertTrue(statusBar.contains("for index in firstPage.count..<history.count"))
+        XCTAssertTrue(statusBar.contains("MenuMaterializationPolicy.visibleHistoryCount"))
+        XCTAssertTrue(statusBar.contains("historyOverflowMenuContexts.setObject"))
+        XCTAssertTrue(statusBar.contains("context.clips.dropFirst(context.firstIndex)"))
         XCTAssertTrue(statusBar.contains("allClipSummaries()"))
         XCTAssertFalse(statusBar.contains("MenuPagination.appendPages"))
         XCTAssertFalse(statusBar.contains("Array(snapshot.clips.prefix(100))"))
@@ -269,7 +270,7 @@ final class ApplicationModeContractTests: XCTestCase {
             contentsOf: repositoryRoot.appendingPathComponent("docs/index.html"),
             encoding: .utf8
         )
-        XCTAssertFalse(website.contains("https://affpapa.org"))
+        XCTAssertTrue(website.contains("<a href=\"https://affpapa.org/\">Проект Иванова</a>"))
         XCTAssertTrue(website.contains("project.json"))
     }
 }

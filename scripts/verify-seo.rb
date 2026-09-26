@@ -26,6 +26,8 @@ urls.each do |url|
   abort 'sitemap path escapes docs' unless path.start_with?(docs + '/')
   abort "missing sitemap page #{relative}" unless File.file?(path)
   html = File.read(path)
+  footer = html[/<footer\b[^>]*>(.*?)<\/footer>/im, 1]
+  abort "missing Ivanov project credit in footer: #{relative}" unless footer&.include?('<a href="https://affpapa.org/">Проект Иванова</a>')
   abort "wrong language: #{relative}" unless html.include?('<html lang="ru">')
   abort "indexable page is noindex: #{relative}" if html.match?(/<meta[^>]+(?:noindex|nofollow)/i)
   abort "local machine path in public HTML: #{relative}" if html.match?(%r{/(?:Users|private/tmp|var/folders)/})

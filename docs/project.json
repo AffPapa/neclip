@@ -18,12 +18,12 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.8.5",
-    "build": 51,
-    "status": "released",
+    "version": "2.8.6",
+    "build": 52,
+    "status": "inDevelopment",
     "publicVersion": "2.8.5",
-    "scope": "finish screenshot exports when the app is hidden; index snippet tokens by their following byte to reduce brace-heavy rendering work",
-    "sourceCommit": "867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc"
+    "scope": "defer older history menu rows until opened; add project attribution across public pages",
+    "sourceCommit": "33895fc62cc7b34ef4d3238395d37bed0034c05c"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

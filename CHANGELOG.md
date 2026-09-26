@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.6 / build 52 — candidate
+
+- Build older history menu rows only when the user opens “Ещё из истории”; preserve every entry, its order and absolute number.
+- Add the “Проект Иванова” link to all eight editorial pages and the repository README; SEO verification now enforces the footer link.
+- An opt-in synthetic AppKit benchmark compares eager and initial lazy menu construction. Its timings cover item creation only, not end-to-end menu latency.
+
 ## 2.8.5 / build 51 — released 2026-09-25
 
 - Complete asynchronous screenshot Copy and Save after the editor window is hidden; do not leave the export state stuck.

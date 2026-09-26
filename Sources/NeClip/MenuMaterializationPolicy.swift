@@ -1,10 +1,18 @@
 import Foundation
 
 enum MenuMaterializationPolicy {
-    /// Action rows are fixed per clip; folder targets must be created only for
-    /// the one action submenu that the user opens.
-    static func eagerItemCount(clipCount: Int) -> Int {
-        max(0, clipCount)
+    /// The first page remains visible in the root menu; older rows are only
+    /// built after the user opens the history submenu.
+    static func visibleHistoryCount(clipCount: Int, requestedVisibleCount: Int) -> Int {
+        min(max(0, clipCount), max(0, requestedVisibleCount))
+    }
+
+    static func overflowRange(clipCount: Int, requestedVisibleCount: Int) -> Range<Int> {
+        let visibleCount = visibleHistoryCount(
+            clipCount: clipCount,
+            requestedVisibleCount: requestedVisibleCount
+        )
+        return visibleCount..<max(visibleCount, clipCount)
     }
 
     static func openedActionItemCount(folderCount: Int, includesOpenTarget: Bool) -> Int {
