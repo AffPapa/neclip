@@ -23,7 +23,7 @@
     "status": "inDevelopment",
     "publicVersion": "2.8.5",
     "scope": "defer older history menu rows until opened; add project attribution across public pages",
-    "sourceCommit": "33895fc62cc7b34ef4d3238395d37bed0034c05c"
+    "sourceCommit": "14dc203"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",
