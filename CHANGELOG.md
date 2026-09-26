@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.8.7 / build 53 — candidate
+## 2.8.7 / build 53 — released 2026-09-26
 
 - Restrict history search shortcuts to its search field and results; preserve native control focus, modified navigation and marked IME text.
 - Recheck image capture settings before storing queued screenshots.
