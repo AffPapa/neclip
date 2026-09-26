@@ -13,6 +13,12 @@ version = data.fetch('version')
 project = data.fetch('project')
 html = File.read(File.join(docs, 'index.html'))
 readme = File.read(File.join(root, 'README.md'))
+def readme_size_present?(readme, formatted_size)
+  russian_size = formatted_size.tr(',', ' ')
+  readme.include?("(#{formatted_size} bytes)") ||
+    readme.include?("#{russian_size} байта") ||
+    readme.include?("#{russian_size} байт")
+end
 abort 'invalid public version' unless version.fetch('version').match?(/\A\d+\.\d+\.\d+\z/)
 abort 'invalid public build' unless version.fetch('build').is_a?(Integer) && version['build'] > 0
 source_commit = version.fetch('sourceCommit')
@@ -38,17 +44,24 @@ if archive
   abort 'archive download mismatch' unless html.include?("href=\"#{expected_archive}\"") && readme.include?(expected_archive)
   archive_size = archive.fetch('sizeBytes').to_s.reverse.scan(/.{1,3}/).join(',').reverse
   abort 'site archive checksum mismatch' unless html.include?(archive.fetch('sha256')) && readme.include?(archive.fetch('sha256'))
-  abort 'site archive size mismatch' unless html.include?("#{archive_size} bytes") && readme.include?("#{archive_size} bytes")
+  abort 'site archive size mismatch' unless html.include?("#{archive_size} bytes") && readme_size_present?(readme, archive_size)
   evidence = File.read(File.join(docs, "RELEASE-#{version['version']}-STATUS.md"))
   abort 'archive evidence mismatch' unless [expected_archive, expected_archive_page, archive.fetch('sha256'), "#{archive_size} bytes"].all? { |value| evidence.include?(value) }
 end
 readme_size = version.fetch('sizeBytes').to_s.reverse.scan(/.{1,3}/).join(',').reverse
-readme_date = DateTime.iso8601(version.fetch('publishedAt')).strftime('%-d %B %Y')
-abort 'README version mismatch' unless readme.include?("**#{version['version']} (build #{version.fetch('build')})**")
-abort 'README release date mismatch' unless readme.include?("released on #{readme_date}.")
+published_at = DateTime.iso8601(version.fetch('publishedAt'))
+readme_date = published_at.strftime('%-d %B %Y')
+russian_months = %w[января февраля марта апреля мая июня июля августа сентября октября ноября декабря]
+russian_readme_date = "#{published_at.day} #{russian_months.fetch(published_at.month - 1)} #{published_at.year} года"
+version_en = "**#{version['version']} (build #{version.fetch('build')})**"
+version_ru = "**NeClip #{version['version']} (сборка #{version.fetch('build')})**"
+abort 'README version mismatch' unless readme.include?(version_en) || readme.include?(version_ru)
+date_en = "released on #{readme_date}."
+date_ru = "Дата выпуска — #{russian_readme_date}."
+abort 'README release date mismatch' unless readme.include?(date_en) || readme.include?(date_ru)
 abort 'README release evidence mismatch' unless readme.include?("docs/RELEASE-#{version['version']}-STATUS.md")
 abort 'README download mismatch' unless readme.include?(expected)
-abort 'README size mismatch' unless readme.include?("(#{readme_size} bytes)")
+abort 'README size mismatch' unless readme_size_present?(readme, readme_size)
 abort 'README checksum mismatch' unless readme.include?(version.fetch('sha256'))
 if archive
   expected_archive_urls = [expected_archive, "#{expected_archive}.sha256"].sort
