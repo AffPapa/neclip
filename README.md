@@ -10,15 +10,23 @@ Update checks run only when you explicitly request them.
 Current supported release: **2.8.5 (build 51)**,
 released on 25 September 2026.
 
-[Download NeClip 2.8.5](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg)
-(2,141,634 bytes). Open the DMG, drag NeClip to Applications and launch it there.
-Its icon appears in the menu bar, without a permanent Dock icon.
+[Download NeClip 2.8.5 DMG](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg)
+(2,141,634 bytes). [Download the supplemental ZIP
+archive](https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip)
+(2,108,558 bytes). Open the DMG or expand the ZIP, drag NeClip to Applications
+and launch it there. Its icon appears in the menu bar, without a permanent Dock icon.
 
-The immutable v2.8.5 release provides the DMG package. Verify its
+The immutable v2.8.5 release provides the DMG. A [supplemental v2.8.5 ZIP
+archive](https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip)
+(2,108,558 bytes) contains the same notarized app extracted from that DMG. Verify the DMG
 [SHA-256 checksum](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg.sha256)
-before installing.
+and [ZIP checksum](https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip.sha256)
+before installing. GitHub hosts the supplemental archive at a separate immutable prerelease
+because the original v2.8.5 release cannot be modified. See the [supplemental
+archive release page](https://github.com/AffPapa/neclip/releases/tag/v2.8.5-zip).
 
 SHA-256: `b10cfee08397ab0ea063c25b97904a824c092452c4275eec099ae66da044c866`.
+ZIP SHA-256: `ad697fe16c2165f1af0881e215da0ebbc6f379c179b920f01b1a09a9a041890a`.
 Artifact source: `867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc`.
 
 The app and DMG are Developer ID signed, notarized and stapled.

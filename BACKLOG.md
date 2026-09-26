@@ -6,7 +6,7 @@ telemetry, advertising and AI processing are not planned.
 
 ## Current public release — 2.8.5 / build 51
 
-Released 25 September 2026 after required CI, CodeQL and secret scan; Developer ID, notarization, stapling, Gatekeeper, mounted-DMG and independent public-download checks passed. [Download NeClip 2.8.5](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg) and read the [release evidence](docs/RELEASE-2.8.5-STATUS.md).
+Released 25 September 2026 after required CI, CodeQL and secret scan; Developer ID, notarization, stapling, Gatekeeper, mounted-DMG and independent public-download checks passed. Download the [NeClip 2.8.5 DMG](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg) or [supplemental ZIP archive](https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip). See [release evidence](docs/RELEASE-2.8.5-STATUS.md).
 
 - Save any text history item as a raw-text snippet with folder selection and duplicate checks.
 - Search local history with bounded text, type, application and date filters.

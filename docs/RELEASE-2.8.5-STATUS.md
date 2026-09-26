@@ -7,9 +7,19 @@
 - Public release: [v2.8.5](https://github.com/AffPapa/neclip/releases/tag/v2.8.5), published 2026-09-25.
 - Public artifact: `NeClip-2.8.5.dmg`, 2,141,634 bytes.
 - SHA-256: `b10cfee08397ab0ea063c25b97904a824c092452c4275eec099ae66da044c866`.
-- The immutable public release contains the DMG and its checksum only; it has no
-  installable app ZIP. Future release packages must be attached before the
-  release is published.
+- The original immutable public release contains the DMG and its checksum. A
+  separately labelled immutable supplemental release, [v2.8.5-zip](https://github.com/AffPapa/neclip/releases/tag/v2.8.5-zip),
+  publishes the missing ZIP because GitHub does not allow assets to be added to
+  the original release after publication.
+- Supplemental ZIP: `NeClip-2.8.5.zip`, 2,108,558 bytes, SHA-256
+  `ad697fe16c2165f1af0881e215da0ebbc6f379c179b920f01b1a09a9a041890a`.
+  Public asset: https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip.
+  It was reconstructed from the app inside the independently downloaded and
+  checksum-verified official DMG. The extracted app passed Developer ID
+  signature verification, stapled-ticket validation and Gatekeeper. This ZIP
+  contains the same app version/build as the DMG; it does not change app code.
+  The byte-exact public ZIP was subsequently downloaded from the supplemental
+  release and compared with this SHA-256 and byte count.
 - An independent public download matched both the local file byte-for-byte and the published SHA-256.
 - Version 2.8.4 remains available at [its release page](https://github.com/AffPapa/neclip/releases/tag/v2.8.4) for rollback.
 

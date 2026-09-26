@@ -50,13 +50,54 @@ class SiteCoherenceTest < Minitest::Test
     assert_includes err, 'checksum URL mismatch'
   end
 
-  def test_current_release_does_not_advertise_unavailable_zip
+  def test_current_release_archive_metadata_matches_public_pages
     version = JSON.parse(File.read(File.join(@fixture, 'docs/version.json')))
-    refute version.key?('appArchive')
+    archive = version.fetch('appArchive')
+    assert_equal 'https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip', archive.fetch('release')
+    assert_equal 'https://github.com/AffPapa/neclip/releases/tag/v2.8.5-zip', archive.fetch('releasePage')
+    assert_equal 'https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip.sha256', archive.fetch('checksum')
+    assert_equal 'ad697fe16c2165f1af0881e215da0ebbc6f379c179b920f01b1a09a9a041890a', archive.fetch('sha256')
+    assert_equal 2_108_558, archive.fetch('sizeBytes')
     html = File.read(File.join(@fixture, 'docs/index.html'))
     readme = File.read(File.join(@fixture, 'README.md'))
-    refute_includes html, 'NeClip-2.8.5.zip'
-    refute_includes readme, 'releases/download/v2.8.5/NeClip-2.8.5.zip'
+    assert_includes html, 'releases/download/v2.8.5-zip/NeClip-2.8.5.zip'
+    assert_includes readme, 'releases/download/v2.8.5-zip/NeClip-2.8.5.zip'
+  end
+
+  def test_rejects_wrong_archive_url
+    mutate('version') { |data| data['appArchive']['release'] = 'https://example.invalid/NeClip.zip' }
+    _, err, status = verify
+    refute status.success?
+    assert_includes err, 'archive URL mismatch'
+  end
+
+  def test_rejects_redirected_archive_checksum
+    mutate('version') { |data| data['appArchive']['checksum'] = 'https://example.invalid/NeClip.zip.sha256' }
+    _, err, status = verify
+    refute status.success?
+    assert_includes err, 'archive checksum URL mismatch'
+  end
+
+  def test_rejects_wrong_archive_digest
+    mutate('version') { |data| data['appArchive']['sha256'] = '0' * 64 }
+    _, err, status = verify
+    refute status.success?
+    assert_includes err, 'site archive checksum mismatch'
+  end
+
+  def test_rejects_stale_archive_size
+    mutate('version') { |data| data['appArchive']['sizeBytes'] += 1 }
+    _, err, status = verify
+    refute status.success?
+    assert_includes err, 'site archive size mismatch'
+  end
+
+  def test_rejects_missing_archive_checksum_in_evidence
+    evidence = File.join(@fixture, 'docs', 'RELEASE-2.8.5-STATUS.md')
+    File.write(evidence, File.read(evidence).sub('ad697fe16c2165f1af0881e215da0ebbc6f379c179b920f01b1a09a9a041890a', ''))
+    _, err, status = verify
+    refute status.success?
+    assert_includes err, 'archive evidence mismatch'
   end
 
   def test_rejects_disagreeing_source_commit

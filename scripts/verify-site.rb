@@ -24,6 +24,24 @@ expected = "https://github.com/AffPapa/neclip/releases/download/v#{version['vers
 abort 'checksum URL mismatch' unless version.fetch('checksum') == "#{expected}.sha256"
 abort 'release page mismatch' unless version.fetch('releasePage') == "https://github.com/AffPapa/neclip/releases/tag/v#{version['version']}"
 abort 'download mismatch' unless version.fetch('release') == expected && html.include?("href=\"#{expected}\"")
+archive = version['appArchive']
+expected_archive = "https://github.com/AffPapa/neclip/releases/download/v#{version['version']}-zip/NeClip-#{version['version']}.zip"
+if archive
+  abort 'invalid public archive' unless archive.is_a?(Hash)
+  expected_archive_page = "https://github.com/AffPapa/neclip/releases/tag/v#{version['version']}-zip"
+  abort 'archive URL mismatch' unless archive.fetch('release') == expected_archive
+  abort 'archive page mismatch' unless archive.fetch('releasePage') == expected_archive_page && html.include?(expected_archive_page) && readme.include?(expected_archive_page)
+  abort 'archive checksum URL mismatch' unless archive.fetch('checksum') == "#{expected_archive}.sha256"
+  abort 'invalid archive checksum' unless archive.fetch('sha256').match?(/\A[0-9a-f]{64}\z/)
+  abort 'invalid archive size' unless archive.fetch('sizeBytes').is_a?(Integer) && archive['sizeBytes'].positive?
+  DateTime.iso8601(archive.fetch('publishedAt'))
+  abort 'archive download mismatch' unless html.include?("href=\"#{expected_archive}\"") && readme.include?(expected_archive)
+  archive_size = archive.fetch('sizeBytes').to_s.reverse.scan(/.{1,3}/).join(',').reverse
+  abort 'site archive checksum mismatch' unless html.include?(archive.fetch('sha256')) && readme.include?(archive.fetch('sha256'))
+  abort 'site archive size mismatch' unless html.include?("#{archive_size} bytes") && readme.include?("#{archive_size} bytes")
+  evidence = File.read(File.join(docs, "RELEASE-#{version['version']}-STATUS.md"))
+  abort 'archive evidence mismatch' unless [expected_archive, expected_archive_page, archive.fetch('sha256'), "#{archive_size} bytes"].all? { |value| evidence.include?(value) }
+end
 readme_size = version.fetch('sizeBytes').to_s.reverse.scan(/.{1,3}/).join(',').reverse
 readme_date = DateTime.iso8601(version.fetch('publishedAt')).strftime('%-d %B %Y')
 abort 'README version mismatch' unless readme.include?("**#{version['version']} (build #{version.fetch('build')})**")
@@ -32,8 +50,16 @@ abort 'README release evidence mismatch' unless readme.include?("docs/RELEASE-#{
 abort 'README download mismatch' unless readme.include?(expected)
 abort 'README size mismatch' unless readme.include?("(#{readme_size} bytes)")
 abort 'README checksum mismatch' unless readme.include?(version.fetch('sha256'))
-abort 'public manifest advertises unavailable ZIP' if version.key?('appArchive') || html.match?(%r{href="https://github\.com/AffPapa/neclip/releases/download/[^"]+\.zip"})
-abort 'README advertises unavailable ZIP' if readme.match?(%r{https://github\.com/AffPapa/neclip/releases/download/[^\s)]+\.zip})
+if archive
+  expected_archive_urls = [expected_archive, "#{expected_archive}.sha256"].sort
+  html_archive_urls = html.scan(%r{href="(https://github\.com/AffPapa/neclip/releases/download/[^"]+\.zip(?:\.sha256)?)"}).flatten.uniq.sort
+  readme_archive_urls = readme.scan(%r{https://github\.com/AffPapa/neclip/releases/download/[^\s)]+\.zip(?:\.sha256)?}).uniq.sort
+  abort 'unexpected archive URL' unless html_archive_urls == expected_archive_urls
+  abort 'README archive URL mismatch' unless readme_archive_urls == expected_archive_urls
+else
+  abort 'public manifest advertises unavailable ZIP' if html.match?(%r{href="https://github\.com/AffPapa/neclip/releases/download/[^"]+\.zip(?:\.sha256)?})
+  abort 'README advertises unavailable ZIP' if readme.match?(%r{https://github\.com/AffPapa/neclip/releases/download/[^\s)]+\.zip(?:\.sha256)?})
+end
 abort 'README source mismatch' unless readme.include?(source_commit)
 abort 'site checksum mismatch' unless html.include?(version.fetch('sha256'))
 abort 'site source mismatch' unless html.include?(source_commit)
@@ -58,10 +84,16 @@ backlog = data.fetch('backlog').fetch('currentRelease')
 abort 'backlog version mismatch' unless backlog.fetch('version') == version['version']
 abort 'backlog build mismatch' unless backlog.fetch('build') == version['build']
 abort 'backlog download mismatch' unless backlog.fetch('release') == expected
+if archive
+  abort 'backlog archive mismatch' unless backlog.fetch('appArchive') == expected_archive
+else
+  abort 'backlog advertises unavailable archive' if backlog.key?('appArchive')
+end
 abort 'backlog evidence mismatch' unless backlog.fetch('evidence').end_with?("RELEASE-#{version['version']}-STATUS.md")
 roadmap = File.read(File.join(root, 'BACKLOG.md'))
 abort 'roadmap version mismatch' unless roadmap.include?("Current public release — #{version['version']} / build #{version['build']}")
 abort 'roadmap download mismatch' unless roadmap.include?(expected)
+abort 'roadmap archive mismatch' if archive && !roadmap.include?(expected_archive)
 abort 'roadmap evidence mismatch' unless roadmap.include?("docs/RELEASE-#{version['version']}-STATUS.md")
 abort 'missing title/h1' unless html.scan(/<title>/).size == 1 && html.scan(/<h1>/).size == 1
 abort 'missing description' unless html.include?('<meta name="description" content="')
