@@ -3,6 +3,7 @@
     "version": "2.8.5",
     "build": 51,
     "release": "https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg",
+    "appArchive": "https://github.com/AffPapa/neclip/releases/download/v2.8.5-zip/NeClip-2.8.5.zip",
     "evidence": "https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.5-STATUS.md"
   },
   "done": [

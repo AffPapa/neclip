@@ -22,7 +22,9 @@ source commit and release checks are recorded in
 
 ## Release boundary
 
-Only `v2.8.5` is supported publicly. Its DMG download URL, SHA-256 digest and
-build number are in `docs/version.json`. The immutable GitHub release contains
-the DMG and checksum only; future releases must upload and verify every package
-before publishing pages that advertise it.
+Only `v2.8.5` is supported publicly. `docs/version.json` records its DMG and
+supplemental ZIP URLs, SHA-256 digests and sizes. The original immutable GitHub
+release contains the DMG; an explicitly labelled supplemental immutable release
+contains the matching notarized app ZIP. The archive and release page are linked
+from the download instructions. Verify downloaded bytes before changing either
+public link.
