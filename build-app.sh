@@ -105,6 +105,7 @@ trap cleanup EXIT
 APP="$WORK_DIR/NeClip.app"
 DMG="$WORK_DIR/NeClip-${VERSION}.dmg"
 ZIP="$WORK_DIR/NeClip-${VERSION}.zip"
+NOTARY_ZIP="$WORK_DIR/NeClip-${VERSION}-notary.zip"
 
 echo "== Swift 6 tests and strict build =="
 swift test --disable-sandbox --jobs 4
@@ -137,11 +138,23 @@ codesign --verify --strict --verbose=2 "$APP"
 
 # Notarize and staple the app before it is placed into the disk image. This
 # makes the exact app inside the DMG independently verifiable offline.
-ditto -c -k --keepParent "$APP" "$ZIP"
+ditto -c -k --keepParent "$APP" "$NOTARY_ZIP"
 echo "== Notarizing application =="
-xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait
+xcrun notarytool submit "$NOTARY_ZIP" "${NOTARY_ARGS[@]}" --wait
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
+
+# The notary submission ZIP above is only an input to Apple's service. Build a
+# separate public archive after stapling so the downloadable app itself carries
+# its ticket. Verify the extracted app exactly as a user receives it.
+ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+ZIP_VERIFY_DIR="$WORK_DIR/zip-verify"
+mkdir -p "$ZIP_VERIFY_DIR"
+ditto -x -k "$ZIP" "$ZIP_VERIFY_DIR"
+ZIP_APP="$ZIP_VERIFY_DIR/NeClip.app"
+codesign --verify --strict --verbose=2 "$ZIP_APP"
+xcrun stapler validate "$ZIP_APP"
+spctl --assess --type execute --verbose=2 "$ZIP_APP"
 
 mkdir -p "$WORK_DIR/dmg"
 cp -R "$APP" "$WORK_DIR/dmg/"
@@ -172,9 +185,13 @@ rmdir "$MOUNT_DIR"
 MOUNT_DIR=""
 
 (cd "$WORK_DIR" && shasum -a 256 "NeClip-${VERSION}.dmg" > "NeClip-${VERSION}.dmg.sha256")
+(cd "$WORK_DIR" && shasum -a 256 "NeClip-${VERSION}.zip" > "NeClip-${VERSION}.zip.sha256")
 DMG_SHA=$(awk '{print $1}' "$DMG.sha256")
-printf '{"version":"%s","build":%s,"commit":"%s","architecture":"arm64","sha256":"%s"}\n' \
-  "$VERSION" "$BUILD" "$SOURCE_COMMIT" "$DMG_SHA" > "$WORK_DIR/NeClip-${VERSION}.release.json"
+ZIP_SHA=$(awk '{print $1}' "$ZIP.sha256")
+ZIP_SIZE=$(stat -f '%z' "$ZIP")
+printf '{"version":"%s","build":%s,"commit":"%s","architecture":"arm64","sha256":"%s","sizeBytes":%s,"zipSha256":"%s","zipSizeBytes":%s}\n' \
+  "$VERSION" "$BUILD" "$SOURCE_COMMIT" "$DMG_SHA" "$(stat -f '%z' "$DMG")" "$ZIP_SHA" "$ZIP_SIZE" \
+  > "$WORK_DIR/NeClip-${VERSION}.release.json"
 
 # Publish one immutable local release directory, then atomically move the
 # `current` pointer. Compatibility paths resolve through that single pointer,
@@ -190,8 +207,11 @@ cp -R "$APP" "$DIST_STAGE/NeClip.app"
 cp -R "$WORK_DIR/NeClip.dSYM" "$DIST_STAGE/NeClip.dSYM"
 cp "$DMG" "$DIST_STAGE/NeClip-${VERSION}.dmg"
 cp "$DMG.sha256" "$DIST_STAGE/NeClip-${VERSION}.dmg.sha256"
+cp "$ZIP" "$DIST_STAGE/NeClip-${VERSION}.zip"
+cp "$ZIP.sha256" "$DIST_STAGE/NeClip-${VERSION}.zip.sha256"
 cp "$WORK_DIR/NeClip-${VERSION}.release.json" "$DIST_STAGE/"
 (cd "$DIST_STAGE" && shasum -a 256 -c "NeClip-${VERSION}.dmg.sha256")
+(cd "$DIST_STAGE" && shasum -a 256 -c "NeClip-${VERSION}.zip.sha256")
 mv "$DIST_STAGE" "$DIST_RELEASE"
 DIST_STAGE=""
 CURRENT_LINK="dist/releases/.current-${SOURCE_COMMIT}"
@@ -201,6 +221,8 @@ rm -rf dist/NeClip.app
 ln -s "releases/current/NeClip.app" dist/NeClip.app
 ln -sfn "releases/current/NeClip-${VERSION}.dmg" "dist/NeClip-${VERSION}.dmg"
 ln -sfn "releases/current/NeClip-${VERSION}.dmg.sha256" "dist/NeClip-${VERSION}.dmg.sha256"
+ln -sfn "releases/current/NeClip-${VERSION}.zip" "dist/NeClip-${VERSION}.zip"
+ln -sfn "releases/current/NeClip-${VERSION}.zip.sha256" "dist/NeClip-${VERSION}.zip.sha256"
 ln -sfn "releases/current/NeClip-${VERSION}.release.json" "dist/NeClip-${VERSION}.release.json"
 
 echo "OK: NeClip ${VERSION} (${BUILD}) signed, notarized, stapled and verified"

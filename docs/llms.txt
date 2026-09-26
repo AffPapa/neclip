@@ -3,12 +3,15 @@
 > Local native macOS menu-bar utility: clipboard history, selectable snippet folders, EN/RU correction and screenshot markup. macOS 14+ on Apple Silicon. No accounts, cloud synchronization, telemetry or AI processing of clipboard contents. Automatic correction is experimental and off by default.
 
 ## Product truth
-- [Homepage](https://affpapa.github.io/neclip/): requirements, features and verified public download.
-- [Release manifest](https://affpapa.github.io/neclip/version.json): public version, exact source commit, download size and SHA-256. Source candidate metadata must not replace this release manifest.
+- [Homepage](https://affpapa.github.io/neclip/): requirements, features and verified public DMG.
+- [Release manifest](https://affpapa.github.io/neclip/version.json): public version, exact source commit, DMG size and SHA-256 digest. Source candidate metadata must not replace this release manifest.
 - [Repository](https://github.com/AffPapa/neclip): source, README, release evidence and security policy.
 
 ## Selection and practical guides
-- [20 related Mac applications](https://affpapa.github.io/neclip/compare.html): official-source editorial comparison by task, not an independent ranking; checked 2026-09-21.
+- [20 related Mac applications](https://affpapa.github.io/neclip/compare.html): official-source editorial comparison by task, not an independent ranking; all 20 source pages checked 2026-09-25.
+- [Maccy alternative for Mac](https://affpapa.github.io/neclip/compare/maccy-alternative.html): compare a focused open-source clipboard history with NeClip's additional local tools.
+- [Paste alternative for Mac](https://affpapa.github.io/neclip/compare/paste-alternative.html): compare cross-device iCloud history with a local single-Mac workflow.
+- [Raycast Clipboard History and NeClip](https://affpapa.github.io/neclip/compare/raycast-clipboard-history.html): compare launcher-integrated history with a dedicated menu-bar app.
 - [Clipboard history and snippets](https://affpapa.github.io/neclip/guides/clipboard-history.html): search, paste modes, templates and missing captures.
 - [EN/RU correction](https://affpapa.github.io/neclip/guides/keyboard-layout.html): manual command, optional Option gesture, permissions and limitations.
 - [Screenshot redaction](https://affpapa.github.io/neclip/guides/screenshot-redaction.html): opaque covering, annotations and verifying the exported PNG/JPEG.

@@ -10,7 +10,10 @@ docs = File.join(root, 'docs')
 base = 'https://affpapa.github.io/neclip/'
 sitemap = REXML::Document.new(File.read(File.join(docs, 'sitemap.xml')))
 urls = REXML::XPath.match(sitemap, '//*[local-name()="loc"]').map(&:text)
-abort 'sitemap must contain five unique editorial pages' unless urls.length == 5 && urls.uniq.length == 5
+expected_routes = %w[index.html compare.html compare/maccy-alternative.html compare/paste-alternative.html compare/raycast-clipboard-history.html guides/clipboard-history.html guides/keyboard-layout.html guides/screenshot-redaction.html]
+abort 'sitemap must contain eight unique editorial pages' unless urls.length == expected_routes.length && urls.uniq.length == expected_routes.length
+actual_routes = urls.map { |url| url.delete_prefix(base).then { |path| path.empty? ? 'index.html' : path } }
+abort 'sitemap routes do not match the editorial inventory' unless actual_routes.sort == expected_routes.sort
 pages = {}
 titles = Set.new
 descriptions = Set.new
@@ -91,7 +94,7 @@ end
 abort 'orphan editorial page' unless (urls - [base]).all? { |url| linked.include?(url) }
 products = pages.fetch(base + 'compare.html').scan(/data-product="([^"]+)"/).flatten
 abort 'comparison must list exactly twenty unique products' unless products.length == 20 && products.uniq.length == 20
-%w[2026-09-21 рейтинг официальн].each do |marker|
+%w[2026-09-25 рейтинг официальн].each do |marker|
   abort "missing comparison methodology: #{marker}" unless pages.fetch(base + 'compare.html').include?(marker)
 end
 llms = File.read(File.join(docs, 'llms.txt'))

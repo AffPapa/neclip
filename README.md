@@ -14,6 +14,10 @@ released on 25 September 2026.
 (2,141,634 bytes). Open the DMG, drag NeClip to Applications and launch it there.
 Its icon appears in the menu bar, without a permanent Dock icon.
 
+The immutable v2.8.5 release provides the DMG package. Verify its
+[SHA-256 checksum](https://github.com/AffPapa/neclip/releases/download/v2.8.5/NeClip-2.8.5.dmg.sha256)
+before installing.
+
 SHA-256: `b10cfee08397ab0ea063c25b97904a824c092452c4275eec099ae66da044c866`.
 Artifact source: `867558cfa0f7b1d4a1d00fc3fbc31c5ae5e8addc`.
 
@@ -28,7 +32,8 @@ The [20-app comparison](https://affpapa.github.io/neclip/compare.html) groups
 Maccy, Paste, Alfred, Raycast and other related Mac tools by clipboard history,
 text expansion, automation and screenshots. It is an official-source editorial
 selection maintained by the NeClip project, not an independent ranking or a
-performance/security benchmark. Sources were checked on 21 September 2026.
+performance/security benchmark. All 20 official source pages were checked on
+25 September 2026.
 
 - [Find copied text, choose a paste mode and save snippets](https://affpapa.github.io/neclip/guides/clipboard-history.html).
 - [Correct an EN/RU typing-layout mistake](https://affpapa.github.io/neclip/guides/keyboard-layout.html).
@@ -150,8 +155,10 @@ ruby scripts/test-site.rb
 
 Runtime releases additionally require ASan/TSan, a reviewed PR and every required
 GitHub check before merge. `build-app.sh` builds the exact commit specified by
-`NECLIP_RELEASE_COMMIT`, signs arm64, notarizes and staples both app and DMG, checks
-Gatekeeper and the mounted image, then stages the checksum and provenance JSON.
+`NECLIP_RELEASE_COMMIT`, signs arm64, notarizes and staples the app and DMG,
+checks Gatekeeper for the mounted image and for the app extracted from the final
+ZIP, then stages both checksums and provenance JSON. Future immutable releases
+must upload every advertised artifact before publication.
 Use the configured notarization credentials without putting them in the repository.
 Publish only through GitHub Releases, then update GitHub Pages after independently
 downloading and verifying the public artifact. There is no Mac App Store channel.

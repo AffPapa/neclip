@@ -50,6 +50,15 @@ class SiteCoherenceTest < Minitest::Test
     assert_includes err, 'checksum URL mismatch'
   end
 
+  def test_current_release_does_not_advertise_unavailable_zip
+    version = JSON.parse(File.read(File.join(@fixture, 'docs/version.json')))
+    refute version.key?('appArchive')
+    html = File.read(File.join(@fixture, 'docs/index.html'))
+    readme = File.read(File.join(@fixture, 'README.md'))
+    refute_includes html, 'NeClip-2.8.5.zip'
+    refute_includes readme, 'releases/download/v2.8.5/NeClip-2.8.5.zip'
+  end
+
   def test_rejects_disagreeing_source_commit
     mutate('version') { |data| data['sourceCommit'] = '0' * 40 }
     _, err, status = verify
