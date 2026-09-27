@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.8.8 / build 54 — candidate
+## 2.8.8 / build 54 — released 2026-09-27
 
 - Insert snippet tokens at the caret or replace the selection; preserve native undo and isolate it between snippets.
 - Skip unrelated clipboard reads during snippet rendering; move required text reads off main and reject changed generations. The final rollback snapshot remains in place.

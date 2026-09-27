@@ -53,15 +53,15 @@ class SiteCoherenceTest < Minitest::Test
   def test_current_release_archive_metadata_matches_public_pages
     version = JSON.parse(File.read(File.join(@fixture, 'docs/version.json')))
     archive = version.fetch('appArchive')
-    assert_equal 'https://github.com/AffPapa/neclip/releases/download/v2.8.7/NeClip-2.8.7.zip', archive.fetch('release')
-    assert_equal 'https://github.com/AffPapa/neclip/releases/tag/v2.8.7', archive.fetch('releasePage')
-    assert_equal 'https://github.com/AffPapa/neclip/releases/download/v2.8.7/NeClip-2.8.7.zip.sha256', archive.fetch('checksum')
-    assert_equal 'a7ff40101da09d16c69ac2c5f8535bd1b547a3af84308b823012c3bd8e8f169d', archive.fetch('sha256')
-    assert_equal 2_109_242, archive.fetch('sizeBytes')
+    assert_equal 'https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.zip', archive.fetch('release')
+    assert_equal 'https://github.com/AffPapa/neclip/releases/tag/v2.8.8', archive.fetch('releasePage')
+    assert_equal 'https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.zip.sha256', archive.fetch('checksum')
+    assert_equal 'e33fe900103f5999928054f4de8535ab74d8f1ceab53df6fbaf130327c12ae38', archive.fetch('sha256')
+    assert_equal 2_111_918, archive.fetch('sizeBytes')
     html = File.read(File.join(@fixture, 'docs/index.html'))
     readme = File.read(File.join(@fixture, 'README.md'))
-    assert_includes html, 'releases/download/v2.8.7/NeClip-2.8.7.zip'
-    assert_includes readme, 'releases/download/v2.8.7/NeClip-2.8.7.zip'
+    assert_includes html, 'releases/download/v2.8.8/NeClip-2.8.8.zip'
+    assert_includes readme, 'releases/download/v2.8.8/NeClip-2.8.8.zip'
   end
 
   def test_rejects_wrong_archive_url
@@ -93,8 +93,8 @@ class SiteCoherenceTest < Minitest::Test
   end
 
   def test_rejects_missing_archive_checksum_in_evidence
-    evidence = File.join(@fixture, 'docs', 'RELEASE-2.8.7-STATUS.md')
-    File.write(evidence, File.read(evidence).sub('a7ff40101da09d16c69ac2c5f8535bd1b547a3af84308b823012c3bd8e8f169d', ''))
+    evidence = File.join(@fixture, 'docs', 'RELEASE-2.8.8-STATUS.md')
+    File.write(evidence, File.read(evidence).sub('e33fe900103f5999928054f4de8535ab74d8f1ceab53df6fbaf130327c12ae38', ''))
     _, err, status = verify
     refute status.success?
     assert_includes err, 'archive evidence mismatch'
