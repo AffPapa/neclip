@@ -1,22 +1,22 @@
 {
-  "version": "3.0.0",
-  "build": 55,
+  "version": "3.0.1",
+  "build": 56,
   "status": "released",
   "platform": "macOS 14+ on Apple Silicon",
-  "release": "https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.dmg",
-  "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v3.0.0",
-  "checksum": "https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.dmg.sha256",
-  "sha256": "297539ca29c759868fb33906af9537f5598fd4bb96a306c0fe6ac18ac6c11027",
-  "sizeBytes": 1960899,
-  "publishedAt": "2026-09-27T13:45:20Z",
+  "release": "https://github.com/AffPapa/neclip/releases/download/v3.0.1/NeClip-3.0.1.dmg",
+  "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v3.0.1",
+  "checksum": "https://github.com/AffPapa/neclip/releases/download/v3.0.1/NeClip-3.0.1.dmg.sha256",
+  "sha256": "b36326a73ccc82e7b7ed112d2d51d6e7032b6d02940360e4cbef2cc4fcbba3e5",
+  "sizeBytes": 1970627,
+  "publishedAt": "2026-09-27T15:07:26Z",
   "source": "https://github.com/AffPapa/neclip",
-  "sourceCommit": "c539ae0ad6aad80b84aa89d6a1d6ca7ce0d0173f",
+  "sourceCommit": "8a76c079d53ead5876f7efff4288ffdf621367e5",
   "appArchive": {
-    "release": "https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.zip",
-    "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v3.0.0",
-    "checksum": "https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.zip.sha256",
-    "sha256": "4977dca0b7b025352b3e447a3b9f45ccaf2aee890417c4ad6d8de7ba48cc6b70",
-    "sizeBytes": 1929891,
-    "publishedAt": "2026-09-27T13:45:20Z"
+    "release": "https://github.com/AffPapa/neclip/releases/download/v3.0.1/NeClip-3.0.1.zip",
+    "releasePage": "https://github.com/AffPapa/neclip/releases/tag/v3.0.1",
+    "checksum": "https://github.com/AffPapa/neclip/releases/download/v3.0.1/NeClip-3.0.1.zip.sha256",
+    "sha256": "2847185a4b5c66f5bc83a5e093b69ab44101b6aee35e36730ebc6dec95cd7b7a",
+    "sizeBytes": 1939207,
+    "publishedAt": "2026-09-27T15:07:26Z"
   }
 }
