@@ -320,12 +320,12 @@ private struct PreferencesView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Установлена: \(updates.installed.label)")
-                    Text("Последняя: \(latestVersionLabel)")
+                    Text(updates.status)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .help("Текущая версия и последняя версия из GitHub")
+                .help(updates.snapshot.map { "Проверено: \($0.checkedAt.formatted(date: .abbreviated, time: .shortened))" } ?? "Обновления ещё не проверялись")
                 Button {
                     updates.check()
                 } label: {
@@ -386,11 +386,6 @@ private struct PreferencesView: View {
         }
     }
 
-    private var latestVersionLabel: String {
-        guard let manifest = updates.snapshot?.manifest else { return "не проверена" }
-        return "\(manifest.version) · сборка \(manifest.build)"
-    }
-
     @ViewBuilder
     private var selectedTabContent: some View {
         switch navigation.selected {
@@ -411,6 +406,9 @@ private struct PreferencesView: View {
                     Text("100 элементов").tag(100)
                     Text("250 элементов").tag(250)
                     Text("500 элементов").tag(500)
+                    if ![50, 100, 250, 500].contains(historyLimit) {
+                        Text("\(historyLimit) элементов").tag(historyLimit)
+                    }
                 }
                 Text("Сниппеты не удаляются. Если нужен точный лимит, откройте дополнительные параметры.")
                     .font(.caption)
@@ -613,16 +611,14 @@ private struct PreferencesView: View {
         Form {
             Section("Запись истории") {
                 HStack {
-                    Label(
-                        capturePaused ? "Запись приостановлена" : "История записывается",
-                        systemImage: capturePaused ? "pause.circle.fill" : "checkmark.circle.fill"
-                    )
-                    .foregroundStyle(capturePaused ? .orange : .green)
+                    let status = CaptureStatusPresentation(paused: capturePaused, access: clipboardAccess)
+                    Label(status.title, systemImage: status.symbol)
+                        .foregroundStyle(status.isRecording ? .green : .orange)
                     Spacer()
                     Button(capturePaused ? "Возобновить" : "Пауза на 15 минут") {
                         if capturePaused {
                             Settings.resumeCapture()
-                            feedback = Settings.captureResumeFailureMessage ?? "Запись возобновлена"
+                            feedback = Settings.captureResumeFailureMessage ?? "Пауза снята"
                         } else {
                             Settings.pauseFor15Minutes()
                         }
@@ -684,15 +680,13 @@ private struct PreferencesView: View {
             }
             Section("Резервная копия") {
                 HStack {
-                    Button("Создать backup истории…", action: createDatabaseBackup)
-                    Button("Восстановить из backup…", action: restoreDatabaseBackup)
+                    Button("Создать резервную копию…", action: createDatabaseBackup)
+                    Button("Восстановить из копии…", action: restoreDatabaseBackup)
                 }
-                Text("Backup содержит локальную историю, изображения, RTF и сниппеты. Файл создаётся с правами только для вашего пользователя; перед восстановлением текущая база сохраняется отдельно.")
+                Text("Копия содержит локальную историю, изображения, RTF и сниппеты. Файл создаётся с правами только для вашего пользователя; перед восстановлением текущая база сохраняется отдельно.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Сейчас: \(Storage.shared.count) элементов истории · \((try? Storage.shared.snippetSummaries().count) ?? 0) сниппетов")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                StorageStatisticsView()
             }
             Section("Готовые примеры") {
                 Button("Восстановить готовые сниппеты") { restoreStarterSnippets() }
@@ -715,11 +709,7 @@ private struct PreferencesView: View {
 
     private var historyPresetBinding: Binding<Int> {
         Binding(
-            get: {
-                [50, 100, 250, 500].min { lhs, rhs in
-                    abs(lhs - historyLimit) < abs(rhs - historyLimit)
-                } ?? 100
-            },
+            get: { historyLimit },
             set: { applyHistoryLimit($0) }
         )
     }
@@ -1043,5 +1033,33 @@ private struct ExcludedApplicationRow: View {
                 .accessibilityLabel("Удалить \(displayName) из исключений")
             }
         }
+    }
+}
+
+/// Read counts away from the main actor, only while this section is visible.
+private struct StorageStatisticsView: View {
+    @State private var revision = 0
+    @State private var label = "Подсчёт элементов…"
+
+    var body: some View {
+        Text(label)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .onReceive(NotificationCenter.default.publisher(for: .neClipStorageDidChange)
+                .debounce(for: .milliseconds(150), scheduler: RunLoop.main)) { _ in
+                revision &+= 1
+            }
+            .task(id: revision) {
+                let result = await Task.detached(priority: .utility) {
+                    Result { try Storage.shared.statistics() }
+                }.value
+                guard !Task.isCancelled else { return }
+                switch result {
+                case .success(let counts):
+                    label = "Сейчас: \(counts.history) элементов истории · \(counts.snippets) сниппетов"
+                case .failure:
+                    label = "Не удалось подсчитать элементы"
+                }
+            }
     }
 }

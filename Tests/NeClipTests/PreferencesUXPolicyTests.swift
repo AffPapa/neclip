@@ -3,6 +3,18 @@ import XCTest
 @testable import NeClip
 
 final class PreferencesUXPolicyTests: XCTestCase {
+    func testRecordingStatusDoesNotClaimDeniedOrUndecidedAccessIsActive() {
+        for access in [ClipboardAccessState.denied, .needsChoice] {
+            let status = CaptureStatusPresentation(paused: false, access: access)
+            XCTAssertFalse(status.isRecording)
+            XCTAssertNotEqual(status.title, "История записывается")
+        }
+        for access in [ClipboardAccessState.allowed, .unrestricted] {
+            XCTAssertTrue(CaptureStatusPresentation(paused: false, access: access).isRecording)
+            XCTAssertFalse(CaptureStatusPresentation(paused: true, access: access).isRecording)
+        }
+    }
+
     func testLoginItemApprovalIsNotReportedAsOperational() {
         let pending = LoginItemPresentation(status: .requiresApproval)
         XCTAssertTrue(pending.isRequested)

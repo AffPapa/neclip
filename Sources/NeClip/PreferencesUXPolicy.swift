@@ -100,3 +100,27 @@ enum ApplicationExclusionPolicy {
         return .added(existing + [identifier])
     }
 }
+
+/// Permission state must not be mistaken for active background recording.
+struct CaptureStatusPresentation {
+    let title: String
+    let symbol: String
+    let isRecording: Bool
+
+    init(paused: Bool, access: ClipboardAccessState) {
+        isRecording = !paused && (access == .allowed || access == .unrestricted)
+        if paused {
+            title = "Запись приостановлена"
+            symbol = "pause.circle.fill"
+        } else if access == .denied {
+            title = "Запись недоступна: нет доступа к буферу"
+            symbol = "exclamationmark.shield"
+        } else if access == .needsChoice {
+            title = "Буфер macOS: требуется разрешение"
+            symbol = "exclamationmark.shield"
+        } else {
+            title = "История записывается"
+            symbol = "checkmark.circle.fill"
+        }
+    }
+}

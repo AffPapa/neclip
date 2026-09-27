@@ -197,6 +197,18 @@
         "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",
         "276 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
       ]
+    },
+    {
+      "version": "3.0.1",
+      "build": 56,
+      "status": "candidate",
+      "date": "2026-09-27",
+      "changes": [
+        "Serialize sequential paste with per-attempt ownership; reject obsolete completions after reset or expiry.",
+        "Show exact history limits, truthful clipboard permissions and dated update-check status.",
+        "Count data with asynchronous SQL counts instead of loading snippet lists during rendering.",
+        "Remove duplicate capture controls, unreachable menu state and unused pagination helpers."
+      ]
     }
   ]
 }

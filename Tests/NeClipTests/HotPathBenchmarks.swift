@@ -159,6 +159,25 @@ final class HotPathBenchmarks: XCTestCase {
         }
     }
 
+    func testStatisticsCountWithoutMaterializingSnippets() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in synthetic data counts benchmark")
+        }
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        for index in 0..<2_000 {
+            _ = try storage.addSnippet(folderID: nil, title: "Snippet \(index)", content: "Synthetic \(index)")
+        }
+        _ = try storage.snippetSummaries()
+        _ = try storage.statistics()
+        try record("data-count-old-materialize-2000", iterations: 100) { _ in
+            XCTAssertEqual(storage.count, 0)
+            XCTAssertEqual(try storage.snippetSummaries().count, 2_000)
+        }
+        try record("data-count-sql-2000", iterations: 100) { _ in
+            XCTAssertEqual(try storage.statistics(), .init(history: 0, snippets: 2_000))
+        }
+    }
+
     private func record(
         _ label: String,
         iterations: Int,

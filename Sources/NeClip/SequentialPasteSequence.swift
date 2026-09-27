@@ -20,7 +20,17 @@ final class SequentialPasteSequence: @unchecked Sendable {
     private let timeout: TimeInterval
     private var clipIDs: [Int64] = []
     private var position = 0
-    private var inFlightID: Int64?
+    struct Attempt: Equatable, Sendable {
+        let clipID: Int64
+        fileprivate let token = UUID()
+    }
+
+    enum Start: Equatable {
+        case empty, busy
+        case ready(Attempt)
+    }
+
+    private var inFlight: Attempt?
     private var lastActivity: Date?
 
     init(capacity: Int = 50, timeout: TimeInterval = 30) {
@@ -35,37 +45,40 @@ final class SequentialPasteSequence: @unchecked Sendable {
         }
     }
 
-    /// Returns the same identifier until `complete` records the paste result.
+    /// Claims one paste at a time; repeated presses never share ownership.
     /// A completed or expired sequence restarts from the supplied recent list.
-    func beginNext(recentIDs: [Int64], now: Date = Date()) -> Int64? {
+    func beginNext(recentIDs: [Int64], now: Date = Date()) -> Start {
         lock.withLock {
             expireIfNeeded(now: now)
-            if let inFlightID { return inFlightID }
+            guard inFlight == nil else { return .busy }
             if clipIDs.isEmpty || position >= clipIDs.count {
                 clipIDs = Self.uniquePrefix(recentIDs, limit: capacity)
                 position = 0
             }
-            guard clipIDs.indices.contains(position) else { return nil }
-            let id = clipIDs[position]
-            inFlightID = id
+            guard clipIDs.indices.contains(position) else { return .empty }
+            let attempt = Attempt(clipID: clipIDs[position])
+            inFlight = attempt
             lastActivity = now
-            return id
+            return .ready(attempt)
         }
     }
 
-    func complete(id: Int64, advance: Bool, now: Date = Date()) {
-        lock.withLock {
-            guard inFlightID == id else { return }
-            inFlightID = nil
-            if advance { position = min(position + 1, clipIDs.count) }
-            lastActivity = now
-        }
-    }
-
-    func isCurrent(id: Int64, now: Date = Date()) -> Bool {
+    @discardableResult
+    func complete(_ attempt: Attempt, advance: Bool, now: Date = Date()) -> Bool {
         lock.withLock {
             expireIfNeeded(now: now)
-            return inFlightID == id
+            guard inFlight == attempt else { return false }
+            inFlight = nil
+            if advance { position = min(position + 1, clipIDs.count) }
+            lastActivity = now
+            return true
+        }
+    }
+
+    func isCurrent(_ attempt: Attempt, now: Date = Date()) -> Bool {
+        lock.withLock {
+            expireIfNeeded(now: now)
+            return inFlight == attempt
         }
     }
 
@@ -87,7 +100,7 @@ final class SequentialPasteSequence: @unchecked Sendable {
     private func clearLocked() {
         clipIDs.removeAll(keepingCapacity: true)
         position = 0
-        inFlightID = nil
+        inFlight = nil
         lastActivity = nil
     }
 

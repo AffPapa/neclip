@@ -65,7 +65,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let clips: [ClipSummary]
         let folders: [SnippetFolder]
         let snippets: [SnippetSummary]
-        let hasMoreHistory: Bool
         let hasMoreSnippets: Bool
     }
 
@@ -75,7 +74,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         clips: [],
         folders: [],
         snippets: [],
-        hasMoreHistory: false,
         hasMoreSnippets: false
     )
     private var snapshotIsReady = false
@@ -161,7 +159,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         if domain == .all {
             activeMenu?.cancelTracking()
             snapshot = MenuSnapshot(clips: [], folders: [], snippets: [],
-                                    hasMoreHistory: false, hasMoreSnippets: false)
+                                    hasMoreSnippets: false)
             snapshotIsReady = false
             snapshotError = nil
             SequentialPasteSequence.shared.reset()
@@ -229,10 +227,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         dataQueue.async { [weak self] in
             do {
                 var clips = previous.clips
-                var hasMoreHistory = previous.hasMoreHistory
                 if domains.contains(.clips) {
                     clips = try Storage.shared.allClipSummaries()
-                    hasMoreHistory = false
                 }
                 let snippetSnapshot = try domains.contains(.snippets)
                     ? Storage.shared.menuSnippetSnapshot() : nil
@@ -240,7 +236,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                     clips: clips,
                     folders: snippetSnapshot?.folders ?? previous.folders,
                     snippets: snippetSnapshot?.snippets ?? previous.snippets,
-                    hasMoreHistory: hasMoreHistory,
                     hasMoreSnippets: snippetSnapshot?.hasMore ?? previous.hasMoreSnippets
                 )
                 DispatchQueue.main.async {
@@ -382,9 +377,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             }
             moreItem.submenu = moreMenu
             menu.addItem(moreItem)
-        }
-        if snapshot.hasMoreHistory {
-            menu.addItem(item("Показана не вся история", nil))
         }
         menu.addItem(.separator())
 
@@ -542,26 +534,35 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     func pasteNextSequentially() {
         let sequenceTargetPID = captureTargetApplication()?.processIdentifier
         dataQueue.async { [weak self] in
+            let sequence = SequentialPasteSequence.shared
+            var claimed: SequentialPasteSequence.Attempt?
             do {
                 let recentIDs = try Storage.shared.recentClipIDs()
-                guard let id = SequentialPasteSequence.shared.beginNext(recentIDs: recentIDs) else {
+                let attempt: SequentialPasteSequence.Attempt
+                switch sequence.beginNext(recentIDs: recentIDs) {
+                case .empty:
                     DispatchQueue.main.async { self?.showFeedback("История пуста") }
                     return
+                case .busy:
+                    return
+                case .ready(let value): attempt = value
                 }
-                guard let clip = try Storage.shared.fetchClip(id: id) else {
-                    SequentialPasteSequence.shared.complete(id: id, advance: true)
-                    DispatchQueue.main.async { self?.pasteNextSequentially() }
+                claimed = attempt
+                guard let clip = try Storage.shared.fetchClip(id: attempt.clipID) else {
+                    if sequence.complete(attempt, advance: true) {
+                        DispatchQueue.main.async { self?.pasteNextSequentially() }
+                    }
                     return
                 }
                 DispatchQueue.main.async {
-                    guard SequentialPasteSequence.shared.isCurrent(id: id) else {
+                    guard sequence.isCurrent(attempt) else {
                         self?.showFeedback("Новая копия — последовательность обновлена")
                         return
                     }
                     PasteService.paste(clip, plainText: false, targetPID: sequenceTargetPID) { [weak self] result in
                         let succeeded: Bool
                         if case .failed = result { succeeded = false } else { succeeded = true }
-                        SequentialPasteSequence.shared.complete(id: id, advance: succeeded)
+                        guard sequence.complete(attempt, advance: succeeded) else { return }
                         self?.handlePasteResult(result)
                         if succeeded {
                             let remaining = SequentialPasteSequence.shared.snapshot().remaining
@@ -574,6 +575,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                     }
                 }
             } catch {
+                if let claimed { sequence.complete(claimed, advance: false) }
                 DispatchQueue.main.async { self?.showFeedback("Не удалось открыть историю") }
             }
         }
@@ -752,12 +754,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         let historyTitle: String
         switch Settings.capturePauseState {
-        case .active: historyTitle = "История: запись включена"
+        case .active: historyTitle = CaptureStatusPresentation(paused: false, access: ClipboardAccess.current).title
         case .until(let date):
             historyTitle = "История: пауза до \(Self.statusDateFormatter.string(from: date))"
         case .indefinite: historyTitle = "История: запись приостановлена"
         }
-        submenu.addItem(item(historyTitle, nil, symbol: Settings.isCapturePaused ? "pause.circle" : "checkmark.circle"))
+        submenu.addItem(item(historyTitle, nil, symbol: CaptureStatusPresentation(paused: Settings.isCapturePaused, access: ClipboardAccess.current).symbol))
 
         let pasteboardTitle: String
         switch ClipboardAccess.current {
@@ -779,27 +781,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         submenu.addItem(.separator())
 
-        if Settings.isCapturePaused {
-            submenu.addItem(item("Возобновить запись", #selector(resumeCapture), symbol: "play.fill"))
-        } else {
-            let pause = item("Приостановить запись", nil, symbol: "pause.fill")
-            let pauseMenu = makeMenu(title: "Приостановить запись")
-            pauseMenu.addItem(item("На 15 минут", #selector(pauseForFifteenMinutes), symbol: "timer"))
-            pauseMenu.addItem(item("До возобновления", #selector(pauseIndefinitely), symbol: "pause.fill"))
-            pause.submenu = pauseMenu
-            submenu.addItem(pause)
-        }
-        submenu.addItem(item(
-            Settings.ignoreNextCopy ? "Отменить пропуск следующей копии" : "Не сохранять следующее копирование",
-            #selector(ignoreNextCopy), symbol: "forward.end"
-        ))
-        if ClipboardAccess.current == .denied || ClipboardAccess.current == .needsChoice {
-            submenu.addItem(item("Настроить доступ к буферу…", #selector(openClipboardPrivacy), symbol: "gearshape"))
-        }
-        if !PasteService.isAccessibilityTrusted {
-            submenu.addItem(item("Разрешить автовставку…", #selector(requestAccessibility), symbol: "hand.raised"))
-        }
-        submenu.addItem(.separator())
         submenu.addItem(item("Открыть «Доступы»…", #selector(openAccessPreferences), symbol: "lock.open"))
         root.submenu = submenu
         return root

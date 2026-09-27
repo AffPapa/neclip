@@ -180,7 +180,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertFalse(statusBar.contains("searchWorkItem"))
         XCTAssertTrue(preferences.contains("Очищать историю при выходе"))
         XCTAssertTrue(preferences.contains("Установлена: "))
-        XCTAssertTrue(preferences.contains("Последняя: "))
+        XCTAssertTrue(preferences.contains("Text(updates.status)"))
         XCTAssertTrue(preferences.contains("updates.check()"))
         XCTAssertFalse(preferences.contains("Запоминать последнюю раскладку для каждого приложения"))
         XCTAssertFalse(preferences.contains("Исправлять по одиночному Option (Alt)"))
