@@ -105,7 +105,7 @@
   "permissions": {
     "pasteboard": "Explained before monitoring; denied access fails closed on macOS 15.4+",
     "accessibility": "Optional; used for one-click paste and manual selected-text replacement",
-    "inputMonitoring": "Requested only when automatic layout correction is explicitly enabled; per-application layout memory does not need it",
+    "inputMonitoring": "Requested when automatic layout correction or standalone Option correction is explicitly enabled; per-application layout memory does not need it",
     "screenRecording": "Requested only for an explicit screenshot command; no launch-time screen capture"
   },
   "notPlanned": [
