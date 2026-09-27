@@ -26,6 +26,7 @@
   ],
   "inDevelopment": [],
   "next": [
+    "Investigate overlapping sequential-paste shortcuts sharing one clip identifier: failed earlier completion can prevent successful later advancement; physical keyboard reproduction pending",
     "Verify permissions and screen capture across additional supported macOS versions and physical display configurations",
     "Complete multi-monitor/Spaces and actual ScreenCaptureKit permission/cancellation verification; synthetic-image Save-dialog PNG/JPEG/cancel/reopen checks are already complete"
   ],

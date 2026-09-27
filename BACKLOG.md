@@ -38,6 +38,10 @@ Released 27 September 2026 after required Swift CI, CodeQL and secret scan; Deve
 
 Remaining:
 
+- Investigate rapid repeated sequential-paste shortcuts: overlapping operations
+  can share a clip identifier and lose sequence advancement when the earlier
+  completion fails. State-level ordering is reproducible; physical keyboard
+  reproduction is pending. No change to the 2.8.8 binary in the website audit.
 - Confirm physical-keyboard live correction and standalone Option across supported
   editors; targeted synthetic UI input does not establish global-key behavior.
 - Verify permissions and screen capture across additional supported macOS versions
