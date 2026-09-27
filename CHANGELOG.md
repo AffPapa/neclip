@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.1 / build 56 — in development
+## 3.0.1 / build 56 — released 2026-09-27
 
 - Serialize sequential paste with per-attempt ownership; reject obsolete completions after reset or expiry.
 - Show exact history limits, truthful clipboard permissions and dated update-check status.

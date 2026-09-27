@@ -1,8 +1,8 @@
 # NeClip project map
 
-Current public release: **3.0.0 / build 55**. The exact signed artifacts,
+Current public release: **3.0.1 / build 56**. The exact signed artifacts,
 source commit and release checks are recorded in
-[RELEASE-3.0.0-STATUS.md](RELEASE-3.0.0-STATUS.md).
+[RELEASE-3.0.1-STATUS.md](RELEASE-3.0.1-STATUS.md).
 
 ## Runtime ownership
 
@@ -19,7 +19,7 @@ source commit and release checks are recorded in
 
 ## Release boundary
 
-Only `v3.0.0` is supported publicly. Its immutable GitHub release contains both
+Only `v3.0.1` is supported publicly. Its immutable GitHub release contains both
 the signed, notarized DMG and ZIP; `docs/version.json` records their URLs,
 SHA-256 digests and sizes. The release tag points to the exact source commit in
 `main`. Verify downloaded bytes before changing either public link.

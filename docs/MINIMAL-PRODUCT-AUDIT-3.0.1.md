@@ -1,4 +1,4 @@
-# Clipboard-only depth audit — 3.0.1 candidate
+# Clipboard-only depth audit — 3.0.1
 
 The audit reviewed architecture, native Swift execution, privacy, settings UX, concurrency, data preservation and release surfaces. Three independent read-only reviewers covered separate concerns; the parent integrated changes and verification.
 
@@ -21,7 +21,7 @@ The 14 retired preference keys match their actual historical writers. Startup cl
 
 Retain five visible settings sections, three global shortcuts and local-only clipboard/snippet scope. Test ownership overlap/retry/reset/expiry, full data counts beyond menu bounds, selective preference migration and existing data/undo/privacy behavior. Validate native settings using isolated synthetic data. Performance comparisons concern only the measured count query, not total launch/menu latency. No claim of universal cross-app paste, every supported macOS version, or VoiceOver audio certification.
 
-Release-specific test results, signed artifact pins, publication and installed-app evidence are recorded separately after those gates complete.
+Signed release results and artifact pins: [release evidence](RELEASE-3.0.1-STATUS.md). Installed-app checks are separate from public artifact evidence.
 
 ## Local results
 
