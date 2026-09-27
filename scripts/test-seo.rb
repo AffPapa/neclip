@@ -54,14 +54,14 @@ class SEOReleaseTest < Minitest::Test
   end
   def test_duplicate_competitor_is_rejected
     change('compare.html') { |s| s.sub('data-product="maccy"', 'data-product="paste"') }
-    rejection('twenty unique products')
+    rejection('eighteen unique products')
   end
   def test_noindex_sitemap_page_is_rejected
     change('compare.html') { |s| s.sub('<head>', '<head><meta name="robots" content="noindex">') }
     rejection('noindex')
   end
   def test_wrong_canonical_is_rejected
-    change('guides/keyboard-layout.html') { |s| s.sub('rel="canonical" href="https://affpapa.github.io/neclip/', 'rel="canonical" href="https://example.invalid/') }
+    change('guides/clipboard-history.html') { |s| s.sub('rel="canonical" href="https://affpapa.github.io/neclip/', 'rel="canonical" href="https://example.invalid/') }
     rejection('canonical count')
   end
   def test_broken_fragment_is_rejected
@@ -84,4 +84,25 @@ class SEOReleaseTest < Minitest::Test
     change('index.html') { |s| s.sub(/"softwareVersion":"[^"]+"/, '"softwareVersion":"0.0.0"') }
     rejection('schema version mismatch')
   end
+  def test_retired_page_requires_noindex
+    change('guides/keyboard-layout.html') { |s| s.sub('noindex,follow', 'index,follow') }
+    rejection('retired page must be noindex')
+  end
+  def test_retired_page_requires_notice
+    change('guides/screenshot-redaction.html') { |s| s.gsub('3.0.0', '2.0.0') }
+    rejection('missing retirement notice')
+  end
+  def test_retired_page_rejects_wrong_canonical
+    change('guides/keyboard-layout.html') { |s| s.sub('rel="canonical" href="https://affpapa.github.io/neclip/', 'rel="canonical" href="https://example.invalid/') }
+    rejection('retired canonical count')
+  end
+  def test_unlisted_html_page_is_rejected
+    File.write(File.join(@fixture, 'docs', 'forgotten.html'), '<h1>Unused page</h1>')
+    rejection('unexpected HTML route')
+  end
+  def test_llms_cannot_advertise_retired_features
+    change('llms.txt') { |s| s + "\nhttps://affpapa.github.io/neclip/guides/keyboard-layout.html" }
+    rejection('llms advertises retired guide')
+  end
+
 end

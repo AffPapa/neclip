@@ -4,13 +4,12 @@ Please report a vulnerability through
 [GitHub Private Vulnerability Reporting](https://github.com/AffPapa/neclip/security/advisories/new).
 Do not include real clipboard contents in a public issue.
 
-NeClip stores history locally in Application Support, makes layout
-decisions on-device and stores images without automatic content recognition, makes no automatic network requests, and uses the network
+NeClip stores history locally in Application Support and stores images without automatic content recognition, makes no automatic network requests, and uses the network
 only when the user explicitly chooses “Check for Updates”.
 
 Release binaries are accepted only after Developer ID signing, Apple
 notarization, stapling, Gatekeeper assessment and published SHA-256 verification.
-The only supported public release is `v2.8.8`, with immutable assets and tag.
+The only supported public release is `v3.0.0`, with immutable assets and tag.
 Older releases remain superseded and are retained for rollback. GitHub also checks Swift
 and workflow source with CodeQL, allows only GitHub-owned Actions referenced by
 full SHA and monitors the exact SwiftPM dependency for vulnerabilities. Branch

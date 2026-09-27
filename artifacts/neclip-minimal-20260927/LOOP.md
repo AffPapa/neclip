@@ -19,3 +19,13 @@ No feature additions or unrelated refactor. Keep historical tags/releases/report
 - Existing rapid overlapping sequential-paste ownership edge case remains a documented P2; no unrelated refactor in this removal release.
 
 Public release, protected CI, signed artifacts, website update and installation are still pending.
+
+## Additional native verification
+
+Configured the isolated debug bundle to open the editor directly. Token replacement at selection, Undo/Redo, switching documents, undo isolation and save/relaunch passed in the native editor. Preview quit normally after the test. The disposable old database migration test also passes. All user data remains untouched.
+
+## Immutable release
+
+PR76 required checks passed, merged source c539ae0ad6aad80b84aa89d6a1d6ca7ce0d0173f. Version3.0.0/build55 published immutable at2026-09-27T13:45:20Z, release397666129. Both archives and sidecars match independent public downloads; ZIP app, DMG and mounted app pass signature/stapler/Gatekeeper, Info3.0.0/55 and executable parity. Archive/binary secret scans pass; no local-path strings or removed ScreenCaptureKit/input-source/event-tap dependencies in the signed executable. Public ZIP1,929,891bytes, DMG1,960,899bytes.
+
+Publication branch updates six active indexable routes and two retired noindex notices, eighteen alternatives, README, manifest, product data, roadmap, current release evidence and repository copy. Site14/45 and SEO18/52 pass. Native browser desktop/390px/skip-link smoke passes locally. Website deployment and installed-app replacement still pending.
