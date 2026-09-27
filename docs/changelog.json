@@ -1,9 +1,23 @@
 {
   "versions": [
     {
+      "version": "3.0.0",
+      "build": 55,
+      "status": "released",
+      "date": "2026-09-27",
+      "changes": [
+        "Keep clipboard history, snippets, search and local backup.",
+        "Remove screenshot capture/editing and all keyboard layout correction, switching and memory.",
+        "Remove four shortcuts, layout preferences, Screen Recording and Input Monitoring request paths.",
+        "Remove only retired preferences on upgrade; keep database and remaining settings.",
+        "283 XCTest (8 opt-in skips) plus 4 Swift Testing checks pass in strict debug/release, ASan and TSan; legacy synthetic database opens without count loss.",
+        "Required CI, CodeQL, secret scans, Developer ID, notarization, stapling, Gatekeeper and independent public artifact verification passed."
+      ]
+    },
+    {
       "version": "2.8.8",
       "build": 54,
-      "status": "released",
+      "status": "superseded",
       "date": "2026-09-27",
       "changes": [
         "Insert snippet tokens at the native caret or selection with document-scoped undo.",
@@ -12,18 +26,6 @@
         "Label history filters and snippet preview input for accessibility.",
         "380 XCTest (8 opt-in skips), 4 Swift Testing checks, strict Swift 6, ASan, TSan, required CI, CodeQL and Secret Scan passed.",
         "Signed, notarized and stapled DMG and ZIP independently downloaded and verified."
-      ]
-    },
-    {
-      "version": "3.0.0",
-      "build": 55,
-      "status": "candidate",
-      "date": "2026-09-27",
-      "changes": [
-        "Keep clipboard history, snippets, search and local backup.",
-        "Remove screenshot capture/editing and all keyboard layout correction, switching and memory.",
-        "Remove four shortcuts, layout preferences, Screen Recording and Input Monitoring request paths.",
-        "Remove only retired preferences on upgrade; keep database and remaining settings."
       ]
     },
     {
@@ -113,7 +115,7 @@
       "build": 46,
       "status": "superseded",
       "changes": [
-        "Automatic EN/RU correction analyzes after each eligible key and can correct \u0440\u0443\u0434\u0434\u0449 before Space",
+        "Automatic EN/RU correction analyzes after each eligible key and can correct руддщ before Space",
         "Standalone Option correction keeps selected text and last-word correction reliable, including symbols",
         "Settings are separated into Layout, Privacy, Data and Access sections",
         "299 XCTest with 5 expected skips, strict Swift 6, signed notarized DMG and Gatekeeper validation passed locally"

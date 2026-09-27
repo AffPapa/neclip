@@ -1,8 +1,8 @@
 # Changelog
 
-## 3.0.0 / build 55 — source candidate
+## 3.0.0 / build 55 — released 2026-09-27
 
-NeClip now focuses on clipboard history and snippets. Screenshot capture/editing and all keyboard-layout correction, switching and per-app memory are removed, including their shortcuts and settings. Upgrades preserve the existing history, image/file entries, snippets and remaining preferences; only retired preference keys are removed. Public downloads remain 2.8.8 until the signed 3.0.0 release is published.
+NeClip now focuses on clipboard history and snippets. Screenshot capture/editing and all keyboard-layout correction, switching and per-app memory are removed, including their shortcuts and settings. Upgrades preserve the existing history, image/file entries, snippets and remaining preferences; only retired preference keys are removed. Signed, notarized DMG and ZIP are published as immutable v3.0.0 and independently verified.
 
 ## 2.8.8 / build 54 — released 2026-09-27
 

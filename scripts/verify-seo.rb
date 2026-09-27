@@ -10,8 +10,8 @@ docs = File.join(root, 'docs')
 base = 'https://affpapa.github.io/neclip/'
 sitemap = REXML::Document.new(File.read(File.join(docs, 'sitemap.xml')))
 urls = REXML::XPath.match(sitemap, '//*[local-name()="loc"]').map(&:text)
-expected_routes = %w[index.html compare.html compare/maccy-alternative.html compare/paste-alternative.html compare/raycast-clipboard-history.html guides/clipboard-history.html guides/keyboard-layout.html guides/screenshot-redaction.html]
-abort 'sitemap must contain eight unique editorial pages' unless urls.length == expected_routes.length && urls.uniq.length == expected_routes.length
+expected_routes = %w[index.html compare.html compare/maccy-alternative.html compare/paste-alternative.html compare/raycast-clipboard-history.html guides/clipboard-history.html]
+abort 'sitemap must contain six unique editorial pages' unless urls.length == expected_routes.length && urls.uniq.length == expected_routes.length
 actual_routes = urls.map { |url| url.delete_prefix(base).then { |path| path.empty? ? 'index.html' : path } }
 abort 'sitemap routes do not match the editorial inventory' unless actual_routes.sort == expected_routes.sort
 pages = {}
@@ -74,6 +74,23 @@ urls.each do |url|
   pages[url] = html
 end
 
+# Retired feature URLs remain useful to old links, but must never be advertised
+# as current instructions or indexed alongside the clipboard-only product.
+retired_routes = %w[guides/keyboard-layout.html guides/screenshot-redaction.html]
+html_routes = Dir.glob(File.join(docs, '**', '*.html')).map { |path| path.delete_prefix(docs + '/') }
+abort 'unexpected HTML route' unless html_routes.sort == (expected_routes + retired_routes).sort
+retired_routes.each do |relative|
+  html = File.read(File.join(docs, relative))
+  url = base + relative
+  abort "retired page must be noindex: #{relative}" unless html.include?('<meta name="robots" content="noindex,follow">')
+  abort "retired canonical count: #{relative}" unless html.scan(/<link\s+rel="canonical"\s+href="([^"]+)"/).flatten == [url]
+  abort "retired page in sitemap: #{relative}" if urls.include?(url)
+  abort "missing retirement notice: #{relative}" unless html.include?('3.0.0') && html.include?('удалены') && html.include?('blob/v2.8.8/README.md')
+  footer = html[/<footer\b[^>]*>(.*?)<\/footer>/im, 1]
+  abort "missing Ivanov project credit in footer: #{relative}" unless footer&.include?('<a href="https://affpapa.org/">Проект Иванова</a>')
+  pages[url] = html
+end
+
 linked = Set.new
 pages.each do |url, html|
   html.scan(/(?:href|src)="([^"]+)"/).flatten.each do |href|
@@ -95,11 +112,12 @@ pages.each do |url, html|
 end
 abort 'orphan editorial page' unless (urls - [base]).all? { |url| linked.include?(url) }
 products = pages.fetch(base + 'compare.html').scan(/data-product="([^"]+)"/).flatten
-abort 'comparison must list exactly twenty unique products' unless products.length == 20 && products.uniq.length == 20
+abort 'comparison must list exactly eighteen unique products' unless products.length == 18 && products.uniq.length == 18
 %w[2026-09-25 рейтинг официальн].each do |marker|
   abort "missing comparison methodology: #{marker}" unless pages.fetch(base + 'compare.html').include?(marker)
 end
 llms = File.read(File.join(docs, 'llms.txt'))
 abort 'llms missing editorial URLs' unless urls.all? { |url| llms.include?(url) }
+abort 'llms advertises retired guide' if retired_routes.any? { |route| llms.include?(base + route) }
 abort 'project sitemap discovery missing' unless File.read(File.join(docs, 'robots.txt')).include?("Sitemap: #{base}sitemap.xml")
-puts "PASS: #{urls.length} canonical pages, unique metadata, JSON-LD parity, local links/fragments, 20 sourced alternatives and discovery files"
+puts "PASS: #{urls.length} canonical pages, unique metadata, JSON-LD parity, local links/fragments, 18 sourced alternatives and discovery files"

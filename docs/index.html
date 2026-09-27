@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="NeClip — локальный менеджер буфера обмена для Mac: история, поиск, папки сниппетов, исправление EN/RU и скриншоты. macOS 14+, Apple Silicon.">
+  <meta name="description" content="NeClip — локальный менеджер буфера обмена для Mac: история текстов, изображений и файлов, поиск и папки сниппетов. macOS 14+, Apple Silicon.">
   <meta name="theme-color" content="#1676ee">
   <link rel="canonical" href="https://affpapa.github.io/neclip/">
   <meta property="og:title" content="NeClip — менеджер буфера обмена для Mac">
@@ -14,8 +14,8 @@
   <title>NeClip — менеджер буфера обмена для Mac: история и сниппеты</title>
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="NeClip — история буфера обмена для Mac">
-  <meta name="twitter:description" content="Локальная история, сниппеты, EN/RU и разметка скриншотов. macOS 14+ на Apple Silicon.">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://affpapa.github.io/neclip/#app","name":"NeClip","url":"https://affpapa.github.io/neclip/","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14 or later, Apple Silicon","softwareVersion":"2.8.8","license":"https://github.com/AffPapa/neclip/blob/main/LICENSE","description":"Local clipboard history, snippet folders, EN/RU correction and screenshot markup for macOS. No account or cloud synchronization."}</script>
+  <meta name="twitter:description" content="Локальная история буфера, поиск и папки сниппетов без облака. macOS 14+ на Apple Silicon.">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://affpapa.github.io/neclip/#app","name":"NeClip","url":"https://affpapa.github.io/neclip/","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14 or later, Apple Silicon","softwareVersion":"3.0.0","license":"https://github.com/AffPapa/neclip/blob/main/LICENSE","description":"Local clipboard history and snippet folders for macOS. No account or cloud synchronization."}</script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -23,24 +23,24 @@
   <header class="wrap">
     <nav aria-label="Основная навигация">
       <a class="brand" href="#top"><span class="mark" aria-hidden="true">⌘</span>NeClip</a>
-      <div class="navlinks"><a href="#features">Возможности</a><a href="compare.html">20 аналогов</a><a href="#guides">Инструкции</a><a href="#release">Скачать</a><a href="https://github.com/AffPapa/neclip">GitHub</a></div>
+      <div class="navlinks"><a href="#features">Возможности</a><a href="compare.html">18 аналогов</a><a href="#guides">Инструкции</a><a href="#release">Скачать</a><a href="https://github.com/AffPapa/neclip">GitHub</a></div>
     </nav>
   </header>
 
   <main id="main" tabindex="-1">
     <div class="wrap">
     <div class="hero" id="top">
-      <span class="eyebrow"><span class="dot"></span>2.8.8 · выпущена</span>
+      <span class="eyebrow"><span class="dot"></span>3.0.0 · выпущена</span>
       <h1>Менеджер буфера обмена для Mac: история и сниппеты.</h1>
       <p class="lead">Нативная история буфера и готовые сниппеты прямо в строке меню Mac. Быстро, локально и без лишней системы вокруг.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.dmg">Скачать NeClip 2.8.8</a>
-        <a class="button" href="https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.zip">Скачать ZIP-архив</a>
+        <a class="button primary" href="https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.dmg">Скачать NeClip 3.0.0</a>
+        <a class="button" href="https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.zip">Скачать ZIP-архив</a>
         <a class="button" href="https://github.com/AffPapa/neclip">Посмотреть исходники</a>
       </div>
       <p class="fine">macOS 14+ · Apple Silicon · MIT · Developer ID · нотарифицировано Apple · аккаунт не нужен</p>
       <p class="fine">Откройте DMG или распакуйте ZIP, перетащите NeClip в «Программы» и запустите оттуда. Значок появится в строке меню, не в Dock.</p>
-      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.8-STATUS.md">Проверки выпуска</a>.</p>
+      <p class="fine">История и сниппеты хранятся локально; поиск работает только на этом Mac, без облака и телеметрии. <a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-3.0.0-STATUS.md">Проверки выпуска</a>.</p>
     </div>
     </div>
     <section class="wrap" id="features">
@@ -49,8 +49,6 @@
       <div class="grid">
         <article class="card"><h3>История</h3><p>Недавние тексты, изображения и файлы. Выберите запись в меню. С доступом Accessibility NeClip вставит её; без него скопирует для ручной вставки.</p></article>
         <article class="card"><h3>Сниппеты</h3><p>Готовые тексты по папкам. Выбор одной клавишей, понятный редактор и локальные подстановки даты, времени и текущего буфера.</p></article>
-        <article class="card"><h3>Раскладка</h3><p>Ручное исправление EN/RU, отдельно включаемый жест Option (Alt) и переназначаемые клавиши. Автоматический режим экспериментальный и выключен по умолчанию.</p></article>
-        <article class="card"><h3>Скриншоты</h3><p>Снимок области или всего экрана. Непрозрачное скрытие, перо, стрелки, рамки и текст. Необязательный светлый или тёмный фон с отступом; копирование и сохранение PNG/JPEG.</p></article>
       </div>
     </section>
 
@@ -59,12 +57,9 @@
       <div class="card" role="list" aria-label="Горячие клавиши">
         <div class="shortcut" role="listitem"><span>Открыть историю</span><kbd>⌘ ⇧ V</kbd></div>
         <div class="shortcut" role="listitem"><span>Открыть папки сниппетов</span><kbd>⌘ ⇧ B</kbd></div>
-        <div class="shortcut" role="listitem"><span>Снимок области</span><kbd>⌘ ⇧ 2</kbd></div>
-        <div class="shortcut" role="listitem"><span>Снимок всего экрана</span><kbd>⌘ ⌥ 3</kbd></div>
-        <div class="shortcut" role="listitem"><span>Исправить раскладку</span><kbd>⌥ ⇧ L</kbd></div>
-        <div class="shortcut" role="listitem"><span>Выключить автоисправление</span><kbd>⌃ ⌥ A</kbd></div>
+        <div class="shortcut" role="listitem"><span>Вставить следующий элемент</span><kbd>⌃ ⌘ V</kbd></div>
       </div>
-      <p class="fine">Основные сочетания можно изменить в настройках. Отдельный Option (Alt) включается в настройках раскладки или прямо в меню-баре; он исправляет выделенный текст или последнее слово при отпускании. Папки сниппетов также открываются правым кликом по значку NeClip.</p>
+      <p class="fine">Три сочетания можно изменить в настройках. Shift-Return вставляет обычный текст, Command-Return только копирует. Папки сниппетов также открываются правым кликом по значку NeClip.</p>
     </section>
 
     <section class="wrap">
@@ -79,27 +74,27 @@
 
     <section class="wrap" id="release">
       <h2>Единственный поддерживаемый выпуск</h2>
-      <p class="section-lead">NeClip 2.8.8 / build 54 — текущая подписанная и нотарифицированная версия.</p>
-      <div class="timeline"><article class="card release"><div><strong>2.8.8</strong><br><span class="status">выпущена · 27 сентября 2026</span></div><div><b>Точнее редактирование сниппетов и копирование снимков.</b><ul><li>Токен заменяет выделение или вставляется у курсора; Undo/Redo отделены для каждого сниппета</li><li>История показывает размеры готового скриншота с фоном</li><li>При ошибке записи снимка прежний буфер восстанавливается, если его не изменило другое приложение</li><li>Подстановка обычного текста не читает буфер заранее</li></ul><p>380 XCTest (8 ожидаемых пропусков) и 4 Swift Testing прошли; strict Swift 6, ASan, TSan, обязательные CI, CodeQL и secret scan прошли. DMG и ZIP подписаны, нотарифицированы и приняты Gatekeeper.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-2.8.8-STATUS.md">Проверки выпуска и ограничения</a></div></article></div>
-      <p class="fine">DMG: 2 146 754 байт · <a href="https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.dmg.sha256">SHA-256</a>: <code>6bf16a132261d66926e7b327e835dd0ee526e477d19d8907b207a7f2ea164d74</code></p>
-      <p class="fine">ZIP: 2 111 918 байт · <a href="https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.zip">скачать архив</a> · <a href="https://github.com/AffPapa/neclip/releases/download/v2.8.8/NeClip-2.8.8.zip.sha256">SHA-256</a>: <code>e33fe900103f5999928054f4de8535ab74d8f1ceab53df6fbaf130327c12ae38</code></p>
-      <p class="fine">DMG и ZIP опубликованы вместе в неизменяемом релизе <a href="https://github.com/AffPapa/neclip/releases/tag/v2.8.8">v2.8.8</a>.</p>
-      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/76a3884810539a5e8bdb226624e5c46e05dcc376"><code>76a3884810539a5e8bdb226624e5c46e05dcc376</code></a></p>
+      <p class="section-lead">NeClip 3.0.0 / build 55 — текущая подписанная и нотарифицированная версия.</p>
+      <div class="timeline"><article class="card release"><div><strong>3.0.0</strong><br><span class="status">история и сниппеты</span></div><div><b>Меньше функций, яснее назначение.</b><p>Полностью удалены захват и редактор скриншотов, исправление и переключение раскладки. Остались история буфера, поиск, папки сниппетов и резервные копии. При обновлении сохраняются история, изображения и сниппеты; очищаются только устаревшие настройки удалённых функций.</p><a href="https://github.com/AffPapa/neclip/blob/main/docs/RELEASE-3.0.0-STATUS.md">Проверки выпуска и ограничения</a></div></article></div>
+      <details><summary>Подпись, контрольные суммы и исходники</summary>
+      <p class="fine">DMG: 1 960 899 байт · <a href="https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.dmg.sha256">SHA-256</a>: <code>297539ca29c759868fb33906af9537f5598fd4bb96a306c0fe6ac18ac6c11027</code></p>
+      <p class="fine">ZIP: 1 929 891 байт · <a href="https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.zip">скачать архив</a> · <a href="https://github.com/AffPapa/neclip/releases/download/v3.0.0/NeClip-3.0.0.zip.sha256">SHA-256</a>: <code>4977dca0b7b025352b3e447a3b9f45ccaf2aee890417c4ad6d8de7ba48cc6b70</code></p>
+      <p class="fine">DMG и ZIP опубликованы вместе в неизменяемом релизе <a href="https://github.com/AffPapa/neclip/releases/tag/v3.0.0">v3.0.0</a>.</p>
+      <p class="fine">Исходный коммит: <a href="https://github.com/AffPapa/neclip/commit/c539ae0ad6aad80b84aa89d6a1d6ca7ce0d0173f"><code>c539ae0ad6aad80b84aa89d6a1d6ca7ce0d0173f</code></a></p>
+      </details>
     </section>
 
     <section class="wrap" id="guides">
       <h2>Выбрать инструмент и освоить работу</h2>
       <p class="section-lead">Ищете менеджер буфера обмена для Mac или альтернативу Maccy, Paste либо Raycast? Сначала сравните сценарии: отдельная история, синхронизация между устройствами, сниппеты или лаунчер с историей внутри.</p>
       <div class="grid">
-        <article class="card"><h3><a href="compare/maccy-alternative.html">Альтернатива Maccy для Mac</a></h3><p>Maccy — минималистичная клавиатурная история с открытым исходным кодом. Сравните её с папками сниппетов, EN/RU-коррекцией и разметкой скриншотов NeClip.</p></article>
+        <article class="card"><h3><a href="compare/maccy-alternative.html">Альтернатива Maccy для Mac</a></h3><p>Maccy — минималистичная клавиатурная история с открытым исходным кодом. Сравните её с локальной историей и папками готовых ответов NeClip.</p></article>
         <article class="card"><h3><a href="compare/paste-alternative.html">Альтернатива Paste для Mac</a></h3><p>Paste описывает общую историю и закреплённые элементы между Mac, iPhone и iPad через iCloud. NeClip хранит данные локально на одном Mac и не синхронизирует их.</p></article>
-        <article class="card"><h3><a href="compare/raycast-clipboard-history.html">Raycast Clipboard History или NeClip</a></h3><p>Raycast объединяет историю, поиск, действия и сниппеты с лаунчером. NeClip — отдельный пункт строки меню с историей и дополнительными локальными инструментами.</p></article>
+        <article class="card"><h3><a href="compare/raycast-clipboard-history.html">Raycast Clipboard History или NeClip</a></h3><p>Raycast объединяет историю, поиск, действия и сниппеты с лаунчером. NeClip — отдельный пункт строки меню с историей и папками сниппетов.</p></article>
       </div>
-      <p><a href="compare.html">Сравнить 20 приложений Mac по задачам и источникам</a> — редакционный обзор, не рейтинг и не тест производительности.</p>
+      <p><a href="compare.html">Сравнить 18 приложений Mac по задачам и источникам</a> — редакционный обзор, не рейтинг и не тест производительности.</p>
       <div class="grid">
         <article class="card"><h3><a href="guides/clipboard-history.html">История и сниппеты</a></h3><p>Найти нужную копию, вставить без оформления и сохранить повторяемый текст. Проверить причины пропусков.</p></article>
-        <article class="card"><h3><a href="guides/keyboard-layout.html">Исправление раскладки</a></h3><p>Чем смена языка ввода отличается от исправления набранного текста. Ручная команда, Option и ограничения.</p></article>
-        <article class="card"><h3><a href="guides/screenshot-redaction.html">Скриншот без лишних данных</a></h3><p>Непрозрачное закрытие, короткие пояснения и проверка именно сохранённого PNG/JPEG.</p></article>
       </div>
     </section>
 
@@ -107,7 +102,7 @@
       <h2>Планы</h2>
       <p class="section-lead">Приоритет — надёжность и скорость, а не количество функций.</p>
       <div class="backlog">
-        <article class="card"><h3>Дальше</h3><ul><li>Проверка разрешений на дополнительных macOS и конфигурациях дисплеев</li><li>Измерение скорости меню перед изменениями</li></ul></article>
+        <article class="card"><h3>Дальше</h3><ul><li>Проверка истории и вставки на дополнительных версиях macOS</li><li>Измерение скорости меню перед изменениями</li></ul></article>
         <article class="card"><h3>Не планируется</h3><ul><li>Аккаунты и облако</li><li>Телеметрия и реклама</li><li>ИИ для содержимого буфера</li><li>Большое постоянное окно</li></ul></article>
       </div>
     </section>

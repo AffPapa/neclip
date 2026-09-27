@@ -1,8 +1,8 @@
 # NeClip project map
 
-Current public release: **2.8.8 / build 54**. The exact signed artifacts,
+Current public release: **3.0.0 / build 55**. The exact signed artifacts,
 source commit and release checks are recorded in
-[RELEASE-2.8.8-STATUS.md](RELEASE-2.8.8-STATUS.md).
+[RELEASE-3.0.0-STATUS.md](RELEASE-3.0.0-STATUS.md).
 
 ## Runtime ownership
 
@@ -12,17 +12,14 @@ source commit and release checks are recorded in
 - `Storage` and `SnippetsEditorModel` own folders, snippets and draft-safe
   writes.
 - `HotKeyCoordinator` owns configurable global shortcuts and conflict handling.
-- `OptionKeyCorrectionMonitor` owns the explicit standalone Option gesture;
-  `StatusBarController` and `PreferencesWindow` expose its opt-in state.
-- `ScreenshotCoordinator`, `ScreenshotSelectionView` and
-  `ScreenshotEditorWindow` own one-shot area/full-screen capture, annotation
-  and export.
-- `ScreenshotRenderer` and `ScreenshotPresentation` share the bounded pixel
-  composition used by preview, copy and file export.
+- `PasteService` owns clipboard snapshots, generation guards and optional automatic paste.
+- `SnippetTextEditor` and `SnippetRenderer` own native editing, document-scoped undo and local templates.
+- `PreferencesWindow` exposes general, shortcuts, privacy, data and access settings.
+- `Settings.removeRetiredPreferences` deletes only named obsolete preferences on upgrade; database schemas are unchanged.
 
 ## Release boundary
 
-Only `v2.8.8` is supported publicly. Its immutable GitHub release contains both
+Only `v3.0.0` is supported publicly. Its immutable GitHub release contains both
 the signed, notarized DMG and ZIP; `docs/version.json` records their URLs,
 SHA-256 digests and sizes. The release tag points to the exact source commit in
 `main`. Verify downloaded bytes before changing either public link.
