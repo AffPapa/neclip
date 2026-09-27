@@ -1235,7 +1235,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let board = NSPasteboard.general
         let clipboardGeneration = board.changeCount
         let sourceIsProtected = !Set(board.types ?? []).isDisjoint(with: ClipboardMonitor.concealedTypes)
-        let clipboard = board.string(forType: .string)
         let clipboardContext = SnippetClipboardContext(generation: clipboardGeneration,
             isProtected: sourceIsProtected || board.changeCount != clipboardGeneration
                 || (isClipboardGenerationExcluded?(clipboardGeneration) ?? true))
@@ -1246,6 +1245,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                     return
                 }
                 let usesClipboard = SnippetRenderer.usesClipboard(snippet.content)
+                let clipboard = try SnippetClipboardRead.readIfNeeded(
+                    template: snippet.content, expectedGeneration: clipboardGeneration,
+                    readGeneration: { NSPasteboard.general.changeCount },
+                    readText: { NSPasteboard.general.string(forType: .string) })
                 snippet.content = try SnippetRenderer.render(snippet.content, clipboard: clipboard)
                 DispatchQueue.main.async {
                     let protectedContent = usesClipboard && (clipboardContext.isProtected
@@ -1265,6 +1268,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                         self?.handlePasteResult(result)
                     }
                 }
+            } catch is SnippetClipboardReadError {
+                DispatchQueue.main.async { self?.showFeedback("Буфер изменился — повторите вставку") }
             } catch is SnippetRenderingError {
                 DispatchQueue.main.async { self?.showFeedback("Сниппет после подстановок превышает 2 МБ") }
             } catch {

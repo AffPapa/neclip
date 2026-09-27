@@ -161,6 +161,9 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
             ("Последние 7 дней", DateFilter.week.rawValue),
             ("Последние 30 дней", DateFilter.month.rawValue)
         ])
+        kindPopup.setAccessibilityLabel("Тип записи")
+        appPopup.setAccessibilityLabel("Приложение")
+        datePopup.setAccessibilityLabel("Период")
         kindPopup.target = self
         kindPopup.action = #selector(filterChanged)
         datePopup.target = self

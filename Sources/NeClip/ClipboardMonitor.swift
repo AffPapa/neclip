@@ -246,8 +246,10 @@ final class ClipboardMonitor: @unchecked Sendable {
     /// Explicit final screenshot ingestion uses the same queue as ordinary
     /// captures, so stop-and-drain privacy cleanup also covers these writes.
     @MainActor
-    func recordScreenshot(_ png: Data, width: Int, height: Int, sourceBundleID: String?) -> Bool {
+    func recordScreenshot(_ png: Data, sourceBundleID: String?) -> Bool {
         let ignored = Settings.consumeIgnoreNextCopy()
+        guard let source = CGImageSourceCreateWithData(png as CFData, nil),
+              let (width, height) = Self.dimensions(of: source) else { return false }
         guard ScreenshotHistoryPolicy.shouldStore(
             running: isRunning, ignored: ignored, paused: Settings.isCapturePaused,
             capturesImages: Settings.captureImages, clipboardAllowed: ClipboardAccess.current.permitsBackgroundRead,

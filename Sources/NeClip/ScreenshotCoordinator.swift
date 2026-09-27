@@ -295,7 +295,7 @@ final class ScreenshotCoordinator {
         )
         controller.onCopy = { [weak self] data in
             guard let self else { return }
-            let stored = monitor.recordScreenshot(data, width: image.width, height: image.height, sourceBundleID: sourceBundleID)
+            let stored = monitor.recordScreenshot(data, sourceBundleID: sourceBundleID)
             LayoutFeedbackHUD.shared.show(stored ? "Скриншот скопирован" : "Скопировано без истории · действуют её ограничения")
         }
         controller.onClose = { [weak self] in self?.editor = nil }

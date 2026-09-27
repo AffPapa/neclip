@@ -416,12 +416,28 @@ final class ScreenshotCompositionView: NSView {
 
 @MainActor
 enum ScreenshotClipboard {
-    static func write(_ png: Data, to pasteboard: NSPasteboard, expectedChangeCount: Int) throws {
+    static func write(_ png: Data, to pasteboard: NSPasteboard, expectedChangeCount: Int,
+                      writeObjects: (([NSPasteboardItem]) -> Bool)? = nil) throws {
         guard pasteboard.changeCount == expectedChangeCount else { throw ScreenshotFailure.clipboardChanged }
         let item = NSPasteboardItem()
         guard item.setData(png, forType: .png) else { throw ScreenshotFailure.clipboardWriteFailed }
-        pasteboard.clearContents()
-        guard pasteboard.writeObjects([item]) else { throw ScreenshotFailure.clipboardWriteFailed }
+        guard let saved = PasteService.snapshotPasteboard(pasteboard) else {
+            throw ScreenshotFailure.clipboardSnapshotFailed
+        }
+        guard pasteboard.changeCount == expectedChangeCount else { throw ScreenshotFailure.clipboardChanged }
+        let clearedGeneration = pasteboard.clearContents()
+        let succeeded = writeObjects?([item]) ?? pasteboard.writeObjects([item])
+        guard succeeded else {
+            // A failed write must never erase a newer external copy.
+            if pasteboard.changeCount == clearedGeneration {
+                pasteboard.clearContents()
+                if !saved.isEmpty { _ = pasteboard.writeObjects(saved) }
+                if pasteboard.name == NSPasteboard.general.name {
+                    ClipboardWriteGuard.shared.markOwnWrite(changeCount: pasteboard.changeCount)
+                }
+            }
+            throw ScreenshotFailure.clipboardWriteFailed
+        }
         if pasteboard.name == NSPasteboard.general.name {
             ClipboardWriteGuard.shared.markOwnWrite(changeCount: pasteboard.changeCount)
         }
