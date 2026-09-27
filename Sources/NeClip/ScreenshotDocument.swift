@@ -75,7 +75,7 @@ struct ScreenshotEdits: Sendable {
 }
 
 enum ScreenshotFailure: LocalizedError {
-    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, permissionDenied, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed
+    case invalidImage, overlayUnavailable, filterUnavailable, displayChanged, displayTooLarge, permissionDenied, emptySelection, exportFailed, clipboardChanged, clipboardWriteFailed, clipboardSnapshotFailed
     var errorDescription: String? {
         switch self {
         case .invalidImage: "Не удалось подготовить изображение. Выберите меньшую область."
@@ -87,6 +87,7 @@ enum ScreenshotFailure: LocalizedError {
         case .emptySelection: "Выделите область экрана."
         case .exportFailed: "Не удалось сохранить снимок. Проверьте папку и свободное место."
         case .clipboardChanged: "Буфер уже изменился. Нажмите «Копировать» ещё раз, если хотите заменить его снимком."
+        case .clipboardSnapshotFailed: "Не удалось сохранить прежний буфер для восстановления. Сохраните снимок в файл или скопируйте меньший объём данных и повторите."
         case .clipboardWriteFailed: "Не удалось записать снимок в буфер. Попробуйте ещё раз."
         }
     }

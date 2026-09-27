@@ -386,8 +386,12 @@ final class SnippetsEditorModel: ObservableObject {
         }
     }
 
+    weak var contentTextView: SnippetTextView?
+
     func insertToken(_ token: SnippetTokenCatalog.Token) {
-        editorContent.append(token.rawValue)
+        guard let view = contentTextView, view.snippetID == selectedSnippetID else { return }
+        view.window?.makeFirstResponder(view)
+        view.insertText(token.rawValue, replacementRange: view.selectedRange())
     }
 
     var renderedPreview: String {
@@ -766,8 +770,7 @@ private struct SnippetsEditorView: View {
                     .menuStyle(.borderlessButton)
                     Spacer()
                 }
-                TextEditor(text: $model.editorContent)
-                    .font(.system(.body, design: .monospaced))
+                SnippetTextEditor(model: model)
                     .accessibilityLabel("Текст сниппета")
                     .overlay {
                         RoundedRectangle(cornerRadius: 6)
@@ -780,6 +783,7 @@ private struct SnippetsEditorView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         TextField("необязательно", text: $model.previewClipboard)
+                            .accessibilityLabel("Буфер для предпросмотра")
                             .textFieldStyle(.roundedBorder)
                     }
                     Text(model.renderedPreview)

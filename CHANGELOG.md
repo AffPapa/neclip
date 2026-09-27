@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.8.8 / build 54 — candidate
+
+- Insert snippet tokens at the caret or replace the selection; preserve native undo and isolate it between snippets.
+- Skip unrelated clipboard reads during snippet rendering; move required text reads off main and reject changed generations. The final rollback snapshot remains in place.
+- Record the dimensions of the final screenshot, including background padding.
+- Preserve previous clipboard representations if screenshot writing fails; never overwrite an intervening external copy. If the bounded snapshot cannot preserve the clipboard, refuse before clearing it and offer file export.
+- Add explicit accessibility labels for history filters and snippet preview input.
+
 ## 2.8.7 / build 53 — released 2026-09-26
 
 - Restrict history search shortcuts to its search field and results; preserve native control focus, modified navigation and marked IME text.

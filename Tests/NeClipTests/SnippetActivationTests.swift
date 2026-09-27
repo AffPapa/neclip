@@ -306,12 +306,37 @@ final class SnippetActivationTests: XCTestCase {
             let png = try ScreenshotRenderer.encode(try XCTUnwrap(context.makeImage()), annotations: [], format: .png)
             let release = DispatchSemaphore(value: 0)
             queue.async { release.wait() }
-            XCTAssertTrue(monitor.recordScreenshot(png, width: 2, height: 2, sourceBundleID: "org.neclip.fixture"))
+            XCTAssertTrue(monitor.recordScreenshot(png, sourceBundleID: "org.neclip.fixture"))
             arguments["captureImages"] = false
             UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
             release.signal()
             await monitor.stopAndDrainAsync()
             XCTAssertEqual(storage.count, 0)
+        }
+    }
+
+    @MainActor
+    func testScreenshotHistoryUsesExportedPixelDimensions() async throws {
+        try await withCaptureSettings {
+            let board = NSPasteboard(name: .init("neclip.screenshot.dimensions.\(UUID())"))
+            defer { board.releaseGlobally() }
+            let storage = try Storage(inMemory: true, installStarterContent: false)
+            let monitor = ClipboardMonitor(pasteboard: board, storage: storage)
+            var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+            arguments["captureImages"] = true
+            UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+            monitor.start()
+            defer { monitor.stop() }
+            let context = try ScreenshotRenderer.context(width: 400, height: 300)
+            let image = try XCTUnwrap(context.makeImage())
+            for presentation in [ScreenshotPresentation.original, .light] {
+                let png = try ScreenshotRenderer.encode(image, annotations: [], format: .png, presentation: presentation)
+                XCTAssertTrue(monitor.recordScreenshot(png, sourceBundleID: "org.neclip.fixture"))
+            }
+            XCTAssertFalse(monitor.recordScreenshot(Data([1, 2]), sourceBundleID: "org.neclip.fixture"))
+            await monitor.stopAndDrainAsync()
+            let clips = try storage.searchClipSummaries(query: "Скриншот", limit: 10)
+            XCTAssertEqual(Set(clips.map(\.title)), Set(["Скриншот 400×300", "Скриншот 448×348"]))
         }
     }
 
