@@ -1,9 +1,23 @@
 {
   "versions": [
     {
+      "version": "2.8.8",
+      "build": 54,
+      "status": "released",
+      "date": "2026-09-27",
+      "changes": [
+        "Insert snippet tokens at the native caret or selection with document-scoped undo.",
+        "Read clipboard text for template expansion only when needed, on the data queue, with generation checks.",
+        "Use exported screenshot dimensions in history and preserve the prior clipboard on failed screenshot writes.",
+        "Label history filters and snippet preview input for accessibility.",
+        "380 XCTest (8 opt-in skips), 4 Swift Testing checks, strict Swift 6, ASan, TSan, required CI, CodeQL and Secret Scan passed.",
+        "Signed, notarized and stapled DMG and ZIP independently downloaded and verified."
+      ]
+    },
+    {
       "version": "2.8.7",
       "build": 53,
-      "status": "released",
+      "status": "superseded",
       "date": "2026-09-26",
       "changes": [
         "Preserve filter/button, VoiceOver and IME keyboard handling in history search.",
@@ -11,18 +25,6 @@
         "Skip full-body lowercase when the title already matches.",
         "371 XCTest (8 opt-in skips) and 4 Swift Testing checks; strict Swift 6, ASan, TSan, required CI, CodeQL and Secret Scan passed.",
         "Developer ID signing, notarization, stapling, Gatekeeper and independent public DMG/ZIP byte verification passed."
-      ]
-    },
-    {
-      "version": "2.8.8",
-      "build": 54,
-      "status": "candidate",
-      "date": "2026-09-27",
-      "changes": [
-        "Insert snippet tokens at the native caret or selection with document-scoped undo.",
-        "Read clipboard text for template expansion only when needed, on the data queue, with generation checks.",
-        "Use exported screenshot dimensions in history and preserve the prior clipboard on failed screenshot writes.",
-        "Label history filters and snippet preview input for accessibility."
       ]
     },
     {
