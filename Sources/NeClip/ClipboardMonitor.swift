@@ -243,27 +243,6 @@ final class ClipboardMonitor: @unchecked Sendable {
         }
     }
 
-    /// Explicit final screenshot ingestion uses the same queue as ordinary
-    /// captures, so stop-and-drain privacy cleanup also covers these writes.
-    @MainActor
-    func recordScreenshot(_ png: Data, sourceBundleID: String?) -> Bool {
-        let ignored = Settings.consumeIgnoreNextCopy()
-        guard let source = CGImageSourceCreateWithData(png as CFData, nil),
-              let (width, height) = Self.dimensions(of: source) else { return false }
-        guard ScreenshotHistoryPolicy.shouldStore(
-            running: isRunning, ignored: ignored, paused: Settings.isCapturePaused,
-            capturesImages: Settings.captureImages, clipboardAllowed: ClipboardAccess.current.permitsBackgroundRead,
-            sourceBundleID: sourceBundleID, excludedApps: Set(Settings.excludedApps),
-            excludedTransition: excludedTransitionUntil.map { $0 > Date() } ?? false,
-            byteCount: png.count, width: width, height: height) else { return false }
-        processingQueue.async { [weak self] in
-            self?.insert(ClipItem(kind: .image, title: "Скриншот \(width)×\(height)", data: png,
-                                 appBundleID: sourceBundleID, createdAt: Date(), contentBytes: Int64(png.count),
-                                 contentHash: ContentDigest.sha256(png)))
-        }
-        return true
-    }
-
     /// Snippets are explicit new copies even though the timer must ignore our
     /// clipboard write. Reuse the capture queue, privacy checks, text limits,
     /// append policy, deduplication and cleanup barrier, never write around them.
@@ -576,8 +555,7 @@ final class ClipboardMonitor: @unchecked Sendable {
     }
 
     private func insert(_ item: ClipItem) {
-        // Explicit screenshots also arrive asynchronously. Honor a setting
-        // changed while their work was waiting in the capture queue.
+        // Honor image-history changes while work waits in the capture queue.
         guard item.kind != .image || Settings.captureImages else {
             notifySkipped(.disabledContentType)
             return

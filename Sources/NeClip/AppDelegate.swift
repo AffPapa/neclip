@@ -4,14 +4,10 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController!
     private let monitor = ClipboardMonitor()
-    private lazy var screenshots = ScreenshotCoordinator(monitor: monitor)
     private var hotKeyWarnings: [String] = []
-    private let manualLayoutCorrection = ManualLayoutCorrectionService()
-    private let automaticLayoutCorrection = AutoLayoutController()
-    private let optionKeyCorrection = OptionKeyCorrectionMonitor()
-    private let applicationLayoutMemory = ApplicationLayoutMemoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Settings.removeRetiredPreferences()
 #if DEBUG
         if RuntimeIdentity.isIsolatedPreview, ProcessInfo.processInfo.environment["NECLIP_QA_STARTUP_REPORT"] == "1" {
             print("NeClip QA: applicationDidFinishLaunching")
@@ -34,12 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.hotKeyWarnings = warnings
             self?.refreshHotKeyWarnings()
         }
-        HotKeyCoordinator.shared.onShortcutChanged = { [weak self] action, shortcut in
+        HotKeyCoordinator.shared.onShortcutChanged = { [weak self] _, _ in
             self?.statusBar.refreshShortcutPresentation()
             self?.configureApplicationMenu()
-            if action == .manualCorrection {
-                self?.automaticLayoutCorrection.updateManualShortcut(shortcut)
-            }
         }
         HotKeyCoordinator.shared.start(
             historyAction: { [weak self] in
@@ -50,93 +43,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             sequentialPasteAction: { [weak self] in
                 MainActor.assumeIsolated { self?.statusBar.pasteNextSequentially() }
-            },
-            manualCorrectionAction: { [weak self] in
-                MainActor.assumeIsolated { self?.correctLayoutOrUndo() }
-            },
-            disableAutomaticCorrectionAction: { [weak self] in
-                MainActor.assumeIsolated { self?.disableAutomaticLayoutCorrection() }
-            },
-            screenshotAction: { [weak self] in
-                MainActor.assumeIsolated { self?.screenshots.start() }
-            },
-            fullScreenScreenshotAction: { [weak self] in
-                MainActor.assumeIsolated { self?.screenshots.startFullScreen() }
             }
+
         )
         refreshHotKeyWarnings()
-
-        NotificationCenter.default.addObserver(self, selector: #selector(screenshotRequested),
-                                               name: .neClipScreenshotRequested, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(fullScreenScreenshotRequested),
-                                               name: .neClipFullScreenScreenshotRequested, object: nil)
-
-        automaticLayoutCorrection.onFeedback = { [weak self] message in
-            self?.statusBar.showLayoutFeedback(message)
-        }
-        optionKeyCorrection.onTrigger = { [weak self] in
-            self?.correctLayoutOrUndo()
-        }
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(layoutSettingsChanged),
-            name: .neClipLayoutSettingsDidChange,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(manualLayoutCorrectionRequested),
-            name: .neClipManualLayoutCorrectionRequested,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(disableAutomaticLayoutCorrectionRequested),
-            name: .neClipDisableAutomaticLayoutCorrectionRequested,
-            object: nil
-        )
-        automaticLayoutCorrection.applySetting()
-        optionKeyCorrection.applySetting()
-        applicationLayoutMemory.applySetting()
 
         // Accessibility is requested only after the onboarding explanation and
         // an explicit user action.
 #if DEBUG
         let qaEnvironment = ProcessInfo.processInfo.environment
         if qaEnvironment["NECLIP_UI_TEST_REGULAR"] == "1"
-            || RuntimeIdentity.isScreenshotQA
+            || RuntimeIdentity.isIsolatedPreview
             || qaEnvironment["NECLIP_UI_TEST_TAB"] != nil
             || qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             // QA builds temporarily behave like a regular app so automated
             // accessibility inspection can address the panel by bundle ID.
             NSApp.setActivationPolicy(.regular)
         }
-        if qaEnvironment["NECLIP_UI_TEST_SKIP_ONBOARDING"] != "1", !RuntimeIdentity.isScreenshotQA {
+        if !RuntimeIdentity.isIsolatedPreview, qaEnvironment["NECLIP_UI_TEST_SKIP_ONBOARDING"] != "1" {
             startMonitorAroundOnboarding()
         } else {
             monitor.start()
         }
-        if RuntimeIdentity.isScreenshotQA {
-            // Synthetic pixels only: UI checks need no screen recording permission.
-            DispatchQueue.main.async { [weak self] in
-                guard let context = try? ScreenshotRenderer.context(width: 720, height: 420) else { return }
-                context.setFillColor(CGColor(gray: 1, alpha: 1))
-                context.fill(CGRect(x: 0, y: 0, width: 720, height: 420))
-                context.setFillColor(CGColor(srgbRed: 0.15, green: 0.4, blue: 0.8, alpha: 1))
-                context.fill(CGRect(x: 30, y: 240, width: 300, height: 150))
-                guard let base = context.makeImage(), let image = try? ScreenshotRenderer.render(base, annotations: [
-                    ScreenshotAnnotation(tool: .text, points: [CGPoint(x: 40, y: 210)], text: "NeClip · synthetic screenshot"),
-                    ScreenshotAnnotation(tool: .text, points: [CGPoint(x: 40, y: 270)], text: "TEST SECRET 12345")
-                ]) else { return }
-                self?.screenshots.showEditor(image: image, sourceBundleID: "org.neclip.synthetic-fixture")
-            }
-        } else if qaEnvironment["NECLIP_UI_TEST_ONBOARDING"] == "1", RuntimeIdentity.isIsolatedPreview {
+        if qaEnvironment["NECLIP_UI_TEST_ONBOARDING"] == "1", RuntimeIdentity.isIsolatedPreview {
             DispatchQueue.main.async { OnboardingWindowController.shared.show() }
         } else if qaEnvironment["NECLIP_UI_TEST_EDITOR"] == "1" {
             DispatchQueue.main.async {
                 SnippetsEditorWindowController.shared.show()
             }
-        } else if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" {
+        } else if qaEnvironment["NECLIP_UI_TEST_PREFERENCES"] == "1" || RuntimeIdentity.isIsolatedPreview {
             DispatchQueue.main.async {
                 let section = qaEnvironment["NECLIP_UI_TEST_SECTION"].flatMap(PreferencesSection.init(rawValue:))
                 PreferencesWindowController.shared.show(section: section)
@@ -156,23 +91,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        screenshots.cancel()
         monitor.stop()
-        automaticLayoutCorrection.disable()
-        applicationLayoutMemory.stop()
         NotificationCenter.default.removeObserver(self)
     }
-
-    @objc private func screenshotRequested() { screenshots.start() }
-
-    @objc private func fullScreenScreenshotRequested() { screenshots.startFullScreen() }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         PreferencesWindowController.shared.commitPendingEdits()
         guard SnippetsEditorWindowController.shared.prepareForTermination() else {
             return .terminateCancel
         }
-        guard screenshots.prepareForTermination() else { return .terminateCancel }
         guard Settings.clearHistoryOnQuit else { return .terminateNow }
         monitor.stopAndDrain()
         do {
@@ -190,7 +117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        automaticLayoutCorrection.refreshContext()
         monitor.refreshAuthorization()
         statusBar.refreshAuthorizationState()
     }
@@ -309,70 +235,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !presented { monitor.start() }
     }
 
-    @objc private func layoutSettingsChanged() {
-        automaticLayoutCorrection.applySetting()
-        optionKeyCorrection.applySetting()
-        applicationLayoutMemory.applySetting()
-    }
-
-    @objc private func manualLayoutCorrectionRequested() {
-        correctLayoutOrUndo()
-    }
-
-    @objc private func disableAutomaticLayoutCorrectionRequested() {
-        disableAutomaticLayoutCorrection()
-    }
-
     private func refreshHotKeyWarnings() {
         statusBar.setHotKeyWarnings(hotKeyWarnings)
     }
 
-    private func disableAutomaticLayoutCorrection() {
-        guard Settings.automaticLayoutCorrection else {
-            statusBar.showLayoutFeedback("Автоисправление уже выключено")
-            return
-        }
-        // Stop the event tap before publishing the setting change. The safety
-        // shortcut is deliberately off-only and can never request access.
-        automaticLayoutCorrection.disable()
-        Settings.automaticLayoutCorrection = false
-        statusBar.showLayoutFeedback("Автоисправление выключено")
-    }
-
-    private func correctLayoutOrUndo() {
-        if automaticLayoutCorrection.undoLastCorrectionIfPossible(completion: { [weak self] undone in
-            self?.statusBar.showLayoutFeedback(
-                undone ? "Отменено · слово игнорируется до перезапуска" : "Отмена уже недоступна"
-            )
-        }) {
-            return
-        }
-
-        automaticLayoutCorrection.suspendForManualCorrection()
-        manualLayoutCorrection.correctOrUndo { [weak self] result in
-            self?.automaticLayoutCorrection.resumeAfterManualCorrection()
-            let message: String
-            switch result {
-            case .corrected:
-                message = "Раскладка исправлена · \(HotKeyCoordinator.shared.shortcut(for: .manualCorrection).displayString) — отменить"
-            case .correctedLayoutUnchanged:
-                message = "Текст исправлен, но раскладка не переключилась"
-            case .undone:
-                message = "Исправление отменено"
-            case .nothingToCorrect:
-                message = "Нечего исправлять"
-            case .permissionRequired:
-                message = "Нужен Универсальный доступ"
-            case .protectedContext:
-                message = "Защищённые поля не исправляются"
-            case .unsupported:
-                message = "Это поле не поддерживает безопасную замену"
-            case .pasteUnconfirmed:
-                message = "Вставка не подтверждена — исправленный текст оставлен в буфере"
-            case .failed:
-                message = "Не удалось исправить раскладку"
-            }
-            self?.statusBar.showLayoutFeedback(message)
-        }
-    }
 }

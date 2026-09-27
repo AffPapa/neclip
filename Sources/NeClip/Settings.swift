@@ -26,14 +26,25 @@ enum CapturePausePreferences {
 
 extension Notification.Name {
     static let neClipCaptureControlsDidChange = Notification.Name("org.affpapa.neclip.captureControlsDidChange")
-    static let neClipLayoutSettingsDidChange = Notification.Name("org.affpapa.neclip.layoutSettingsDidChange")
     static let neClipHotKeysDidChange = Notification.Name("org.affpapa.neclip.hotKeysDidChange")
-    static let neClipManualLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.manualLayoutCorrectionRequested")
-    static let neClipDisableAutomaticLayoutCorrectionRequested = Notification.Name("org.affpapa.neclip.disableAutomaticLayoutCorrectionRequested")
-    static let neClipApplicationLayoutMemoryDidChange = Notification.Name("org.affpapa.neclip.applicationLayoutMemoryDidChange")
 }
 
 enum Settings {
+    /// Remove only preferences owned by features retired in 3.0. Clipboard,
+    /// snippet, privacy, onboarding and remaining shortcut settings survive.
+    static func removeRetiredPreferences(from defaults: UserDefaults = .standard) {
+        for key in [
+            "automaticLayoutCorrection", "manualCorrectionOptionKey", "layoutExcludedApps",
+            "rememberLayoutPerApplication", "applicationLayoutMemory.v1",
+            "applicationLayoutMemoryOrder.v1", "fixedApplicationLayouts.v1",
+            "fixedApplicationLayoutOrder.v1", "screenshotFormat", "screenshotFolderBookmark.v1",
+            "screenshotShortcut.v1", "fullScreenScreenshotShortcut.v1",
+            "manualLayoutShortcut.v1", "disableAutomaticLayoutShortcut.v1"
+        ] {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
     // UserDefaults documents thread-safe access. Swift 6 does not yet model it
     // as Sendable, so keep the single shared instance explicitly unchecked.
     nonisolated(unsafe) private static let d = UserDefaults.standard
@@ -54,24 +65,11 @@ enum Settings {
         static let capturePausedIndefinitely = CapturePausePreferences.indefiniteKey
         static let ignoreNextCopy = "ignoreNextCopy"
         static let appendNextCopy = "appendNextCopy"
-        static let automaticLayoutCorrection = "automaticLayoutCorrection"
-        static let manualCorrectionOptionKey = "manualCorrectionOptionKey"
-        static let layoutExcludedApps = "layoutExcludedApps"
-        static let rememberLayoutPerApplication = "rememberLayoutPerApplication"
-        static let screenshotFormat = "screenshotFormat"
-        static let applicationLayoutMemory = "applicationLayoutMemory.v1"
-        static let applicationLayoutMemoryOrder = "applicationLayoutMemoryOrder.v1"
-        static let fixedApplicationLayouts = "fixedApplicationLayouts.v1"
-        static let fixedApplicationLayoutOrder = "fixedApplicationLayoutOrder.v1"
         static func shortcut(for action: NeClipShortcutAction) -> String {
             switch action {
             case .history: "historyShortcut.v1"
             case .snippets: "snippetsShortcut.v1"
-            case .screenshot: "screenshotShortcut.v1"
-            case .fullScreenScreenshot: "fullScreenScreenshotShortcut.v1"
             case .sequentialPaste: "sequentialPasteShortcut.v1"
-            case .manualCorrection: "manualLayoutShortcut.v1"
-            case .disableAutomaticCorrection: "disableAutomaticLayoutShortcut.v1"
             }
         }
     }
@@ -174,11 +172,6 @@ enum Settings {
         set { d.set(newValue, forKey: Key.preferPlainText) }
     }
 
-    static var screenshotFormat: ScreenshotFormat {
-        get { ScreenshotFormat(rawValue: d.string(forKey: Key.screenshotFormat) ?? "") ?? .png }
-        set { d.set(newValue.rawValue, forKey: Key.screenshotFormat) }
-    }
-
     static var menuTitleLength: Int {
         get {
             let stored = d.object(forKey: Key.menuTitleLength) as? Int
@@ -199,109 +192,6 @@ enum Settings {
 
     static var sequentialPasteShortcut: ShortcutDescriptor {
         shortcut(for: .sequentialPaste)
-    }
-
-    static var manualLayoutShortcut: ShortcutDescriptor {
-        shortcut(for: .manualCorrection)
-    }
-
-    static var disableAutomaticLayoutShortcut: ShortcutDescriptor {
-        shortcut(for: .disableAutomaticCorrection)
-    }
-
-    /// Global key listening is always explicit opt-in. Missing defaults and
-    /// upgrades both remain off.
-    static var automaticLayoutCorrection: Bool {
-        get { d.bool(forKey: Key.automaticLayoutCorrection) }
-        set {
-            d.set(newValue, forKey: Key.automaticLayoutCorrection)
-            notifyLayoutSettingsChanged()
-        }
-    }
-
-    /// A separate opt-in gesture because Carbon global hotkeys require a key
-    /// code and cannot register a modifier-only Option/Alt press.
-    static var manualCorrectionOptionKey: Bool {
-        get { d.bool(forKey: Key.manualCorrectionOptionKey) }
-        set {
-            d.set(newValue, forKey: Key.manualCorrectionOptionKey)
-            notifyLayoutSettingsChanged()
-        }
-    }
-
-    /// Separate from clipboard capture exclusions: these apps may still copy
-    /// into history while automatic layout correction stays disabled in them.
-    static var layoutExcludedApps: [String] {
-        get { normalizedBundleIDs(d.stringArray(forKey: Key.layoutExcludedApps) ?? defaultLayoutExcluded) }
-        set {
-            d.set(normalizedBundleIDs(newValue), forKey: Key.layoutExcludedApps)
-            notifyLayoutSettingsChanged()
-        }
-    }
-
-    /// This observes only application activation and the selected system input
-    /// source. It never enables or depends on the automatic key-event monitor.
-    static var rememberLayoutPerApplication: Bool {
-        get { d.bool(forKey: Key.rememberLayoutPerApplication) }
-        set {
-            d.set(newValue, forKey: Key.rememberLayoutPerApplication)
-            notifyLayoutSettingsChanged()
-        }
-    }
-
-    static let maximumRememberedApplications = 200
-
-    static func rememberedLayoutSource(for bundleID: String) -> String? {
-        applicationLayoutMemory()[normalizedBundleID(bundleID)]
-    }
-
-    static var rememberedApplicationCount: Int {
-        applicationLayoutMemory().count
-    }
-
-    static func rememberLayoutSource(_ sourceID: String, for bundleID: String) {
-        guard setApplicationLayoutSource(
-            sourceID, for: bundleID,
-            valueKey: Key.applicationLayoutMemory, orderKey: Key.applicationLayoutMemoryOrder
-        ) else { return }
-        notifyApplicationLayoutMemoryChanged()
-    }
-
-    static func clearRememberedApplicationLayouts() {
-        d.removeObject(forKey: Key.applicationLayoutMemory)
-        d.removeObject(forKey: Key.applicationLayoutMemoryOrder)
-        notifyApplicationLayoutMemoryChanged()
-    }
-
-    static func fixedLayoutSource(for bundleID: String) -> String? {
-        fixedApplicationLayouts[normalizedBundleID(bundleID)]
-    }
-
-    static var fixedApplicationCount: Int {
-        fixedApplicationLayouts.count
-    }
-
-    static var fixedApplicationLayouts: [String: String] {
-        boundedApplicationMap(
-            valueKey: Key.fixedApplicationLayouts,
-            orderKey: Key.fixedApplicationLayoutOrder
-        )
-    }
-
-    static func setFixedLayoutSource(_ sourceID: String?, for bundleID: String) {
-        guard setApplicationLayoutSource(
-            sourceID, for: bundleID,
-            valueKey: Key.fixedApplicationLayouts, orderKey: Key.fixedApplicationLayoutOrder
-        ) else { return }
-        notifyLayoutSettingsChanged()
-        notifyApplicationLayoutMemoryChanged()
-    }
-
-    static func clearFixedApplicationLayouts() {
-        d.removeObject(forKey: Key.fixedApplicationLayouts)
-        d.removeObject(forKey: Key.fixedApplicationLayoutOrder)
-        notifyLayoutSettingsChanged()
-        notifyApplicationLayoutMemoryChanged()
     }
 
     /// Persisted capture pause. An expired timed pause is cleared lazily so a
@@ -431,73 +321,6 @@ enum Settings {
         }
     }
 
-    private static func notifyLayoutSettingsChanged() {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .neClipLayoutSettingsDidChange, object: nil)
-        }
-    }
-
-    private static func notifyApplicationLayoutMemoryChanged() {
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .neClipApplicationLayoutMemoryDidChange, object: nil)
-        }
-    }
-
-    private static func applicationLayoutMemory() -> [String: String] {
-        boundedApplicationMap(
-            valueKey: Key.applicationLayoutMemory,
-            orderKey: Key.applicationLayoutMemoryOrder
-        )
-    }
-
-    private static func boundedApplicationMap(valueKey: String, orderKey: String) -> [String: String] {
-        let raw = d.dictionary(forKey: valueKey) as? [String: String] ?? [:]
-        let order = d.stringArray(forKey: orderKey) ?? []
-        var result: [String: String] = [:]
-        for bundle in order.suffix(maximumRememberedApplications) {
-            let normalized = normalizedBundleID(bundle)
-            guard !normalized.isEmpty,
-                  let source = raw[bundle]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !source.isEmpty else { continue }
-            result[normalized] = source
-        }
-        if result.isEmpty {
-            for bundle in raw.keys.sorted().prefix(maximumRememberedApplications) {
-                let normalized = normalizedBundleID(bundle)
-                guard !normalized.isEmpty,
-                      let source = raw[bundle]?.trimmingCharacters(in: .whitespacesAndNewlines),
-                      !source.isEmpty else { continue }
-                result[normalized] = source
-            }
-        }
-        return result
-    }
-
-    private static func setApplicationLayoutSource(
-        _ sourceID: String?, for bundleID: String, valueKey: String, orderKey: String
-    ) -> Bool {
-        let bundle = normalizedBundleID(bundleID)
-        guard !bundle.isEmpty, bundle.count <= 255 else { return false }
-        var mapping = boundedApplicationMap(valueKey: valueKey, orderKey: orderKey)
-        var order = (d.stringArray(forKey: orderKey) ?? [])
-            .map(normalizedBundleID)
-            .filter { !$0.isEmpty && mapping[$0] != nil && $0 != bundle }
-        if let sourceID {
-            let source = sourceID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !source.isEmpty, source.count <= 512 else { return false }
-            mapping[bundle] = source
-            order.append(bundle)
-        } else {
-            mapping.removeValue(forKey: bundle)
-        }
-        while order.count > maximumRememberedApplications {
-            mapping.removeValue(forKey: order.removeFirst())
-        }
-        d.set(mapping, forKey: valueKey)
-        d.set(order, forKey: orderKey)
-        return true
-    }
-
     private static func normalizedBundleIDs(_ values: [String]) -> [String] {
         var seen = Set<String>()
         return values
@@ -528,5 +351,4 @@ enum Settings {
         }
     }
 
-    private static let defaultLayoutExcluded: [String] = []
 }

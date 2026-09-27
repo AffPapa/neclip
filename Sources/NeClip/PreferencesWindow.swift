@@ -101,12 +101,12 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
 }
 
 enum PreferencesSection: String, CaseIterable {
-    case general, shortcuts, safety, privacy, layout, data, version
+    case general, shortcuts, safety, privacy, data, version
 
     /// Keep each operational concern in its own destination. Version remains
     /// opened from About rather than competing with settings.
     static let visibleSections: [PreferencesSection] = [
-        .general, .shortcuts, .layout, .privacy, .data, .safety
+        .general, .shortcuts, .privacy, .data, .safety
     ]
 
     var identifier: NSToolbarItem.Identifier { .init(rawValue) }
@@ -117,7 +117,6 @@ enum PreferencesSection: String, CaseIterable {
         case .shortcuts: "Клавиши"
         case .safety: "Доступы"
         case .privacy: "Приватность"
-        case .layout: "Раскладка"
         case .data: "Данные"
         case .version: "Версия"
         }
@@ -128,7 +127,6 @@ enum PreferencesSection: String, CaseIterable {
         case .shortcuts: "keyboard"
         case .safety: "lock.open"
         case .privacy: "hand.raised"
-        case .layout: "character.cursor.ibeam"
         case .data: "externaldrive"
         case .version: "info.circle"
         }
@@ -283,28 +281,15 @@ private struct PreferencesView: View {
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
     @State private var historyAdvancedExpanded = false
-    @State private var layoutMemoryExpanded = false
     @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
     @State private var preferPlainText = Settings.preferPlainText
     @State private var loginItemStatus = SMAppService.mainApp.status
     @State private var excludedApps = Settings.excludedApps
     @State private var axTrusted = PasteService.isAccessibilityTrusted
     @State private var capturePaused = Settings.isCapturePaused
-    @State private var automaticLayoutCorrection = Settings.automaticLayoutCorrection
-    @State private var manualCorrectionOptionKey = Settings.manualCorrectionOptionKey
-    @State private var rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
-    @State private var rememberedApplicationCount = Settings.rememberedApplicationCount
-    @State private var fixedApplicationCount = Settings.fixedApplicationCount
     @State private var historyShortcut = Settings.historyShortcut
     @State private var snippetsShortcut = Settings.snippetsShortcut
-    @State private var screenshotShortcut = Settings.shortcut(for: .screenshot)
-    @State private var fullScreenScreenshotShortcut = Settings.shortcut(for: .fullScreenScreenshot)
-    @State private var screenshotFolderName = ScreenshotFolder.url?.lastPathComponent ?? "Выбрать…"
     @State private var sequentialPasteShortcut = Settings.sequentialPasteShortcut
-    @State private var manualLayoutShortcut = Settings.manualLayoutShortcut
-    @State private var disableAutomaticLayoutShortcut = Settings.disableAutomaticLayoutShortcut
-    @State private var layoutExcludedApps = Settings.layoutExcludedApps
-    @State private var canListenToInput = LayoutPermissions.canListen
     @State private var deleteAllConfirmation = false
     @State private var clearHistoryConfirmation = false
     @State private var clearHistoryOnQuit = Settings.clearHistoryOnQuit
@@ -368,33 +353,16 @@ private struct PreferencesView: View {
             axTrusted = PasteService.isAccessibilityTrusted
             clipboardAccess = ClipboardAccess.current
             capturePaused = Settings.isCapturePaused
-            canListenToInput = LayoutPermissions.canListen
-            automaticLayoutCorrection = Settings.automaticLayoutCorrection
-            manualCorrectionOptionKey = Settings.manualCorrectionOptionKey
         }
         .onReceive(NotificationCenter.default.publisher(for: .neClipHotKeysDidChange)) { _ in
             historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
             snippetsShortcut = HotKeyCoordinator.shared.shortcut(for: .snippets)
-            screenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
-            fullScreenScreenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .fullScreenScreenshot)
             sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)
-            manualLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .manualCorrection)
-            disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
         }
         .onReceive(NotificationCenter.default.publisher(for: .neClipCaptureControlsDidChange)) { _ in
             capturePaused = Settings.isCapturePaused
             excludedApps = Settings.excludedApps
             captureImages = Settings.captureImages
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .neClipLayoutSettingsDidChange)) { _ in
-            automaticLayoutCorrection = Settings.automaticLayoutCorrection
-            manualCorrectionOptionKey = Settings.manualCorrectionOptionKey
-            layoutExcludedApps = Settings.layoutExcludedApps
-            rememberLayoutPerApplication = Settings.rememberLayoutPerApplication
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .neClipApplicationLayoutMemoryDidChange)) { _ in
-            rememberedApplicationCount = Settings.rememberedApplicationCount
-            fixedApplicationCount = Settings.fixedApplicationCount
         }
         .onChange(of: feedback) { _, message in
             guard let message else { return }
@@ -430,7 +398,6 @@ private struct PreferencesView: View {
         case .shortcuts: shortcutsTab
         case .safety: safetyTab
         case .privacy: privacyTab
-        case .layout: layoutTab
         case .data: dataTab
         case .version: VersionPreferencesView()
         }
@@ -554,31 +521,6 @@ private struct PreferencesView: View {
 
     private var shortcutsTab: some View {
         Form {
-            Section("Скриншоты") {
-                shortcutRow(
-                    "Снимок области", action: .screenshot, shortcut: screenshotShortcut,
-                    accessibilityLabel: "Сочетание для создания скриншота",
-                    onCandidate: { applyShortcut(.screenshot, candidate: $0) }
-                )
-                shortcutRow(
-                    "Снимок всего экрана", action: .fullScreenScreenshot,
-                    shortcut: fullScreenScreenshotShortcut,
-                    accessibilityLabel: "Сочетание для снимка всего экрана",
-                    onCandidate: { applyShortcut(.fullScreenScreenshot, candidate: $0) }
-                )
-                HStack {
-                    Text("Папка для сохранения")
-                    Spacer()
-                    Button(screenshotFolderName) {
-                        do {
-                            if let url = try ScreenshotFolder.choose() { screenshotFolderName = url.lastPathComponent }
-                        } catch { feedback = "Не удалось запомнить папку. Выберите её ещё раз." }
-                    }
-                    .help("Папка по умолчанию для кнопки «Сохранить…» в редакторе")
-                }
-                Text("Выделите область → при желании добавьте пометки → скопируйте или сохраните. Исходный снимок не сохраняется.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Section("Открытие и вставка") {
                 shortcutRow(
                     "Открыть историю",
@@ -603,26 +545,9 @@ private struct PreferencesView: View {
                 )
             }
 
-            Section("Исправление раскладки") {
-                shortcutRow(
-                    "Исправить выделение или последнее слово",
-                    action: .manualCorrection,
-                    shortcut: manualLayoutShortcut,
-                    accessibilityLabel: "Сочетание для ручного исправления раскладки",
-                    onCandidate: { applyShortcut(.manualCorrection, candidate: $0) }
-                )
-                shortcutRow(
-                    "Быстро выключить автоисправление",
-                    action: .disableAutomaticCorrection,
-                    shortcut: disableAutomaticLayoutShortcut,
-                    accessibilityLabel: "Сочетание для выключения автоматического исправления",
-                    onCandidate: { applyShortcut(.disableAutomaticCorrection, candidate: $0) }
-                )
-            }
-
             Section {
                 DisclosureGroup("Работа в меню") {
-                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — вставить без форматирования, ⌃ — исправить раскладку текста.")
+                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — вставить без форматирования.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
@@ -638,7 +563,7 @@ private struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
-    /// macOS permissions live here. Recording/privacy, layout behavior, and
+    /// macOS permissions live here. Recording/privacy and
     /// local data each have their own settings destination below.
     private var safetyTab: some View {
         Form {
@@ -672,17 +597,10 @@ private struct PreferencesView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                permissionRow(
-                    title: "Мониторинг ввода",
-                    granted: canListenToInput,
-                    requiredFor: "для автоисправления раскладки",
-                    buttonTitle: "Открыть «Мониторинг ввода»…",
-                    openSettings: { openPrivacyPane("Privacy_ListenEvent") }
-                )
             }
 
             Section("Как используются доступы") {
-                Text("Буфер обмена нужен для локальной истории. Универсальный доступ — для автовставки и ручной замены выделения. Мониторинг ввода — только для анализа клавиш в автоматическом режиме.")
+                Text("Буфер обмена нужен для локальной истории. Универсальный доступ — только для автовставки выбранной записи или сниппета. Без него можно скопировать выбранное и вставить вручную.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -748,94 +666,6 @@ private struct PreferencesView: View {
                 }
                 .frame(height: 145)
                 Button("Добавить приложение…", action: addApp)
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    private var layoutTab: some View {
-        Form {
-            Section("Раскладка приложений") {
-                Toggle("Запоминать последнюю раскладку для каждого приложения", isOn: $rememberLayoutPerApplication)
-                    .onChange(of: rememberLayoutPerApplication) { _, value in
-                        Settings.rememberLayoutPerApplication = value
-                    }
-                DisclosureGroup(isExpanded: $layoutMemoryExpanded) {
-                    HStack {
-                        Text("Запомнено автоматически: \(rememberedApplicationCount)")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Очистить память") {
-                            Settings.clearRememberedApplicationLayouts()
-                            feedback = "Запомненные раскладки сброшены"
-                        }
-                        .disabled(rememberedApplicationCount == 0)
-                    }
-                    HStack {
-                        Text("Назначено вручную: \(fixedApplicationCount)")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Сбросить назначения") {
-                            Settings.clearFixedApplicationLayouts()
-                            feedback = "Назначенные раскладки сброшены"
-                        }
-                        .disabled(fixedApplicationCount == 0)
-                    }
-                    Text("Запоминание раскладки для приложений доступно в меню NeClip → «Ещё…» → «Раскладка».")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } label: {
-                    Text(rememberedApplicationCount > 0 || fixedApplicationCount > 0
-                         ? "Память раскладок · \(rememberedApplicationCount) автоматически, \(fixedApplicationCount) вручную"
-                         : "Память раскладок")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                        .onTapGesture { layoutMemoryExpanded.toggle() }
-                }
-                Text("Следит только за активным приложением и выбранной системной раскладкой. Текст и нажатия клавиш не читаются; «Мониторинг ввода» не нужен.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Автоматическое исправление") {
-                Toggle("Исправлять раскладку автоматически", isOn: Binding(
-                    get: { automaticLayoutCorrection },
-                    set: { updateAutomaticLayoutCorrection($0) }
-                ))
-                Text("Английская и русская раскладки анализируются после каждой буквы. Замена выполняется только при высокой уверенности; пробел, Tab, Return и безопасная пунктуация остаются резервными границами. Текст обрабатывается локально и не сохраняется.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Toggle("Исправлять по одиночному Option (Alt)", isOn: Binding(
-                    get: { manualCorrectionOptionKey },
-                    set: { updateManualCorrectionOptionKey($0) }
-                ))
-                Text("Нажатие и отпускание Option исправляет выделение или последнее слово. Option+буква и другие сочетания остаются без изменений.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Доступы") {
-                Text("Для автоматического режима нужны «Мониторинг ввода» и «Универсальный доступ». Состояние и кнопки разрешений находятся во вкладке «Доступы».")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Исключения приложений") {
-                DisclosureGroup("Не менять раскладку автоматически в приложениях") {
-                    List {
-                        ForEach(layoutExcludedApps, id: \.self) { bundleID in
-                            ExcludedApplicationRow(bundleIdentifier: bundleID, isProtected: false) {
-                                layoutExcludedApps.removeAll { $0 == bundleID }
-                                Settings.layoutExcludedApps = layoutExcludedApps
-                            }
-                        }
-                    }
-                    .frame(height: 95)
-                    Button("Добавить приложение…", action: addLayoutExcludedApp)
-                    Text("Список применяется к автоисправлению и запоминанию раскладки. Пароли, терминалы, IDE и удалённые рабочие столы дополнительно защищены от автоисправления всегда.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
         .formStyle(.grouped)
@@ -968,76 +798,6 @@ private struct PreferencesView: View {
         loginItemStatus = SMAppService.mainApp.status
     }
 
-    @ViewBuilder
-    private func permissionRow(
-        title: String,
-        granted: Bool,
-        requiredFor: String,
-        buttonTitle: String,
-        openSettings: @escaping () -> Void
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(title, systemImage: granted ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .foregroundStyle(granted ? .green : .orange)
-                Spacer()
-                Text(granted ? "Разрешено" : requiredFor)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if !granted {
-                Button(buttonTitle, action: openSettings)
-            }
-        }
-    }
-
-    private func openPrivacyPane(_ anchor: String) {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    private func updateAutomaticLayoutCorrection(_ enabled: Bool) {
-        if enabled {
-            guard KeyboardLayoutService.shared.layoutPair() != nil else {
-                automaticLayoutCorrection = false
-                Settings.automaticLayoutCorrection = false
-                feedback = "Добавьте английскую и русскую раскладки в настройках macOS"
-                return
-            }
-            guard LayoutPermissions.requestForAutomaticCorrection() else {
-                automaticLayoutCorrection = false
-                Settings.automaticLayoutCorrection = false
-                feedback = "Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова"
-                return
-            }
-        }
-        automaticLayoutCorrection = enabled
-        Settings.automaticLayoutCorrection = enabled
-                feedback = enabled ? "Автоисправление включено: пробел, Tab, Return и безопасная пунктуация" : "Автоисправление выключено"
-    }
-
-    private func updateManualCorrectionOptionKey(_ enabled: Bool) {
-        if enabled {
-            guard KeyboardLayoutService.shared.layoutPair() != nil else {
-                manualCorrectionOptionKey = false
-                Settings.manualCorrectionOptionKey = false
-                feedback = "Добавьте английскую и русскую раскладки в настройках macOS"
-                return
-            }
-            guard LayoutPermissions.requestForManualOptionCorrection() else {
-                manualCorrectionOptionKey = false
-                Settings.manualCorrectionOptionKey = false
-                feedback = "Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова"
-                return
-            }
-        }
-        manualCorrectionOptionKey = enabled
-        Settings.manualCorrectionOptionKey = enabled
-        feedback = enabled
-            ? "Исправление по одиночному Option включено"
-            : "Исправление по одиночному Option выключено"
-    }
-
     private func applyShortcut(_ action: NeClipShortcutAction, candidate: ShortcutDescriptor) {
         let result = HotKeyCoordinator.shared.update(action, to: candidate)
         refreshShortcutState()
@@ -1051,13 +811,9 @@ private struct PreferencesView: View {
     }
 
     private func refreshShortcutState() {
-        screenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
-        fullScreenScreenshotShortcut = HotKeyCoordinator.shared.shortcut(for: .fullScreenScreenshot)
         historyShortcut = HotKeyCoordinator.shared.shortcut(for: .history)
         snippetsShortcut = HotKeyCoordinator.shared.shortcut(for: .snippets)
         sequentialPasteShortcut = HotKeyCoordinator.shared.shortcut(for: .sequentialPaste)
-        manualLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .manualCorrection)
-        disableAutomaticLayoutShortcut = HotKeyCoordinator.shared.shortcut(for: .disableAutomaticCorrection)
     }
 
     private func applyHistoryLimit(_ requested: Int) {
@@ -1245,27 +1001,6 @@ private struct PreferencesView: View {
         }
     }
 
-    private func addLayoutExcludedApp() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK,
-           let url = panel.url,
-           let bundle = Bundle(url: url),
-           let identifier = bundle.bundleIdentifier {
-            switch ApplicationExclusionPolicy.adding(identifier, to: layoutExcludedApps) {
-            case .added(let updated):
-                Settings.layoutExcludedApps = updated
-                layoutExcludedApps = Settings.layoutExcludedApps
-                feedback = "Приложение добавлено в исключения раскладки"
-            case .alreadyExcluded:
-                feedback = "Приложение уже есть в исключениях раскладки"
-            case .invalidIdentifier:
-                feedback = "Не удалось определить идентификатор приложения"
-            }
-        }
-    }
 }
 
 private struct ExcludedApplicationRow: View {

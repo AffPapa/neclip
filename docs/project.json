@@ -18,12 +18,11 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "2.8.8",
-    "build": 54,
-    "status": "released",
+    "version": "3.0.0",
+    "build": 55,
+    "status": "candidate",
     "publicVersion": "2.8.8",
-    "scope": "native snippet token selection and undo, guarded lazy clipboard expansion, screenshot history dimensions and failed-write preservation",
-    "sourceCommit": "76a3884810539a5e8bdb226624e5c46e05dcc376"
+    "scope": "Clipboard history and snippets only; screenshot and keyboard-layout subsystems removed; preserves existing user data"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

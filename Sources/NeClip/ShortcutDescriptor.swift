@@ -37,15 +37,6 @@ struct ShortcutModifiers: OptionSet, Codable, Hashable, Sendable {
         self = value
     }
 
-    init(cgEventFlags: CGEventFlags) {
-        var value: ShortcutModifiers = []
-        if cgEventFlags.contains(.maskCommand) { value.insert(.command) }
-        if cgEventFlags.contains(.maskControl) { value.insert(.control) }
-        if cgEventFlags.contains(.maskAlternate) { value.insert(.option) }
-        if cgEventFlags.contains(.maskShift) { value.insert(.shift) }
-        self = value
-    }
-
     var carbonModifiers: UInt32 {
         var value: UInt32 = 0
         if contains(.command) { value |= UInt32(cmdKey) }
@@ -61,15 +52,6 @@ struct ShortcutModifiers: OptionSet, Codable, Hashable, Sendable {
         if contains(.control) { value.insert(.control) }
         if contains(.option) { value.insert(.option) }
         if contains(.shift) { value.insert(.shift) }
-        return value
-    }
-
-    var cgEventFlags: CGEventFlags {
-        var value: CGEventFlags = []
-        if contains(.command) { value.insert(.maskCommand) }
-        if contains(.control) { value.insert(.maskControl) }
-        if contains(.option) { value.insert(.maskAlternate) }
-        if contains(.shift) { value.insert(.maskShift) }
         return value
     }
 
@@ -111,19 +93,6 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
     let keyCode: UInt32
     let modifiers: ShortcutModifiers
 
-    static let manualLayoutDefault = ShortcutDescriptor(
-        keyCode: UInt32(kVK_ANSI_L),
-        modifiers: [.option, .shift]
-    )
-    static let defaultManualLayout = manualLayoutDefault
-
-    /// An off-only safety shortcut: it must never enable input monitoring.
-    static let disableAutomaticLayoutDefault = ShortcutDescriptor(
-        keyCode: UInt32(kVK_ANSI_A),
-        modifiers: [.control, .option]
-    )
-    static let defaultDisableAutomaticLayout = disableAutomaticLayoutDefault
-
     static let historyDefault = ShortcutDescriptor(
         keyCode: UInt32(kVK_ANSI_V),
         modifiers: [.command, .shift]
@@ -137,18 +106,6 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
     static let sequentialPasteDefault = ShortcutDescriptor(
         keyCode: UInt32(kVK_ANSI_V),
         modifiers: [.control, .command]
-    )
-
-    static let screenshotDefault = ShortcutDescriptor(
-        keyCode: UInt32(kVK_ANSI_2),
-        modifiers: [.command, .shift]
-    )
-
-    /// Capture the entire display without showing the selection shell. Option
-    /// is intentional: macOS reserves ⌘⇧3 for its own screenshot service.
-    static let fullScreenScreenshotDefault = ShortcutDescriptor(
-        keyCode: UInt32(kVK_ANSI_3),
-        modifiers: [.command, .option]
     )
 
     var keyLabel: String? {
@@ -173,24 +130,6 @@ struct ShortcutDescriptor: Codable, Hashable, Sendable {
 
     var nsEventModifiers: NSEvent.ModifierFlags {
         modifiers.nsEventFlags
-    }
-
-    func matches(keyCode candidateKeyCode: UInt32, modifiers candidateModifiers: ShortcutModifiers) -> Bool {
-        keyCode == candidateKeyCode && modifiers == candidateModifiers
-    }
-
-    func matches(keyCode candidateKeyCode: UInt16, cgEventFlags: CGEventFlags) -> Bool {
-        matches(
-            keyCode: UInt32(candidateKeyCode),
-            modifiers: ShortcutModifiers(cgEventFlags: cgEventFlags)
-        )
-    }
-
-    func matches(event: NSEvent) -> Bool {
-        matches(
-            keyCode: UInt32(event.keyCode),
-            modifiers: ShortcutModifiers(nsEventFlags: event.modifierFlags)
-        )
     }
 
     static func isSupportedKeyCode(_ keyCode: UInt32) -> Bool {

@@ -8,11 +8,7 @@ final class MenuSimplificationContractTests: XCTestCase {
         return try String(contentsOf: root.appendingPathComponent("Sources/NeClip/StatusBarController.swift"), encoding: .utf8)
     }
 
-    private func screenshotSource() throws -> String {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-        return try String(contentsOf: root.appendingPathComponent("Sources/NeClip/ScreenshotCoordinator.swift"), encoding: .utf8)
-    }
+
 
     func testBothRootsUseFoldersWithoutDuplicatedQuickListOrImplicitTopTarget() throws {
         let source = try source()
@@ -33,13 +29,13 @@ final class MenuSimplificationContractTests: XCTestCase {
     func testOptionNoLongerOpensAHistoryInspector() throws {
         let source = try source()
         let start = try XCTUnwrap(source.range(of: "private func pasteClip(_ sender:"))
-        let end = try XCTUnwrap(source.range(of: "@objc private func toggleAutomaticLayoutCorrection", range: start.upperBound..<source.endIndex))
+        let end = try XCTUnwrap(source.range(of: "@objc private func pasteSnippet", range: start.upperBound..<source.endIndex))
         let paste = String(source[start.lowerBound..<end.lowerBound])
         XCTAssertFalse(paste.contains("if modifiers.contains(.option)"))
         XCTAssertFalse(paste.contains("HistoryItemInspectorWindowController"))
         XCTAssertFalse(paste.contains("optionOverride"))
         XCTAssertTrue(paste.contains("modifiers.contains(.shift)"))
-        XCTAssertTrue(paste.contains("modifiers.contains(.control)"))
+        XCTAssertFalse(paste.contains("modifiers.contains(.control)"))
         XCTAssertTrue(paste.contains("modifiers.contains(.command)"))
         XCTAssertTrue(paste.contains("forcedModifiers: NSEvent.ModifierFlags?"))
         XCTAssertTrue(source.contains("NSApp.currentEvent?.modifierFlags ?? NSEvent.modifierFlags"))
@@ -60,45 +56,4 @@ final class MenuSimplificationContractTests: XCTestCase {
         XCTAssertTrue(source.contains("SnippetRenderer.render(snippet.content, clipboard: clipboard)"))
     }
 
-    func testScreenshotEntryUsesOneClearAreaActionEverywhere() throws {
-        let statusBar = try source()
-        let preferencesURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Sources/NeClip/PreferencesWindow.swift")
-        let preferences = try String(contentsOf: preferencesURL, encoding: .utf8)
-
-        XCTAssertEqual(statusBar.components(separatedBy: "title: \"Снимок области…\"").count - 1, 1)
-        XCTAssertFalse(statusBar.contains("title: \"Скриншот области…\""))
-        XCTAssertTrue(preferences.contains("\"Снимок области\", action: .screenshot"))
-        XCTAssertTrue(preferences.contains("Text(\"Папка для сохранения\")"))
-        XCTAssertTrue(preferences.contains("Выделите область → при желании добавьте пометки → скопируйте или сохраните."))
-        XCTAssertFalse(preferences.contains("Папка сохранения"))
-    }
-
-    func testScreenshotOffersExplicitFullScreenModeAndShortcut() throws {
-        let statusBar = try source()
-        let preferencesURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Sources/NeClip/PreferencesWindow.swift")
-        let preferences = try String(contentsOf: preferencesURL, encoding: .utf8)
-        let hotKeysURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Sources/NeClip/ShortcutDescriptor.swift")
-        let hotKeys = try String(contentsOf: hotKeysURL, encoding: .utf8)
-
-        XCTAssertTrue(statusBar.contains("Снимок всего экрана"))
-        XCTAssertTrue(statusBar.contains(".fullScreenScreenshot"))
-        XCTAssertTrue(preferences.contains("\"Снимок всего экрана\", action: .fullScreenScreenshot"))
-        XCTAssertTrue(hotKeys.contains("fullScreenScreenshotDefault"))
-    }
-
-    func testLargeDisplayCaptureScalesTheWholeSourceInsteadOfCropping() throws {
-        let source = try screenshotSource()
-        XCTAssertFalse(source.contains("configuration.sourceRect = filter.contentRect"),
-                       "Display capture must use the filter's complete default source")
-        XCTAssertTrue(source.contains("configuration.scalesToFit = true"),
-                      "A bounded capture must fit the complete source into its output canvas")
-        XCTAssertTrue(source.contains("configuration.preservesAspectRatio = true"),
-                      "A bounded capture must preserve the display aspect ratio")
-    }
 }

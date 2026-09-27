@@ -18,16 +18,16 @@ final class CaptureResumeTests: XCTestCase {
         withDefaults { defaults in
             defaults.set(true, forKey: CapturePausePreferences.indefiniteKey)
             defaults.set(Date().addingTimeInterval(900), forKey: CapturePausePreferences.untilKey)
-            defaults.set(true, forKey: "automaticLayoutCorrection")
-            defaults.set(true, forKey: "rememberLayoutPerApplication")
+            defaults.set(true, forKey: "captureImages")
+            defaults.set(true, forKey: "preferPlainText")
             XCTAssertFalse(CapturePausePreferences.isLaunchLocked(in: defaults))
 
             CapturePausePreferences.resume(in: defaults)
 
             XCTAssertFalse(defaults.bool(forKey: CapturePausePreferences.indefiniteKey))
             XCTAssertNil(defaults.object(forKey: CapturePausePreferences.untilKey))
-            XCTAssertTrue(defaults.bool(forKey: "automaticLayoutCorrection"))
-            XCTAssertTrue(defaults.bool(forKey: "rememberLayoutPerApplication"))
+            XCTAssertTrue(defaults.bool(forKey: "captureImages"))
+            XCTAssertTrue(defaults.bool(forKey: "preferPlainText"))
         }
     }
 
@@ -35,8 +35,8 @@ final class CaptureResumeTests: XCTestCase {
         withDefaults { defaults in
             let arguments = [
                 CapturePausePreferences.indefiniteKey: "YES",
-                "automaticLayoutCorrection": "NO",
-                "rememberLayoutPerApplication": "NO"
+                "captureImages": "NO",
+                "preferPlainText": "NO"
             ]
             defaults.set(true, forKey: CapturePausePreferences.indefiniteKey)
             defaults.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
@@ -46,8 +46,8 @@ final class CaptureResumeTests: XCTestCase {
 
             XCTAssertTrue(defaults.bool(forKey: CapturePausePreferences.indefiniteKey))
             XCTAssertTrue(CapturePausePreferences.isLaunchLocked(in: defaults))
-            XCTAssertFalse(defaults.bool(forKey: "automaticLayoutCorrection"))
-            XCTAssertFalse(defaults.bool(forKey: "rememberLayoutPerApplication"))
+            XCTAssertFalse(defaults.bool(forKey: "captureImages"))
+            XCTAssertFalse(defaults.bool(forKey: "preferPlainText"))
             XCTAssertEqual(defaults.volatileDomain(forName: UserDefaults.argumentDomain) as NSDictionary, arguments as NSDictionary)
         }
     }
