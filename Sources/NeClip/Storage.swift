@@ -1259,6 +1259,18 @@ final class Storage: @unchecked Sendable {
         notifyChange(.clips)
     }
 
+    struct Statistics: Equatable, Sendable {
+        let history: Int
+        let snippets: Int
+    }
+
+    /// Count in one consistent read without loading or sorting stored content.
+    func statistics() throws -> Statistics {
+        try dbQueue.read { db in
+            Statistics(history: try ClipItem.fetchCount(db), snippets: try Snippet.fetchCount(db))
+        }
+    }
+
     var count: Int {
         (try? dbQueue.read { db in try ClipItem.fetchCount(db) }) ?? 0
     }
