@@ -96,8 +96,7 @@ enum ApplicationExclusionPolicy {
         guard !existing.contains(where: {
             $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(identifier) == .orderedSame
         }) else { return .alreadyExcluded }
-        // Automatic text-correction protection and the user's layout-memory
-        // exclusions are separate: Terminal/IDEs may be explicitly excluded.
+        // Any application, including Terminal or an IDE, may be excluded.
         return .added(existing + [identifier])
     }
 }

@@ -129,46 +129,4 @@ final class RemainingAuditTests: XCTestCase {
             readGeneration: { 7 }, readText: { nil }))
     }
 
-    @MainActor
-    func testFailedScreenshotWriteRestoresAllRepresentations() throws {
-        let board = NSPasteboard(name: .init("neclip.rollback.\(UUID())"))
-        defer { board.releaseGlobally() }
-        board.clearContents()
-        board.setString("old synthetic", forType: .string)
-        let custom = NSPasteboard.PasteboardType("org.neclip.synthetic")
-        board.setData(Data([1, 2, 3]), forType: custom)
-        XCTAssertThrowsError(try ScreenshotClipboard.write(Data([4]), to: board,
-            expectedChangeCount: board.changeCount, writeObjects: { _ in false }))
-        XCTAssertEqual(board.string(forType: .string), "old synthetic")
-        XCTAssertEqual(board.data(forType: custom), Data([1, 2, 3]))
-    }
-
-    @MainActor
-    func testFailedScreenshotWritePreservesInterveningExternalCopy() throws {
-        let board = NSPasteboard(name: .init("neclip.rollback.external.\(UUID())"))
-        defer { board.releaseGlobally() }
-        board.clearContents()
-        board.setString("old", forType: .string)
-        XCTAssertThrowsError(try ScreenshotClipboard.write(Data([4]), to: board,
-            expectedChangeCount: board.changeCount, writeObjects: { _ in
-                board.clearContents()
-                board.setString("new external synthetic", forType: .string)
-                return false
-            }))
-        XCTAssertEqual(board.string(forType: .string), "new external synthetic")
-    }
-
-    @MainActor
-    func testScreenshotSnapshotLimitLeavesClipboardUntouched() throws {
-        let board = NSPasteboard(name: .init("neclip.rollback.limit.\(UUID())"))
-        defer { board.releaseGlobally() }
-        board.clearContents()
-        let data = Data(repeating: 1, count: 16 * 1024 * 1024 + 1)
-        XCTAssertTrue(board.setData(data, forType: .png))
-        let generation = board.changeCount
-        XCTAssertThrowsError(try ScreenshotClipboard.write(Data([4]), to: board,
-            expectedChangeCount: generation, writeObjects: { _ in XCTFail("Must not clear/write"); return false }))
-        XCTAssertEqual(board.changeCount, generation)
-        XCTAssertEqual(board.data(forType: .png), data)
-    }
 }

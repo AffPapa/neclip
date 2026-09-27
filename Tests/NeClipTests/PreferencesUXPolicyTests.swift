@@ -68,15 +68,12 @@ final class PreferencesUXPolicyTests: XCTestCase {
         XCTAssertNil(state.warning)
     }
 
-    func testTerminalCanBeExcludedFromLayoutMemoryWithoutWeakeningTextProtection() {
+    func testTerminalCanBeExcludedFromClipboardHistory() {
         let identifier = "com.apple.Terminal"
         guard case .added(let excluded) = ApplicationExclusionPolicy.adding(identifier, to: []) else {
-            return XCTFail("Terminal must be eligible for an explicit memory exclusion")
+            return XCTFail("Terminal must be eligible for an explicit clipboard exclusion")
         }
-        XCTAssertFalse(ApplicationLayoutMemoryPolicy.isEligible(
-            bundleID: identifier, ownBundleID: "org.affpapa.neclip", userExcluded: Set(excluded)
-        ))
-        XCTAssertTrue(LayoutProtectedApplicationPolicy.blocksAutomatic(bundleID: identifier, userExcluded: []))
+        XCTAssertEqual(excluded, [identifier])
     }
 
     func testExclusionDuplicatesIgnoreCaseAndWhitespace() {

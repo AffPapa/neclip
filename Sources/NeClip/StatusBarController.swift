@@ -155,11 +155,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         hotKeyWarnings = warnings
     }
 
-    func showLayoutFeedback(_ message: String) {
-        showFeedback(message)
-        Task { @MainActor in LayoutFeedbackHUD.shared.show(message) }
-    }
-
     @objc private func storageDidChange(_ notification: Notification) {
         let domain = StorageChangeDomain.from(notification)
         refreshState.invalidate(domain)
@@ -423,20 +418,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     /// Shared by initial, loading, empty, error and result states. Explicit
     /// targets keep Quit enabled in a menu-bar-only application.
     static func appendStandardFooter(to menu: NSMenu, target: AnyObject) {
-        let shortcut = HotKeyCoordinator.shared.shortcut(for: .screenshot)
-        let screenshot = NSMenuItem(title: "Снимок области…", action: #selector(takeScreenshot),
-                                    keyEquivalent: shortcut.keyEquivalent ?? "")
-        screenshot.target = target
-        screenshot.keyEquivalentModifierMask = shortcut.nsEventModifiers
-        screenshot.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: nil)
-        menu.addItem(screenshot)
-        let fullScreenShortcut = HotKeyCoordinator.shared.shortcut(for: .fullScreenScreenshot)
-        let fullScreen = NSMenuItem(title: "Снимок всего экрана", action: #selector(takeFullScreenScreenshot),
-                                    keyEquivalent: fullScreenShortcut.keyEquivalent ?? "")
-        fullScreen.target = target
-        fullScreen.keyEquivalentModifierMask = fullScreenShortcut.nsEventModifiers
-        fullScreen.image = NSImage(systemSymbolName: "rectangle.inset.filled", accessibilityDescription: nil)
-        menu.addItem(fullScreen)
         let settings = NSMenuItem(title: "Настройки…", action: #selector(openPreferences), keyEquivalent: ",")
         settings.target = target
         settings.keyEquivalentModifierMask = [.command]
@@ -447,20 +428,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         quit.target = target
         quit.keyEquivalentModifierMask = [.command]
         menu.addItem(quit)
-    }
-
-    @objc private func takeScreenshot() {
-        activeMenu?.cancelTracking()
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .neClipScreenshotRequested, object: nil)
-        }
-    }
-
-    @objc private func takeFullScreenScreenshot() {
-        activeMenu?.cancelTracking()
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .neClipFullScreenScreenshotRequested, object: nil)
-        }
     }
 
     private func appendSnippetFolders(to menu: NSMenu) {
@@ -537,7 +504,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let root = item("Ещё…", nil, symbol: "ellipsis.circle")
         let submenu = makeMenu(title: "Ещё")
         appendSequentialPasteControls(to: submenu)
-        submenu.addItem(layoutMenuItem())
         submenu.addItem(.separator())
         submenu.addItem(captureStatusMenuItem())
         addCaptureControls(to: submenu)
@@ -675,7 +641,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         entry.representedObject = NSNumber(value: clip.id)
         entry.toolTip = [clip.text,
-                         clip.kind == .text ? "⇧ — без оформления · ⌃ — исправить раскладку" : nil]
+                         clip.kind == .text ? "⇧ — без оформления" : nil]
             .compactMap { $0 }.joined(separator: "\n")
         entry.submenu = clipActionsMenu(for: clip)
         return entry
@@ -767,56 +733,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         entry.representedObject = NSNumber(value: clipID)
         entry.image = NSImage(systemSymbolName: "arrow.down.doc", accessibilityDescription: nil)
         return entry
-    }
-
-    private func layoutMenuItem() -> NSMenuItem {
-        let root = item("Раскладка", nil, symbol: "character.cursor.ibeam")
-        let submenu = makeMenu(title: "Раскладка")
-        let shortcuts = HotKeyCoordinator.shared
-        let remember = item(
-            "Запоминать раскладку приложений",
-            #selector(toggleApplicationLayoutMemory),
-            symbol: "app.badge.checkmark"
-        )
-        remember.state = Settings.rememberLayoutPerApplication ? .on : .off
-        submenu.addItem(remember)
-        submenu.addItem(.separator())
-        let automatic = item(
-            "Автоматически исправлять (бета)",
-            #selector(toggleAutomaticLayoutCorrection),
-            symbol: "wand.and.stars"
-        )
-        automatic.state = Settings.automaticLayoutCorrection ? .on : .off
-        submenu.addItem(automatic)
-        let optionOnly = item(
-            "Исправлять по одиночному Option (Alt)",
-            #selector(toggleManualCorrectionOptionKey),
-            symbol: "option"
-        )
-        optionOnly.state = Settings.manualCorrectionOptionKey ? .on : .off
-        submenu.addItem(optionOnly)
-        let disableShortcut = shortcuts.shortcut(for: .disableAutomaticCorrection)
-        let disable = item(
-            "Быстро выключить автоисправление",
-            #selector(disableAutomaticLayoutCorrection),
-            symbol: "stop.circle",
-            keyEquivalent: disableShortcut.keyEquivalent ?? "",
-            modifiers: disableShortcut.nsEventModifiers
-        )
-        disable.isEnabled = Settings.automaticLayoutCorrection
-        submenu.addItem(disable)
-        let manualShortcut = shortcuts.shortcut(for: .manualCorrection)
-        submenu.addItem(item(
-            "Исправить выделение или последнее слово",
-            #selector(correctFocusedLayout),
-            symbol: "text.cursor",
-            keyEquivalent: manualShortcut.keyEquivalent ?? "",
-            modifiers: manualShortcut.nsEventModifiers
-        ))
-        submenu.addItem(.separator())
-        submenu.addItem(item("⌃ + щелчок — исправить раскладку при вставке", nil, symbol: "info.circle"))
-        root.submenu = submenu
-        return root
     }
 
     private func historyCleanupMenuItem() -> NSMenuItem {
@@ -1123,8 +1039,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         guard let id = (sender.representedObject as? NSNumber)?.int64Value else { return }
         let capturedTargetPID = destinationPID
         let modifiers = forcedModifiers ?? actionModifiers
-        let correctLayout = modifiers.contains(.control)
-        let plainText = correctLayout || modifiers.contains(.shift) || Settings.preferPlainText
+        let plainText = modifiers.contains(.shift) || Settings.preferPlainText
         let copyOnly = modifiers.contains(.command)
 
         dataQueue.async { [weak self] in
@@ -1135,19 +1050,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 }
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
-                    var itemToPaste = clip
-                    if correctLayout {
-                        guard clip.kind == .text,
-                              let text = clip.text,
-                              let conversion = KeyboardLayoutService.shared.convert(text) else {
-                            self.showLayoutFeedback(clip.kind == .text ? "Нечего исправлять" : "Исправляется только текст")
-                            return
-                        }
-                        itemToPaste.text = conversion.converted
-                        itemToPaste.rtf = nil
-                    }
                     PasteService.paste(
-                        itemToPaste,
+                        clip,
                         plainText: plainText,
                         targetPID: capturedTargetPID,
                         copyOnly: copyOnly
@@ -1159,65 +1063,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
                 DispatchQueue.main.async { self?.showFeedback("Не удалось открыть элемент") }
             }
         }
-    }
-
-    @objc private func toggleAutomaticLayoutCorrection() {
-        if Settings.automaticLayoutCorrection {
-            NotificationCenter.default.post(
-                name: .neClipDisableAutomaticLayoutCorrectionRequested,
-                object: nil
-            )
-            return
-        }
-        guard KeyboardLayoutService.shared.layoutPair() != nil else {
-            showLayoutFeedback("Добавьте английскую и русскую раскладки в настройках macOS")
-            return
-        }
-        guard LayoutPermissions.requestForAutomaticCorrection() else {
-            PreferencesWindowController.shared.show()
-            showLayoutFeedback("Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова")
-            return
-        }
-        Settings.automaticLayoutCorrection = true
-        showLayoutFeedback(
-            Settings.automaticLayoutCorrection
-                ? "Автоисправление включено · анализ после каждой буквы"
-                : "Автоисправление не удалось включить"
-        )
-    }
-
-    @objc private func toggleManualCorrectionOptionKey() {
-        if Settings.manualCorrectionOptionKey {
-            Settings.manualCorrectionOptionKey = false
-            showLayoutFeedback("Исправление по одиночному Option выключено")
-            return
-        }
-        guard KeyboardLayoutService.shared.layoutPair() != nil else {
-            showLayoutFeedback("Добавьте английскую и русскую раскладки в настройках macOS")
-            return
-        }
-        guard LayoutPermissions.requestForManualOptionCorrection() else {
-            PreferencesWindowController.shared.show()
-            showLayoutFeedback("Разрешите Мониторинг ввода и Универсальный доступ, затем включите снова")
-            return
-        }
-        Settings.manualCorrectionOptionKey = true
-        showLayoutFeedback(
-            Settings.manualCorrectionOptionKey
-                ? "Исправление по одиночному Option включено"
-                : "Исправление по одиночному Option не удалось включить"
-        )
-    }
-
-    @objc private func correctFocusedLayout() {
-        NotificationCenter.default.post(name: .neClipManualLayoutCorrectionRequested, object: nil)
-    }
-
-    @objc private func disableAutomaticLayoutCorrection() {
-        NotificationCenter.default.post(
-            name: .neClipDisableAutomaticLayoutCorrectionRequested,
-            object: nil
-        )
     }
 
     @objc private func pasteSnippet(_ sender: NSMenuItem) {
@@ -1292,8 +1137,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             showFeedback("Окно изменилось — только скопировано")
         case .failed(.clipboardChanged):
             showFeedback("Буфер изменился — вставка отменена")
-        case .pasteUnconfirmed:
-            showFeedback("Вставка не подтверждена — текст оставлен в буфере")
         case .failed:
             showFeedback("Не удалось скопировать")
         }
@@ -1405,15 +1248,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         Settings.appendNextCopy.toggle()
         refreshIcon()
         showFeedback(Settings.appendNextCopy ? "следующий текст объединится с предыдущим" : "объединение отменено")
-    }
-
-    @objc private func toggleApplicationLayoutMemory() {
-        Settings.rememberLayoutPerApplication.toggle()
-        showFeedback(
-            Settings.rememberLayoutPerApplication
-                ? "раскладка приложений запоминается"
-                : "запоминание раскладки выключено"
-        )
     }
 
     @objc private func pauseForFifteenMinutes() {

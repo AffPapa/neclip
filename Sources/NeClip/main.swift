@@ -2,13 +2,11 @@ import AppKit
 
 MainActor.assumeIsolated {
 #if DEBUG
-    if RuntimeIdentity.isScreenshotQA {
-        // A Finder/LaunchServices relaunch must retain the fixture's safety
-        // boundary even when environment variables and CLI args are absent.
+    if RuntimeIdentity.isIsolatedPreview {
+        // Preview windows never record the user's real clipboard, including
+        // when Finder relaunches the bundle without its original arguments.
         var arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
         arguments["capturePausedIndefinitely"] = true
-        arguments["automaticLayoutCorrection"] = false
-        arguments["rememberLayoutPerApplication"] = false
         UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
     }
 #endif

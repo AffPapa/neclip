@@ -13,7 +13,6 @@ enum PasteResult: Equatable {
     case copiedOnlyNoAccessibility
     case copiedOnlyTargetChanged
     case pasted
-    case pasteUnconfirmed
     case failed(PasteFailure)
 }
 
@@ -118,98 +117,6 @@ enum PasteService {
                       pasteboard: pasteboard, completion: completion)
     }
 
-    /// Replaces an already selected range for an explicit user command, then
-    /// restores the previous pasteboard only if no other process has changed
-    /// it in the meantime. Auto layout correction never uses this path.
-    @MainActor
-    static func replaceSelection(
-        with string: String,
-        targetPID: pid_t,
-        validateTarget: () -> Bool,
-        verifyReplacement: @escaping () -> Bool,
-        completion: Completion? = nil
-    ) {
-        guard isAccessibilityTrusted else {
-            finish(.copiedOnlyNoAccessibility, completion: completion)
-            return
-        }
-
-        let pasteboard = NSPasteboard.general
-        let snapshotGeneration = pasteboard.changeCount
-        guard let savedItems = snapshotPasteboard(pasteboard) else {
-            finish(.failed(.clipboardSnapshot), completion: completion)
-            return
-        }
-        guard pasteboard.changeCount == snapshotGeneration,
-              validateTarget(),
-              NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID else {
-            finish(.copiedOnlyTargetChanged, completion: completion)
-            return
-        }
-        pasteboard.clearContents()
-        guard pasteboard.setString(string, forType: .string) else {
-            restorePasteboard(savedItems, ifGenerationIs: pasteboard.changeCount)
-            finish(.failed(.clipboardWrite), completion: completion)
-            return
-        }
-        let replacementGeneration = pasteboard.changeCount
-        ClipboardWriteGuard.shared.markOwnWrite(changeCount: replacementGeneration)
-
-        guard validateTarget(),
-              NSWorkspace.shared.frontmostApplication?.processIdentifier == targetPID else {
-            restorePasteboard(savedItems, ifGenerationIs: replacementGeneration)
-            finish(.copiedOnlyTargetChanged, completion: completion)
-            return
-        }
-        guard sendCmdV(to: targetPID) else {
-            restorePasteboard(savedItems, ifGenerationIs: replacementGeneration)
-            finish(.failed(.eventCreation), completion: completion)
-            return
-        }
-        confirmSelectionPaste(
-            attemptsRemaining: 20,
-            verifyReplacement: verifyReplacement,
-            savedItems: savedItems,
-            replacementGeneration: replacementGeneration,
-            completion: completion
-        )
-    }
-
-    @MainActor
-    static func confirmSelectionPaste(
-        attemptsRemaining: Int,
-        verifyReplacement: @escaping () -> Bool,
-        savedItems: [NSPasteboardItem],
-        replacementGeneration: Int,
-        pasteboard: NSPasteboard = .general,
-        completion: Completion?
-    ) {
-        if verifyReplacement() {
-            restorePasteboard(savedItems, ifGenerationIs: replacementGeneration, pasteboard: pasteboard)
-            finish(.pasted, completion: completion)
-            return
-        }
-        guard attemptsRemaining > 1 else {
-            // An unacknowledged event may still be queued in the recipient.
-            // Restoring here could paste unrelated, sensitive previous data.
-            // Keep the replacement until a future explicit clipboard write.
-            finish(.pasteUnconfirmed, completion: completion)
-            return
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(25)) {
-            MainActor.assumeIsolated {
-                confirmSelectionPaste(
-                    attemptsRemaining: attemptsRemaining - 1,
-                    verifyReplacement: verifyReplacement,
-                    savedItems: savedItems,
-                    replacementGeneration: replacementGeneration,
-                    pasteboard: pasteboard,
-                    completion: completion
-                )
-            }
-        }
-    }
-
     static func completePaste(
         copyOnly: Bool, targetPID: pid_t?, expectedGeneration: Int,
         pasteboard: NSPasteboard = .general,
@@ -291,7 +198,7 @@ enum PasteService {
 
     /// Captures every advertised representation or fails before the pasteboard
     /// is cleared. Returning a partial snapshot would silently destroy lazy or
-    /// promised data after manual layout correction.
+    /// all representations after a failed clipboard write.
     static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem]? {
         let sources = pasteboard.pasteboardItems ?? []
         return snapshotPasteboardItems(sources, advertisedTypes: pasteboard.types)

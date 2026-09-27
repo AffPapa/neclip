@@ -53,7 +53,7 @@ struct ShortcutRecorder: NSViewRepresentable {
 @MainActor
 final class ShortcutRecorderButton: NSButton {
     fileprivate var coordinator: ShortcutRecorder.Coordinator?
-    fileprivate var shortcut: ShortcutDescriptor = .manualLayoutDefault {
+    fileprivate var shortcut: ShortcutDescriptor = .historyDefault {
         didSet {
             if !isRecording { title = shortcut.displayString }
         }

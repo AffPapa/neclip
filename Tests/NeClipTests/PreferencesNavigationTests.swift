@@ -18,11 +18,11 @@ final class PreferencesNavigationTests: XCTestCase {
             let controller = PreferencesWindowController()
             let toolbar = NSToolbar(identifier: "test")
             let identifiers = controller.toolbarDefaultItemIdentifiers(toolbar)
-            XCTAssertEqual(identifiers.count, 6)
-            XCTAssertEqual(Set(identifiers).count, 6)
+            XCTAssertEqual(identifiers.count, 5)
+            XCTAssertEqual(Set(identifiers).count, 5)
             XCTAssertEqual(identifiers, PreferencesSection.visibleSections.map(\.identifier))
             XCTAssertFalse(identifiers.contains(PreferencesSection.version.identifier))
-            XCTAssertTrue(identifiers.contains(PreferencesSection.layout.identifier))
+            XCTAssertNil(PreferencesSection(rawValue: "layout"))
             XCTAssertTrue(identifiers.contains(PreferencesSection.privacy.identifier))
             XCTAssertTrue(identifiers.contains(PreferencesSection.data.identifier))
             XCTAssertTrue(identifiers.contains(PreferencesSection.safety.identifier))
@@ -67,6 +67,6 @@ final class PreferencesNavigationTests: XCTestCase {
         XCTAssertTrue(source.contains("window?.title = section.windowTitle"))
         XCTAssertFalse(source.contains("⌥ — изменить режим форматирования"))
         XCTAssertFalse(source.contains("⌥ — просмотреть выбранное"))
-        XCTAssertTrue(source.contains("DisclosureGroup(isExpanded: $layoutMemoryExpanded)"))
+        XCTAssertFalse(source.contains("layoutMemoryExpanded"))
     }
 }

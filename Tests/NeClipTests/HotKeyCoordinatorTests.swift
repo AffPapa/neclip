@@ -107,18 +107,18 @@ final class HotKeyCoordinatorTests: XCTestCase {
     @MainActor
     func testSameCandidateRetriesAfterStartupConflictDisappears() {
         let registry = FakeHotKeyRegistry()
-        registry.setBlocked([.defaultManualLayout])
+        registry.setBlocked([.snippetsDefault])
         let coordinator = makeCoordinator(registry: registry)
         start(coordinator)
-        XCTAssertFalse(registry.active.contains(.defaultManualLayout))
+        XCTAssertFalse(registry.active.contains(.snippetsDefault))
 
         registry.setBlocked([])
-        XCTAssertEqual(coordinator.update(.manualCorrection, to: .defaultManualLayout), .applied)
-        XCTAssertTrue(registry.active.contains(.defaultManualLayout))
+        XCTAssertEqual(coordinator.update(.snippets, to: .snippetsDefault), .applied)
+        XCTAssertTrue(registry.active.contains(.snippetsDefault))
     }
 
     @MainActor
-    func testResetRestoresAllFiveDefaultsAsOneTransaction() {
+    func testResetRestoresAllThreeDefaultsAsOneTransaction() {
         let registry = FakeHotKeyRegistry()
         let coordinator = makeCoordinator(registry: registry)
         start(coordinator)
@@ -161,9 +161,7 @@ final class HotKeyCoordinatorTests: XCTestCase {
         coordinator.start(
             historyAction: {},
             snippetsAction: {},
-            sequentialPasteAction: {},
-            manualCorrectionAction: {},
-            disableAutomaticCorrectionAction: {}
+            sequentialPasteAction: {}
         )
     }
 }
