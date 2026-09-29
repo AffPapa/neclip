@@ -28,6 +28,32 @@ final class HistorySearchTests: XCTestCase {
     }
 
     @MainActor
+    func testUnchangedApplicationsKeepNativeMenuItemsAndSelection() async throws {
+        _ = NSApplication.shared
+        let queue = DispatchQueue(label: "test.search.stable-apps")
+        let storage = try Storage(inMemory: true, installStarterContent: false)
+        _ = try storage.insert(ClipItem(kind: .text, title: "A", text: "body",
+                                       appBundleID: "org.test.editor", createdAt: Date()))
+        let controller = HistorySearchPanelController(storage: storage, dataQueue: queue)
+        controller.prepare(targetPID: nil, paste: { _, _, _, _ in }, save: { _ in }, open: { _ in })
+        let window = try XCTUnwrap(controller.window)
+        defer { window.close() }
+        let views = descendants(try XCTUnwrap(window.contentView))
+        await settle(queue)
+        await settle(queue)
+        let popup = try XCTUnwrap(views.compactMap { $0 as? NSPopUpButton }.first {
+            $0.itemArray.contains { ($0.representedObject as? String) == "org.test.editor" }
+        })
+        let item = try XCTUnwrap(popup.itemArray.last)
+        popup.select(item)
+        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(popup.action), to: popup.target, from: popup))
+        await settle(queue)
+        await settle(queue)
+        XCTAssertTrue(popup.selectedItem === item)
+        XCTAssertTrue(popup.itemArray.last === item)
+    }
+
+    @MainActor
     func testChangingQueryImmediatelyBlocksEveryActionOnOldSelection() async throws {
         _ = NSApplication.shared
         let queue = DispatchQueue(label: "test.search.actions")

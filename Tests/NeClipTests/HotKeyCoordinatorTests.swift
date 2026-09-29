@@ -123,6 +123,11 @@ final class HotKeyCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(registry: registry)
         start(coordinator)
         XCTAssertEqual(coordinator.update(.history, to: alternateHistory), .applied)
+        XCTAssertEqual(coordinator.update(.snippets, to: .historyDefault), .applied)
+        XCTAssertEqual(coordinator.update(.history, to: .snippetsDefault), .applied)
+        guard case .rejected = coordinator.update(.history, to: .historyDefault) else {
+            return XCTFail("An individual reset cannot recover swapped defaults")
+        }
         XCTAssertEqual(coordinator.resetToDefaults(), .applied)
         let defaults = Set(NeClipShortcutAction.allCases.map(\.defaultShortcut))
         XCTAssertEqual(coordinator.allShortcuts, defaults)

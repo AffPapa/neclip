@@ -18,12 +18,11 @@
     "dockIcon": false
   },
   "sourceCandidate": {
-    "version": "3.0.1",
-    "build": 56,
-    "status": "released",
+    "version": "3.0.2",
+    "build": 57,
+    "status": "candidate",
     "publicVersion": "3.0.1",
-    "scope": "Minimal clipboard/snippet audit: token-owned sequential paste, accurate settings, asynchronous SQL counts, dead menu code removal",
-    "sourceCommit": "8a76c079d53ead5876f7efff4288ffdf621367e5"
+    "scope": "Three settings sections, clearer controls and backup restore, file plain-text paste, reduced trim and search menu work"
   },
   "canonical": {
     "repository": "https://github.com/AffPapa/neclip",

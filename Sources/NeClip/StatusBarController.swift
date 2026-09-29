@@ -781,7 +781,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         submenu.addItem(.separator())
 
-        submenu.addItem(item("Открыть «Доступы»…", #selector(openAccessPreferences), symbol: "lock.open"))
+        submenu.addItem(item("Приватность и доступы…", #selector(openAccessPreferences), symbol: "lock.open"))
         root.submenu = submenu
         return root
     }

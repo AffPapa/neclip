@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.0.2 / build 57 — source candidate
+
+- Settings now have three destinations: General, Privacy and Data. Shortcuts and menu appearance use expandable groups; exact history limit has one editor.
+- Keep active shortcut hints, automatic cleanup notices and permission recovery visible. All stored preferences remain supported.
+- Return from About to the previous visible settings section. Use one transactional shortcut reset, including swapped assignments.
+- Restore from a backup explicitly explains database replacement and offers cancellation before any data operation.
+- Plain-text paste of files writes readable paths, without JSON or a file attachment representation.
+- Skip unchanged application-menu reconstruction, remove an unused history-size aggregation and dead storage helpers.
+- No screenshot/layout features, new dependencies or database schema changes.
+
 ## 3.0.1 / build 56 — released 2026-09-27
 
 - Serialize sequential paste with per-attempt ownership; reject obsolete completions after reset or expiry.

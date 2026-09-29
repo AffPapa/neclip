@@ -178,6 +178,26 @@ final class HotPathBenchmarks: XCTestCase {
         }
     }
 
+    func testSyntheticHistoryTrimLatency() throws {
+        guard ProcessInfo.processInfo.environment["NECLIP_RUN_HOT_PATH_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Opt-in synthetic history trim benchmark")
+        }
+        let oldLimit = Settings.historyLimit, oldRetention = Settings.retentionDays
+        defer { Settings.historyLimit = oldLimit; Settings.retentionDays = oldRetention }
+        Settings.historyLimit = 1_000
+        Settings.retentionDays = 0
+        for size in [100, 500, 1_000] {
+            let storage = try Storage(inMemory: true, installStarterContent: false, enforceHistoryLimitOnWrite: false)
+            for index in 0..<size {
+                _ = try storage.insert(ClipItem(kind: .text, title: "Synthetic \(index)",
+                    text: "Synthetic body \(index)", createdAt: Date(timeIntervalSince1970: Double(index))))
+            }
+            try storage.trimToLimits()
+            try record("history-trim-\(size)", iterations: 100) { _ in try storage.trimToLimits() }
+            XCTAssertEqual(storage.count, size)
+        }
+    }
+
     private func record(
         _ label: String,
         iterations: Int,
