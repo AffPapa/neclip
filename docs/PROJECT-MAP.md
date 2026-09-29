@@ -1,8 +1,8 @@
 # NeClip project map
 
-Current public release: **3.0.1 / build 56**. The exact signed artifacts,
+Current public release: **3.0.2 / build 57**. The exact signed artifacts,
 source commit and release checks are recorded in
-[RELEASE-3.0.1-STATUS.md](RELEASE-3.0.1-STATUS.md).
+[RELEASE-3.0.2-STATUS.md](RELEASE-3.0.2-STATUS.md).
 
 ## Runtime ownership
 
@@ -14,12 +14,12 @@ source commit and release checks are recorded in
 - `HotKeyCoordinator` owns configurable global shortcuts and conflict handling.
 - `PasteService` owns clipboard snapshots, generation guards and optional automatic paste.
 - `SnippetTextEditor` and `SnippetRenderer` own native editing, document-scoped undo and local templates.
-- `PreferencesWindow` exposes general, shortcuts, privacy, data and access settings.
+- `PreferencesWindow` exposes general (including shortcuts), privacy (including access) and data settings.
 - `Settings.removeRetiredPreferences` deletes only named obsolete preferences on upgrade; database schemas are unchanged.
 
 ## Release boundary
 
-Only `v3.0.1` is supported publicly. Its immutable GitHub release contains both
+Only `v3.0.2` is supported publicly. Its immutable GitHub release contains both
 the signed, notarized DMG and ZIP; `docs/version.json` records their URLs,
 SHA-256 digests and sizes. The release tag points to the exact source commit in
 `main`. Verify downloaded bytes before changing either public link.

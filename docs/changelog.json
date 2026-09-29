@@ -1,9 +1,22 @@
 {
   "versions": [
     {
+      "version": "3.0.2",
+      "build": 57,
+      "status": "released",
+      "date": "2026-09-29",
+      "changes": [
+        "Simplify settings to three destinations with preserved choices and visible shortcut hints.",
+        "Fix plain-text file paste, settings return navigation, and clarify backup replacement.",
+        "Remove redundant storage aggregation, dead helpers and unchanged application-menu rebuilds.",
+        "291 XCTest (10 expected skips) plus 4 Swift Testing pass in strict debug/release, ASan and TSan.",
+        "Required CI, CodeQL, secret scans, signing, notarization, stapling, Gatekeeper and independent public downloads passed."
+      ]
+    },
+    {
       "version": "3.0.1",
       "build": 56,
-      "status": "released",
+      "status": "superseded",
       "date": "2026-09-27",
       "changes": [
         "Serialize sequential paste with per-attempt ownership; reject obsolete completions after reset or expiry.",
@@ -210,17 +223,6 @@
         "Remove automatic Apple Vision OCR from clipboard image capture",
         "Retire the unused recognition queue and OCR-only APIs while preserving existing images and legacy metadata",
         "276 XCTest, strict Swift 6, ASan, TSan and the signed public-artifact release gate passed"
-      ]
-    },
-    {
-      "version": "3.0.2",
-      "build": 57,
-      "status": "candidate",
-      "date": "2026-09-29",
-      "changes": [
-        "Simplify settings to three destinations with preserved choices and visible shortcut hints.",
-        "Fix plain-text file paste, settings return navigation, and clarify backup replacement.",
-        "Remove redundant storage aggregation, dead helpers and unchanged application-menu rebuilds."
       ]
     }
   ]

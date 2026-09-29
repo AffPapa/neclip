@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.2 / build 57 — source candidate
+## 3.0.2 / build 57 — released 2026-09-29
 
 - Settings now have three destinations: General, Privacy and Data. Shortcuts and menu appearance use expandable groups; exact history limit has one editor.
 - Keep active shortcut hints, automatic cleanup notices and permission recovery visible. All stored preferences remain supported.

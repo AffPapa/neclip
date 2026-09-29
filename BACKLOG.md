@@ -2,9 +2,9 @@
 
 NeClip remains a small local macOS utility for clipboard history and snippet folders.
 
-## Current public release — 3.0.1 / build 56
+## Current public release — 3.0.2 / build 57
 
-Released 27 September 2026 after required Swift CI, CodeQL and secret scan; Developer ID signing, Apple notarization, stapling, Gatekeeper, mounted-DMG and independent public-download checks passed. Download the [NeClip 3.0.1 DMG](https://github.com/AffPapa/neclip/releases/download/v3.0.1/NeClip-3.0.1.dmg) or [ZIP archive](https://github.com/AffPapa/neclip/releases/download/v3.0.1/NeClip-3.0.1.zip). See [release evidence](docs/RELEASE-3.0.1-STATUS.md).
+Released 29 September 2026 after required Swift CI, CodeQL and secret scan; Developer ID signing, Apple notarization, stapling, Gatekeeper, mounted-DMG and independent public-download checks passed. Download the [NeClip 3.0.2 DMG](https://github.com/AffPapa/neclip/releases/download/v3.0.2/NeClip-3.0.2.dmg) or [ZIP archive](https://github.com/AffPapa/neclip/releases/download/v3.0.2/NeClip-3.0.2.zip). See [release evidence](docs/RELEASE-3.0.2-STATUS.md).
 
 
 ## Current scope
