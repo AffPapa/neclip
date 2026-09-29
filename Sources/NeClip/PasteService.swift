@@ -70,22 +70,22 @@ enum PasteService {
         plainText: Bool,
         targetPID: pid_t?,
         copyOnly: Bool = false,
+        pasteboard: NSPasteboard = .general,
         completion: Completion? = nil
     ) {
-        let pasteboard = NSPasteboard.general
         let originalGeneration = pasteboard.changeCount
         guard let savedItems = snapshotPasteboard(pasteboard),
               pasteboard.changeCount == originalGeneration else {
             finish(.failed(.clipboardSnapshot), completion: completion)
             return
         }
-        let writeResult = write(item, plainText: plainText)
+        let writeResult = write(item, plainText: plainText, pasteboard: pasteboard)
         guard writeResult.succeeded else {
-            restorePasteboard(savedItems, ifGenerationIs: writeResult.generation)
+            restorePasteboard(savedItems, ifGenerationIs: writeResult.generation, pasteboard: pasteboard)
             finish(.failed(.clipboardWrite), completion: completion)
             return
         }
-        completePaste(copyOnly: copyOnly, targetPID: targetPID, expectedGeneration: writeResult.generation, completion: completion)
+        completePaste(copyOnly: copyOnly, targetPID: targetPID, expectedGeneration: writeResult.generation, pasteboard: pasteboard, completion: completion)
     }
 
     static func paste(
@@ -156,8 +156,7 @@ enum PasteService {
         }
     }
 
-    private static func write(_ item: ClipItem, plainText: Bool) -> WriteResult {
-        let pb = NSPasteboard.general
+    private static func write(_ item: ClipItem, plainText: Bool, pasteboard pb: NSPasteboard) -> WriteResult {
         pb.clearContents()
 
         let success: Bool
@@ -175,9 +174,10 @@ enum PasteService {
             }
         case .file:
             let urls = FileClipboardCodec.decode(item.text ?? "")
-            success = !urls.isEmpty && pb.writeObjects(urls as [NSURL])
-            if success, plainText {
-                _ = pb.setString(item.text ?? "", forType: .string)
+            if plainText {
+                success = !urls.isEmpty && pb.setString(urls.map(\.path).joined(separator: "\n"), forType: .string)
+            } else {
+                success = !urls.isEmpty && pb.writeObjects(urls as [NSURL])
             }
         }
 

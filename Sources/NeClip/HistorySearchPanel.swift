@@ -315,6 +315,9 @@ final class HistorySearchPanelController: NSObject, NSWindowDelegate, NSTableVie
             let apps = (try? storage.clipAppBundleIDs()) ?? []
             DispatchQueue.main.async {
                 guard let self, requestGate.isCurrent(generation) else { return }
+                // Preserve selection and AppKit items while only the query changes.
+                let currentApps = self.appPopup.itemArray.dropFirst().compactMap { $0.representedObject as? String }
+                if self.appPopup.numberOfItems > 0, currentApps == apps { return }
                 let selected = self.appPopup.selectedItem?.representedObject as? String
                 self.appPopup.removeAllItems()
                 self.appPopup.addItem(withTitle: "Все приложения")

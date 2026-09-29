@@ -779,7 +779,7 @@ private struct SnippetsEditorView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Буфер для preview")
+                        Text("Текст для предпросмотра")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         TextField("необязательно", text: $model.previewClipboard)

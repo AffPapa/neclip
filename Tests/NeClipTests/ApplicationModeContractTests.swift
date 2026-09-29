@@ -176,7 +176,7 @@ final class ApplicationModeContractTests: XCTestCase {
         XCTAssertTrue(preferences.contains("DisclosureGroup(isExpanded: $historyAdvancedExpanded)"))
         XCTAssertTrue(preferences.contains(".onTapGesture { historyAdvancedExpanded.toggle() }"))
         XCTAssertTrue(preferences.contains("Дополнительно · автоочистка включена"))
-        XCTAssertTrue(preferences.contains("DisclosureGroup(\"Работа в меню\")"))
+        XCTAssertTrue(preferences.contains("disclosureLabel(\"Как пользоваться\""))
         XCTAssertFalse(statusBar.contains("searchWorkItem"))
         XCTAssertTrue(preferences.contains("Очищать историю при выходе"))
         XCTAssertTrue(preferences.contains("Установлена: "))
@@ -199,7 +199,7 @@ final class ApplicationModeContractTests: XCTestCase {
             contentsOf: repositoryRoot.appendingPathComponent("Sources/NeClip/Storage.swift"),
             encoding: .utf8
         )
-        XCTAssertTrue(storage.contains("AS unpinnedCount"))
+        XCTAssertTrue(storage.contains("SELECT COUNT(*) FROM clip WHERE isPinned = 0"))
         XCTAssertTrue(storage.contains("if unpinnedCount > limit"))
     }
 

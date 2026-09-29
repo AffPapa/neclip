@@ -18,14 +18,15 @@ final class PreferencesNavigationTests: XCTestCase {
             let controller = PreferencesWindowController()
             let toolbar = NSToolbar(identifier: "test")
             let identifiers = controller.toolbarDefaultItemIdentifiers(toolbar)
-            XCTAssertEqual(identifiers.count, 5)
-            XCTAssertEqual(Set(identifiers).count, 5)
+            XCTAssertEqual(identifiers.count, 3)
+            XCTAssertEqual(Set(identifiers).count, 3)
             XCTAssertEqual(identifiers, PreferencesSection.visibleSections.map(\.identifier))
             XCTAssertFalse(identifiers.contains(PreferencesSection.version.identifier))
             XCTAssertNil(PreferencesSection(rawValue: "layout"))
             XCTAssertTrue(identifiers.contains(PreferencesSection.privacy.identifier))
             XCTAssertTrue(identifiers.contains(PreferencesSection.data.identifier))
-            XCTAssertTrue(identifiers.contains(PreferencesSection.safety.identifier))
+            XCTAssertFalse(identifiers.contains(PreferencesSection.safety.identifier))
+            XCTAssertFalse(identifiers.contains(PreferencesSection.shortcuts.identifier))
             XCTAssertEqual(controller.toolbarSelectableItemIdentifiers(toolbar), identifiers)
             for section in PreferencesSection.allCases {
                 XCTAssertEqual(section.windowTitle, "\(RuntimeIdentity.displayName) — \(section.title)")
@@ -39,6 +40,23 @@ final class PreferencesNavigationTests: XCTestCase {
             XCTAssertNil(controller.toolbar(toolbar, itemForItemIdentifier: .init("unknown"),
                                             willBeInsertedIntoToolbar: true))
         }
+    }
+
+    @MainActor
+    func testSettingsReturnToVisibleDestinationAndShortcutDeepLinkAlwaysExpands() {
+        let navigation = PreferencesNavigation()
+        navigation.select(.data)
+        navigation.select(.version)
+        navigation.openSettings()
+        XCTAssertEqual(navigation.selected, .data)
+        navigation.select(.safety)
+        XCTAssertEqual(navigation.selected, .privacy)
+        navigation.select(.shortcuts)
+        XCTAssertEqual(navigation.selected, .general)
+        XCTAssertTrue(navigation.shortcutsExpanded)
+        navigation.shortcutsExpanded = false
+        navigation.select(.shortcuts)
+        XCTAssertTrue(navigation.shortcutsExpanded)
     }
 
     func testDraftCommitPrecedesSectionChangeAndClose() async {

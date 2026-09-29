@@ -879,20 +879,6 @@ final class Storage: @unchecked Sendable {
         try dbQueue.read { db in try ClipItem.fetchOne(db, key: id) }
     }
 
-    /// Compatibility exit for old pins. Never reads payloads or runs retention.
-    @discardableResult
-    func unpinLegacyClip(id: Int64) throws -> Bool {
-        let changed = try dbQueue.write { db in
-            try db.execute(
-                sql: "UPDATE clip SET isPinned = 0, pinnedAt = NULL WHERE id = ? AND isPinned = 1",
-                arguments: [id]
-            )
-            return db.changesCount > 0
-        }
-        if changed { notifyChange(.clips) }
-        return changed
-    }
-
     func setPinned(id: Int64, pinned: Bool) throws {
         try dbQueue.write { db in
             if pinned, let row = try Row.fetchOne(
@@ -1886,16 +1872,7 @@ final class Storage: @unchecked Sendable {
         // Most captures are already within the configured limit. Avoid the
         // ordered OFFSET delete (and its temp sort) in that hot path; the
         // indexed count is substantially cheaper and keeps writes snappy.
-        let trimStats = try Row.fetchOne(
-            db,
-            sql: """
-                SELECT
-                    (SELECT COUNT(*) FROM clip WHERE isPinned = 0) AS unpinnedCount,
-                    COALESCE(SUM(contentBytes), 0) AS totalBytes
-                FROM clip
-                """
-        )
-        let unpinnedCount: Int = trimStats?["unpinnedCount"] ?? 0
+        let unpinnedCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM clip WHERE isPinned = 0") ?? 0
         if unpinnedCount > limit {
             try db.execute(
                 sql: """
@@ -1911,10 +1888,8 @@ final class Storage: @unchecked Sendable {
             )
         }
 
-        // The count trim above may have removed a large payload. Re-read the
-        // byte total before calculating the quota excess; using the initial
-        // snapshot would evict an additional, unnecessary prefix of recent
-        // history after a count-based deletion.
+        // Count trimming may remove a large payload. Calculate the byte total
+        // afterward so quota trimming never evicts an unnecessary second prefix.
         let total: Int64 = try Int64.fetchOne(
             db,
             sql: "SELECT COALESCE(SUM(contentBytes), 0) FROM clip"
@@ -1993,10 +1968,6 @@ final class Storage: @unchecked Sendable {
             createdAt: row["createdAt"],
             isPinned: row["isPinned"]
         )
-    }
-
-    private static func item(from row: Row) -> ClipItem? {
-        try? ClipItem(row: row)
     }
 
     private static func payloadBytes(_ item: ClipItem) -> Int64 {

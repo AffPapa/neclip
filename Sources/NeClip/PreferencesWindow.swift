@@ -12,6 +12,7 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
 
     func show(section: PreferencesSection? = nil) {
         if let section { navigation.select(section) }
+        else { navigation.openSettings() }
         if window == nil {
             let hosting = NSHostingController(rootView: PreferencesView(
                 navigation: navigation,
@@ -103,11 +104,18 @@ final class PreferencesWindowController: NSObject, NSWindowDelegate, NSToolbarDe
 enum PreferencesSection: String, CaseIterable {
     case general, shortcuts, safety, privacy, data, version
 
-    /// Keep each operational concern in its own destination. Version remains
-    /// opened from About rather than competing with settings.
+    /// Three everyday destinations; legacy entry points resolve into them.
     static let visibleSections: [PreferencesSection] = [
-        .general, .shortcuts, .privacy, .data, .safety
+        .general, .privacy, .data
     ]
+
+    var destination: PreferencesSection {
+        switch self {
+        case .shortcuts: .general
+        case .safety: .privacy
+        default: self
+        }
+    }
 
     var identifier: NSToolbarItem.Identifier { .init(rawValue) }
     var windowTitle: String { "\(RuntimeIdentity.displayName) — \(title)" }
@@ -136,11 +144,17 @@ enum PreferencesSection: String, CaseIterable {
 @MainActor
 final class PreferencesNavigation: ObservableObject {
     @Published private(set) var selected = PreferencesSection.general
+    @Published var shortcutsExpanded = false
+    private var lastSettingsSection = PreferencesSection.general
     let commitEdits = PassthroughSubject<Void, Never>()
+
+    func openSettings() { select(lastSettingsSection) }
 
     func select(_ section: PreferencesSection) {
         commitEdits.send()
-        selected = section
+        if section == .shortcuts { shortcutsExpanded = true }
+        selected = section.destination
+        if PreferencesSection.visibleSections.contains(selected) { lastSettingsSection = selected }
     }
 }
 
@@ -281,6 +295,9 @@ private struct PreferencesView: View {
     @State private var captureImages = Settings.captureImages
     @State private var retentionDays = Settings.retentionDays
     @State private var historyAdvancedExpanded = false
+    @State private var menuExpanded = false
+    @State private var usageExpanded = false
+    @State private var rulesExpanded = false
     @State private var sensitiveRulesText = Settings.sensitiveContentRules.joined(separator: "\n")
     @State private var preferPlainText = Settings.preferPlainText
     @State private var loginItemStatus = SMAppService.mainApp.status
@@ -390,8 +407,8 @@ private struct PreferencesView: View {
     private var selectedTabContent: some View {
         switch navigation.selected {
         case .general: generalTab
-        case .shortcuts: shortcutsTab
-        case .safety: safetyTab
+        case .shortcuts: generalTab
+        case .safety: privacyTab
         case .privacy: privacyTab
         case .data: dataTab
         case .version: VersionPreferencesView()
@@ -401,30 +418,21 @@ private struct PreferencesView: View {
     private var generalTab: some View {
         Form {
             Section("История") {
-                Picker("Хранить", selection: historyPresetBinding) {
-                    Text("50 элементов").tag(50)
-                    Text("100 элементов").tag(100)
-                    Text("250 элементов").tag(250)
-                    Text("500 элементов").tag(500)
-                    if ![50, 100, 250, 500].contains(historyLimit) {
-                        Text("\(historyLimit) элементов").tag(historyLimit)
-                    }
-                }
-                Text("Сниппеты не удаляются. Если нужен точный лимит, откройте дополнительные параметры.")
+                NumericPreferenceRow(
+                    "Лимит истории",
+                    value: $historyLimit,
+                    range: 10...1_000,
+                    step: 10,
+                    unit: "записей",
+                    accessibilityLabel: "Количество элементов истории",
+                    onCommit: applyHistoryLimit
+                )
+                Text("При уменьшении лимита старые незакреплённые записи удаляются. Сниппеты и прежние закрепления остаются.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Toggle("Сохранять изображения", isOn: $captureImages)
+                Toggle("Сохранять изображения из буфера", isOn: $captureImages)
                     .onChange(of: captureImages) { _, value in Settings.captureImages = value }
                 DisclosureGroup(isExpanded: $historyAdvancedExpanded) {
-                    NumericPreferenceRow(
-                        "Лимит истории",
-                        value: $historyLimit,
-                        range: 10...1_000,
-                        step: 10,
-                        unit: "элементов",
-                        accessibilityLabel: "Количество элементов истории",
-                        onCommit: applyHistoryLimit
-                    )
                     Picker("Срок хранения", selection: $retentionDays) {
                         Text("Без ограничения по сроку").tag(0)
                         Text("1 день").tag(1)
@@ -467,33 +475,49 @@ private struct PreferencesView: View {
                 }
             }
 
-            Section("Меню и вставка") {
-                NumericPreferenceRow(
-                    "Последние в первом списке",
-                    value: $recentHistoryMenuLimit,
-                    range: Settings.recentHistoryMenuLimitRange,
-                    step: 10,
-                    unit: "буферов",
-                    accessibilityLabel: "Количество буферов в первом списке",
-                    onCommit: applyRecentHistoryMenuLimit
-                )
-                Text("Остальные попадут в «Ещё из истории». Это не меняет общий лимит хранения и ничего не удаляет.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                NumericPreferenceRow(
-                    "Длина строки в меню",
-                    value: $menuTitleLength,
-                    range: MenuTitleFormatter.validLengthRange,
-                    step: 1,
-                    unit: "символов",
-                    accessibilityLabel: "Количество символов в строке меню",
-                    onCommit: applyMenuTitleLength
-                )
-                Text("Длинные строки заканчиваются многоточием. Полный текст сохраняется.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Toggle("По умолчанию вставлять без форматирования", isOn: $preferPlainText)
+            Section("Вставка и клавиши") {
+                Toggle("Вставлять без форматирования", isOn: $preferPlainText)
                     .onChange(of: preferPlainText) { _, value in Settings.preferPlainText = value }
+                    .help("Текст вставляется без стилей, файлы — как пути. Изображения остаются изображениями.")
+                DisclosureGroup(isExpanded: $navigation.shortcutsExpanded) {
+                    shortcutControls
+                } label: {
+                    disclosureLabel("Быстрые клавиши", expanded: $navigation.shortcutsExpanded)
+                }
+                Text("История: \(historyShortcut.displayString) · Сниппеты: \(snippetsShortcut.displayString)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                DisclosureGroup(isExpanded: $menuExpanded) {
+                    NumericPreferenceRow(
+                        "Последние в первом списке",
+                        value: $recentHistoryMenuLimit,
+                        range: Settings.recentHistoryMenuLimitRange,
+                        step: 10,
+                        unit: "записей",
+                        accessibilityLabel: "Количество записей в первом списке",
+                        onCommit: applyRecentHistoryMenuLimit
+                    )
+                    Text("Остальные попадут в «Ещё из истории». Это не меняет общий лимит хранения и ничего не удаляет.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    NumericPreferenceRow(
+                        "Длина строки в меню",
+                        value: $menuTitleLength,
+                        range: MenuTitleFormatter.validLengthRange,
+                        step: 1,
+                        unit: "символов",
+                        accessibilityLabel: "Количество символов в строке меню",
+                        onCommit: applyMenuTitleLength
+                    )
+                    Text("Длинные строки заканчиваются многоточием. Полный текст сохраняется.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    disclosureLabel("Вид меню", expanded: $menuExpanded)
+                }
             }
 
             Section("Запуск") {
@@ -517,98 +541,81 @@ private struct PreferencesView: View {
         .formStyle(.grouped)
     }
 
-    private var shortcutsTab: some View {
-        Form {
-            Section("Открытие и вставка") {
-                shortcutRow(
-                    "Открыть историю",
-                    action: .history,
-                    shortcut: historyShortcut,
-                    accessibilityLabel: "Сочетание для открытия истории",
-                    onCandidate: { applyShortcut(.history, candidate: $0) }
-                )
-                shortcutRow(
-                    "Открыть папки сниппетов",
-                    action: .snippets,
-                    shortcut: snippetsShortcut,
-                    accessibilityLabel: "Сочетание для открытия папок сниппетов",
-                    onCandidate: { applyShortcut(.snippets, candidate: $0) }
-                )
-                shortcutRow(
-                    "Вставить следующий элемент",
-                    action: .sequentialPaste,
-                    shortcut: sequentialPasteShortcut,
-                    accessibilityLabel: "Сочетание для последовательной вставки",
-                    onCandidate: { applyShortcut(.sequentialPaste, candidate: $0) }
-                )
-            }
-
-            Section {
-                DisclosureGroup("Работа в меню") {
-                    Text("При выборе мышью: ⌘ — только скопировать. Для истории: ⇧ — вставить без форматирования.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Button("Вернуть стандартные сочетания") { resetAllShortcuts() }
-                Text("Нажмите сочетание в рамке и введите новое. Escape отменяет. NeClip не применит занятое сочетание и сохранит предыдущее.")
+    private var shortcutControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            shortcutRow(
+                "Открыть историю",
+                shortcut: historyShortcut,
+                accessibilityLabel: "Сочетание для открытия истории",
+                onCandidate: { applyShortcut(.history, candidate: $0) }
+            )
+            shortcutRow(
+                "Открыть папки сниппетов",
+                shortcut: snippetsShortcut,
+                accessibilityLabel: "Сочетание для открытия папок сниппетов",
+                onCandidate: { applyShortcut(.snippets, candidate: $0) }
+            )
+            shortcutRow(
+                "Вставить следующий элемент",
+                shortcut: sequentialPasteShortcut,
+                accessibilityLabel: "Сочетание для последовательной вставки",
+                onCandidate: { applyShortcut(.sequentialPaste, candidate: $0) }
+            )
+            DisclosureGroup(isExpanded: $usageExpanded) {
+                Text("В меню: ↑ и ↓ — выбрать запись, → — открыть её действия. ⌘ при выборе мышью — только скопировать, ⇧ для истории — вставить без форматирования.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Text("Последовательная вставка идёт по последним 50 элементам истории и автоматически сбрасывается через 30 секунд.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } label: {
+                disclosureLabel("Как пользоваться", expanded: $usageExpanded)
             }
+            Button("Вернуть стандартные сочетания") { resetAllShortcuts() }
+                .help("Восстановить сразу все три сочетания, даже если они поменяны местами.")
+            Text("Нажмите сочетание в рамке и введите новое. Escape отменяет. NeClip не применит занятое сочетание и сохранит предыдущее.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .formStyle(.grouped)
     }
 
-    /// macOS permissions live here. Recording/privacy and
-    /// local data each have their own settings destination below.
-    private var safetyTab: some View {
-        Form {
-            Section("Разрешения macOS") {
-                HStack(alignment: .top) {
-                    Image(systemName: clipboardPermissionSymbol)
-                        .foregroundStyle(clipboardPermissionColor)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(clipboardAccessTitle)
-                        Text(clipboardAccessDetail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer()
-                    if clipboardAccess == .denied || clipboardAccess == .needsChoice {
-                        Button("Настройки macOS…") { ClipboardAccess.openPrivacySettings() }
-                    }
-                }
-                HStack {
-                    Image(systemName: axTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                        .foregroundStyle(axTrusted ? .green : .orange)
-                    Text(axTrusted ? "Автовставка разрешена" : "Автовставка выключена")
-                    Spacer()
-                    if !axTrusted {
-                        Button("Разрешить вставку…") { PasteService.requestAccessibility() }
-                    }
-                }
-                if !axTrusted {
-                    Text("Без Универсального доступа NeClip копирует выбранное, но не вставляет сам. В списке macOS включите NeClip — кнопка + не нужна.")
+    private var permissionSection: some View {
+        Section("Разрешения macOS") {
+            HStack(alignment: .top) {
+                Image(systemName: clipboardPermissionSymbol)
+                    .foregroundStyle(clipboardPermissionColor)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(clipboardAccessTitle)
+                    Text(clipboardAccessDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                if clipboardAccess == .denied || clipboardAccess == .needsChoice {
+                    Button("Настройки macOS…") { ClipboardAccess.openPrivacySettings() }
                 }
             }
-
-            Section("Как используются доступы") {
-                Text("Буфер обмена нужен для локальной истории. Универсальный доступ — только для автовставки выбранной записи или сниппета. Без него можно скопировать выбранное и вставить вручную.")
+            HStack {
+                Image(systemName: axTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
+                    .foregroundStyle(axTrusted ? .green : .orange)
+                Text(axTrusted ? "Автовставка разрешена" : "Автовставка выключена")
+                Spacer()
+                if !axTrusted {
+                    Button("Разрешить вставку…") { PasteService.requestAccessibility() }
+                }
+            }
+            if !axTrusted {
+                Text("Без Универсального доступа NeClip копирует выбранное, но не вставляет сам. В списке macOS включите NeClip — кнопка + не нужна.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .formStyle(.grouped)
-        .disabled(dataOperationRunning)
     }
 
     private var privacyTab: some View {
         Form {
+            permissionSection
             Section("Запись истории") {
                 HStack {
                     let status = CaptureStatusPresentation(paused: capturePaused, access: clipboardAccess)
@@ -625,9 +632,10 @@ private struct PreferencesView: View {
                         capturePaused = Settings.isCapturePaused
                     }
                 }
-                DisclosureGroup("Не сохранять текст с указанными фразами") {
+                DisclosureGroup(isExpanded: $rulesExpanded) {
                     let rules = SensitiveRulesPresentation(text: sensitiveRulesText)
                     TextEditor(text: $sensitiveRulesText)
+                        .accessibilityLabel("Фразы, которые не сохраняются в истории")
                         .font(.system(.body, design: .monospaced))
                         .frame(height: 76)
                         .onChange(of: sensitiveRulesText) { _, value in
@@ -642,6 +650,8 @@ private struct PreferencesView: View {
                             .foregroundStyle(.orange)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                } label: {
+                    disclosureLabel("Не сохранять текст с фразами · \(Settings.sensitiveContentRules.count)", expanded: $rulesExpanded)
                 }
             }
 
@@ -683,7 +693,7 @@ private struct PreferencesView: View {
                     Button("Создать резервную копию…", action: createDatabaseBackup)
                     Button("Восстановить из копии…", action: restoreDatabaseBackup)
                 }
-                Text("Копия содержит локальную историю, изображения, RTF и сниппеты. Файл создаётся с правами только для вашего пользователя; перед восстановлением текущая база сохраняется отдельно.")
+                Text("Копия содержит историю и сниппеты. Восстановление заменяет текущие данные; перед ним NeClip сохраняет предыдущую базу отдельно. Настройки не переносятся.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 StorageStatisticsView()
@@ -707,17 +717,16 @@ private struct PreferencesView: View {
         .disabled(dataOperationRunning)
     }
 
-    private var historyPresetBinding: Binding<Int> {
-        Binding(
-            get: { historyLimit },
-            set: { applyHistoryLimit($0) }
-        )
+    private func disclosureLabel(_ title: String, expanded: Binding<Bool>) -> some View {
+        Text(title)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { expanded.wrappedValue.toggle() }
     }
 
     @ViewBuilder
     private func shortcutRow(
         _ title: String,
-        action: NeClipShortcutAction,
         shortcut: ShortcutDescriptor,
         accessibilityLabel: String,
         onCandidate: @escaping @MainActor (ShortcutDescriptor) -> Void
@@ -729,15 +738,6 @@ private struct PreferencesView: View {
                 onCandidate: onCandidate
             )
             .frame(width: 126, height: 28)
-            Button {
-                applyShortcut(action, candidate: action.defaultShortcut)
-            } label: {
-                Image(systemName: "arrow.counterclockwise")
-            }
-            .buttonStyle(.borderless)
-            .disabled(shortcut == action.defaultShortcut)
-            .help("Вернуть \(action.defaultShortcut.displayString)")
-            .accessibilityLabel("Вернуть стандартное сочетание: \(title.lowercased())")
         }
     }
 
@@ -820,7 +820,7 @@ private struct PreferencesView: View {
         )
         recentHistoryMenuLimit = normalized
         Settings.recentHistoryMenuLimit = normalized
-        feedback = "В первом списке будет показано до \(normalized) буферов"
+        feedback = "В первом списке будет показано до \(normalized) записей"
     }
 
     private func trimHistoryToLimits() {
@@ -929,9 +929,9 @@ private struct PreferencesView: View {
         runDataOperation(requiresCaptureBarrier: true) {
             do {
                 let manifest = try Storage.shared.createDatabaseBackup(to: url)
-                return "Backup создан: \(manifest.clipCount) элементов истории, \(manifest.snippetCount) сниппетов"
+                return "Резервная копия создана: \(manifest.clipCount) элементов истории, \(manifest.snippetCount) сниппетов"
             } catch {
-                return "Не удалось создать backup: \(error.localizedDescription)"
+                return "Не удалось создать резервную копию: \(error.localizedDescription)"
             }
         }
     }
@@ -941,12 +941,19 @@ private struct PreferencesView: View {
         panel.allowedContentTypes = [.data]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        let confirmation = NSAlert()
+        confirmation.alertStyle = .warning
+        confirmation.messageText = "Заменить историю и сниппеты?"
+        confirmation.informativeText = "Будут восстановлены данные из «\(url.lastPathComponent)». Текущая база будет сохранена отдельно для возврата. Настройки останутся прежними."
+        confirmation.addButton(withTitle: "Восстановить")
+        confirmation.addButton(withTitle: "Отмена").keyEquivalent = "\u{1b}"
+        guard confirmation.runModal() == .alertFirstButtonReturn else { return }
         runDataOperation(requiresCaptureBarrier: true) {
             do {
                 let manifest = try Storage.shared.restoreDatabaseBackup(from: url)
-                return "Backup восстановлен: \(manifest.clipCount) элементов истории, \(manifest.snippetCount) сниппетов"
+                return "Резервная копия восстановлена: \(manifest.clipCount) элементов истории, \(manifest.snippetCount) сниппетов"
             } catch {
-                return "Backup отклонён: \(error.localizedDescription)"
+                return "Резервная копия отклонена: \(error.localizedDescription)"
             }
         }
     }
@@ -1056,7 +1063,7 @@ private struct StorageStatisticsView: View {
                 guard !Task.isCancelled else { return }
                 switch result {
                 case .success(let counts):
-                    label = "Сейчас: \(counts.history) элементов истории · \(counts.snippets) сниппетов"
+                    label = "История: \(counts.history) · Сниппеты: \(counts.snippets)"
                 case .failure:
                     label = "Не удалось подсчитать элементы"
                 }
